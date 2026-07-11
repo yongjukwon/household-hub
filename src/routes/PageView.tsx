@@ -16,7 +16,14 @@ export default function PageView() {
   if (isPending) return null
   if (isError || !page) return <PageNotFound />
 
-  if (page.template === 'blank') return <NotesPageView page={page} />
+  // key={page.id} forces a remount when pageId changes on this shared
+  // route: with the target page already cached, usePage never flips
+  // isPending, nothing unmounts, and RichTextEditor's initial-value-only
+  // useEditor would otherwise keep the previous page's document under the
+  // new page's title.
+  if (page.template === 'blank') {
+    return <NotesPageView key={page.id} page={page} />
+  }
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 md:px-8 md:py-10">
