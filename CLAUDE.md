@@ -25,4 +25,4 @@ Vite + React 19 + TypeScript, npm, Tailwind CSS v4 (`@tailwindcss/vite`, CSS-fir
 
 ## Deploy
 
-Vercel, framework preset "Vite", build `npm run build`, output `dist`. `vercel.json` SPA rewrite required (see plan's Deployment section). Env vars set in the Vercel dashboard, not committed. When the hosted Supabase project is created, disable signups in its dashboard (Authentication → Sign In / Up) to match the local `enable_signup = false` config — this is an invite-only app.
+Vercel, framework preset "Vite", build `npm run build`, output `dist`. `vercel.json` SPA rewrite required (see plan's Deployment section). Env vars set in the Vercel dashboard, not committed. When the hosted Supabase project is created, disable signups in its dashboard (Authentication → Sign In / Up) — this is an invite-only app. Note: the local dev stack's `supabase/config.toml` keeps `enable_signup = true` deliberately (see the comment there) because this CLI version conflates disabling signup with disabling email/password login entirely; the hosted dashboard's toggle doesn't have that bug, so it's the only place this should actually be turned off.
