@@ -17,7 +17,7 @@ Vite + React 19 + TypeScript, npm, Tailwind CSS v4 (`@tailwindcss/vite`, CSS-fir
 
 ## Conventions
 
-- Migrations live in `supabase/migrations/`, numbered `NNNN_description.sql`, one per build phase (see plan's Build Phases table).
+- Migrations live in `supabase/migrations/`, named with the Supabase CLI's timestamp style (`YYYYMMDDHHMMSS_description.sql`, e.g. `20260711001811_core.sql`), one per build phase (see plan's Build Phases table).
 - Every tenant-scoped table gets a denormalized `household_id` + RLS policy — see the `supabase-rls-tenant-scoping` skill for the exact pattern, don't reinvent it per table.
 - Realtime subscriptions and offline writes follow the `supabase-realtime-query-sync` and `offline-mutation-outbox` skills respectively — same reasoning: don't hand-roll a variant per feature.
 - No signup UI — invite-only, both accounts provisioned via a one-off seed script using the service-role key (see plan Phase 0).
@@ -25,4 +25,4 @@ Vite + React 19 + TypeScript, npm, Tailwind CSS v4 (`@tailwindcss/vite`, CSS-fir
 
 ## Deploy
 
-Vercel, framework preset "Vite", build `npm run build`, output `dist`. `vercel.json` SPA rewrite required (see plan's Deployment section). Env vars set in the Vercel dashboard, not committed.
+Vercel, framework preset "Vite", build `npm run build`, output `dist`. `vercel.json` SPA rewrite required (see plan's Deployment section). Env vars set in the Vercel dashboard, not committed. When the hosted Supabase project is created, disable signups in its dashboard (Authentication → Sign In / Up) to match the local `enable_signup = false` config — this is an invite-only app.

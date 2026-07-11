@@ -21,6 +21,9 @@ interface HouseholdMemberRow {
   households: { id: string; name: string } | null
 }
 
+// Assumes one household per user: reads members via the signed-in user's
+// own membership rows and takes the household from the first one (data[0]).
+// If a user ever belongs to more than one household, this only surfaces one.
 export function useHousehold() {
   const { user } = useAuth()
 

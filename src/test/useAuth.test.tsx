@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from '@/components/auth/AuthProvider'
 import { useAuth } from '@/hooks/useAuth'
@@ -20,7 +21,12 @@ const fakeSession = {
 } as unknown as import('@supabase/supabase-js').Session
 
 function wrapper({ children }: { children: React.ReactNode }) {
-  return <AuthProvider>{children}</AuthProvider>
+  const queryClient = new QueryClient()
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>{children}</AuthProvider>
+    </QueryClientProvider>
+  )
 }
 
 describe('useAuth', () => {

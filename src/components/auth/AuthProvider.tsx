@@ -1,11 +1,13 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
+import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { AuthContext, type AuthContextValue } from '@/hooks/useAuth'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
 
   useEffect(() => {
     let mounted = true
@@ -18,16 +20,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession)
       setLoading(false)
+      // Prevent the next signed-in user (on the same device) from briefly
+      // seeing the previous user's cached query data before it refetches.
+      if (event === 'SIGNED_OUT') {
+        queryClient.clear()
+      }
     })
 
     return () => {
       mounted = false
       subscription.unsubscribe()
     }
-  }, [])
+  }, [queryClient])
 
   async function signIn(email: string, password: string) {
     const { error } = await supabase.auth.signInWithPassword({

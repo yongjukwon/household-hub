@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from '@/components/auth/AuthProvider'
@@ -14,15 +15,18 @@ vi.mock('@/lib/supabase', async () => {
 })
 
 function renderLoginForm() {
+  const queryClient = new QueryClient()
   return render(
-    <MemoryRouter initialEntries={['/login']}>
-      <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<LoginForm />} />
-          <Route path="/" element={<div>Home Page</div>} />
-        </Routes>
-      </AuthProvider>
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/login']}>
+        <AuthProvider>
+          <Routes>
+            <Route path="/login" element={<LoginForm />} />
+            <Route path="/" element={<div>Home Page</div>} />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
   )
 }
 

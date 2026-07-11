@@ -6,7 +6,7 @@
  * you're targeting (local or hosted); it never reads .env.local.
  *
  * Usage:
- *   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npx tsx scripts/seed-household.ts \
+ *   SUPABASE_URL=http://127.0.0.1:55321 SUPABASE_SERVICE_ROLE_KEY=... npx tsx scripts/seed-household.ts \
  *     --name "The Smiths" \
  *     --member "alice@example.com:s3cret1:Alice" \
  *     --member "bob@example.com:s3cret2:Bob"
@@ -76,7 +76,7 @@ async function main() {
         '  These must be set explicitly on the command line (this script does NOT read .env.local,\n' +
         '  and does NOT use the VITE_ prefixed vars — those are anon-scoped for the frontend).\n' +
         '  Example:\n' +
-        '    SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SERVICE_ROLE_KEY=<service_role key from `supabase status`> \\\n' +
+        '    SUPABASE_URL=http://127.0.0.1:55321 SUPABASE_SERVICE_ROLE_KEY=<service_role key from `supabase status`> \\\n' +
         '      npx tsx scripts/seed-household.ts --name "The Smiths" \\\n' +
         '      --member "alice@example.com:s3cret1:Alice" --member "bob@example.com:s3cret2:Bob"',
     )

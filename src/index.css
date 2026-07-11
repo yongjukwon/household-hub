@@ -1,7 +1,6 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
-@import '@fontsource-variable/geist';
 
 /*
  * Theme state lives on the <html> data-theme attribute (no .dark class):
@@ -71,6 +70,9 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+/* Keep in sync with the [data-theme='dark'] block below — same token values,
+   duplicated because this one applies via prefers-color-scheme (OS "auto"
+   mode) while that one applies via the explicit data-theme override. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     --canvas: #0e0e0d;
@@ -122,6 +124,9 @@
   }
 }
 
+/* Keep in sync with the @media (prefers-color-scheme: dark) block above —
+   same token values, duplicated because that one applies via OS "auto" mode
+   while this one applies via the explicit data-theme override. */
 [data-theme='dark'] {
   --canvas: #0e0e0d;
   --winbg: #1d1c1a;
@@ -183,7 +188,9 @@ body {
 
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: 'Geist Variable', sans-serif;
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto,
+    Helvetica, Arial, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
