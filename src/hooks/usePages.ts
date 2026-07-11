@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useHousehold } from '@/hooks/useHousehold'
-import type { Enums, Tables, TablesInsert } from '@/types/database'
+import type { Enums, Json, Tables, TablesInsert } from '@/types/database'
 
 export type PageRow = Tables<'pages'>
 type PageSection = Enums<'page_section'>
@@ -85,6 +85,43 @@ export function useCreatePage() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['pages', variables.section] })
+    },
+  })
+}
+
+export interface UpdatePageContentInput {
+  pageId: string
+  content: Json
+}
+
+// Debounced autosave target for RichTextEditor's onChange (NotesPageView).
+// Deliberately does NOT invalidate ['page', pageId]: a refetch racing a
+// focused editor could clobber in-progress typing. setQueryData with the
+// returned row keeps that cache entry current instead. The section-list
+// invalidation uses the *returned row's* section (not a section passed in
+// or re-derived from the URL) so the "Edited …" meta refreshes correctly
+// regardless of caller context.
+export function useUpdatePageContent() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      pageId,
+      content,
+    }: UpdatePageContentInput): Promise<PageRow> => {
+      const { data, error } = await supabase
+        .from('pages')
+        .update({ content })
+        .eq('id', pageId)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['page', data.id], data)
+      queryClient.invalidateQueries({ queryKey: ['pages', data.section] })
     },
   })
 }

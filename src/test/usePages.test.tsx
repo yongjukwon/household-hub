@@ -10,6 +10,7 @@ import {
   usePage,
   useCreatePage,
   useDeletePage,
+  useUpdatePageContent,
 } from '@/hooks/usePages'
 import { mockFrom, mockFromResult, resetSupabaseMocks } from './mocks/supabase'
 
@@ -192,5 +193,59 @@ describe('useDeletePage', () => {
     expect(builder.delete).toHaveBeenCalled()
     expect(builder.eq).toHaveBeenCalledWith('id', 'page-1')
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['pages'] })
+  })
+})
+
+describe('useUpdatePageContent', () => {
+  beforeEach(() => {
+    resetSupabaseMocks()
+  })
+
+  const newContent = {
+    type: 'doc',
+    content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hi' }] }],
+  }
+  const updatedPage = { ...fakePage, content: newContent }
+
+  it('updates content, caches the returned row, and invalidates the section list using the row section — without invalidating the page key', async () => {
+    const builder = mockFromResult(updatedPage)
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const setQueryDataSpy = vi.spyOn(queryClient, 'setQueryData')
+
+    function localWrapper({ children }: { children: React.ReactNode }) {
+      return (
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      )
+    }
+
+    const { result } = renderHook(() => useUpdatePageContent(), {
+      wrapper: localWrapper,
+    })
+
+    result.current.mutate({ pageId: 'page-1', content: newContent })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(mockFrom).toHaveBeenCalledWith('pages')
+    expect(builder.update).toHaveBeenCalledWith({ content: newContent })
+    expect(builder.eq).toHaveBeenCalledWith('id', 'page-1')
+    expect(builder.select).toHaveBeenCalled()
+    expect(builder.single).toHaveBeenCalled()
+
+    expect(setQueryDataSpy).toHaveBeenCalledWith(
+      ['page', 'page-1'],
+      updatedPage,
+    )
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['pages', 'budget'],
+    })
+    expect(invalidateSpy).not.toHaveBeenCalledWith({
+      queryKey: ['page', 'page-1'],
+    })
   })
 })

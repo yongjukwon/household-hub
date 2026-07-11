@@ -1,10 +1,12 @@
 import { useParams } from 'react-router-dom'
 import { sectionFromPath } from '@/components/layout/nav-items'
 import { usePage } from '@/hooks/usePages'
+import { NotesPageView } from '@/components/notes/NotesPageView'
 
-// Placeholder detail view: renders the page's title and a stand-in body.
-// The Tiptap editor (and per-template budget/trip/grocery layouts) are
-// later tasks — for now every template renders the same placeholder body.
+// Routes by the page's own `template`, not the URL section: every 'blank'
+// page (all notes-section pages) gets the Tiptap editor via NotesPageView.
+// The other templates ('budget', 'trip', 'grocery') keep the placeholder
+// body — their dedicated views are Phases 2-4.
 export default function PageView() {
   const { section, pageId } = useParams<{ section: string; pageId: string }>()
   const knownSection = section ? sectionFromPath(`/${section}`) : undefined
@@ -13,6 +15,8 @@ export default function PageView() {
   if (!knownSection) return <PageNotFound />
   if (isPending) return null
   if (isError || !page) return <PageNotFound />
+
+  if (page.template === 'blank') return <NotesPageView page={page} />
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 md:px-8 md:py-10">
