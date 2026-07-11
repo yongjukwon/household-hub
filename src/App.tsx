@@ -3,9 +3,11 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { AuthProvider } from '@/components/auth/AuthProvider'
 import { RequireAuth } from '@/components/auth/RequireAuth'
 import { AppShell } from '@/components/layout/AppShell'
+import { NAV_ITEMS } from '@/components/layout/nav-items'
 import LoginPage from '@/routes/LoginPage'
 import HomePage from '@/routes/HomePage'
 import SectionListPage from '@/routes/SectionListPage'
+import PageView from '@/routes/PageView'
 import SettingsPage from '@/routes/SettingsPage'
 
 const queryClient = new QueryClient()
@@ -20,10 +22,11 @@ const router = createBrowserRouter([
     ),
     children: [
       { path: '/', element: <HomePage /> },
-      { path: '/budget', element: <SectionListPage title="Budget" /> },
-      { path: '/trips', element: <SectionListPage title="Trips" /> },
-      { path: '/groceries', element: <SectionListPage title="Groceries" /> },
-      { path: '/notes', element: <SectionListPage title="Notes" /> },
+      ...NAV_ITEMS.map((navItem) => ({
+        path: navItem.path,
+        element: <SectionListPage navItem={navItem} />,
+      })),
+      { path: '/:section/:pageId', element: <PageView /> },
       { path: '/settings', element: <SettingsPage /> },
     ],
   },

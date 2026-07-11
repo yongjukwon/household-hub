@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
+import type { Tables } from '@/types/database'
 
 export interface HouseholdMember {
   id: string
@@ -14,11 +15,11 @@ export interface HouseholdData {
   members: HouseholdMember[]
 }
 
-interface HouseholdMemberRow {
-  id: string
-  user_id: string
-  display_name: string
-  households: { id: string; name: string } | null
+type HouseholdMemberRow = Pick<
+  Tables<'household_members'>,
+  'id' | 'user_id' | 'display_name'
+> & {
+  households: Pick<Tables<'households'>, 'id' | 'name'> | null
 }
 
 // Assumes one household per user: reads members via the signed-in user's
