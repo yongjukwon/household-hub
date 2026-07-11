@@ -62,6 +62,25 @@ describe('LoginForm', () => {
     })
   })
 
+  it('shows a connection error and re-enables the button when sign-in rejects', async () => {
+    // A network-level failure (fetch throwing on a flaky connection) rejects
+    // the promise instead of resolving with { error }.
+    mockSignInWithPassword.mockRejectedValue(new TypeError('Failed to fetch'))
+
+    renderLoginForm()
+
+    await fillAndSubmit('usera@test.local', 'password123')
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(
+          'Couldn’t reach the server — check your connection and try again.',
+        ),
+      ).toBeInTheDocument(),
+    )
+    expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled()
+  })
+
   it('navigates to / on successful sign-in', async () => {
     mockSignInWithPassword.mockResolvedValue({
       data: { user: { id: 'user-1' }, session: { user: { id: 'user-1' } } },

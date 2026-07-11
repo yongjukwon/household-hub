@@ -25,7 +25,18 @@ export function LoginForm() {
     setError(null)
     setSubmitting(true)
 
-    const { error: signInError } = await signIn(email, password)
+    let signInError: string | null
+    try {
+      ;({ error: signInError } = await signIn(email, password))
+    } catch {
+      // Network-level failure: fetch rejected before Supabase could answer
+      // (offline / flaky connection), so there is no { error } result.
+      setError(
+        'Couldn’t reach the server — check your connection and try again.',
+      )
+      setSubmitting(false)
+      return
+    }
 
     setSubmitting(false)
 
