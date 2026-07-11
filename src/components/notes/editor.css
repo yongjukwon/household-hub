@@ -1,0 +1,92 @@
+/* Tiptap renders plain semantic HTML inside the `.tiptap` ProseMirror
+   container — this gives it typography consistent with the app shell
+   (PageView's 26px bold title tier) and styles the task-list checkboxes,
+   since none of that comes for free. Tokens only, no new colors. */
+
+.tiptap-content {
+  flex: 1;
+  min-height: 0;
+}
+
+.tiptap {
+  min-height: 100%;
+  padding: 1rem;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.6;
+  outline: none;
+}
+
+.tiptap p {
+  margin: 0.5em 0;
+}
+
+.tiptap h1 {
+  margin: 1.2em 0 0.4em;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.tiptap h1:first-child {
+  margin-top: 0;
+}
+
+.tiptap h2 {
+  margin: 1em 0 0.4em;
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Placeholder extension (empty-doc hint). */
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--meta);
+  pointer-events: none;
+}
+
+/* Task list */
+.tiptap ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0;
+  margin: 0.5em 0;
+}
+
+.tiptap ul[data-type='taskList'] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5em;
+  margin: 0.25em 0;
+}
+
+.tiptap ul[data-type='taskList'] li > label {
+  display: flex;
+  align-items: center;
+  height: 1.6em;
+  user-select: none;
+}
+
+.tiptap ul[data-type='taskList'] li > label input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  border: 1px solid var(--line2);
+}
+
+.tiptap ul[data-type='taskList'] li > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.tiptap ul[data-type='taskList'] li[data-checked='true'] > div {
+  color: var(--meta);
+  text-decoration: line-through;
+}
+
+.tiptap ul[data-type='taskList'] ul[data-type='taskList'] {
+  margin: 0;
+}
