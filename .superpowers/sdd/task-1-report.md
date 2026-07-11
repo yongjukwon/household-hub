@@ -166,3 +166,63 @@ New files (see `git show --stat 051979c` for the full list), most relevant:
   same "writes to `./@/...`" quirk and know to move the files into `src/`.
 - `shadcn` itself ended up as a `dependencies` entry (not `devDependencies`) —
   that's the CLI's own default behavior on `init`/`add`, left as-is.
+
+## Review fixes (round 2)
+
+Two Important issues from task review, both fixed:
+
+### 1. Folder structure not tracked by git
+
+Added a `.gitkeep` to each required directory that was empty (git can't track empty
+dirs): `src/routes/`, `src/components/{layout,pages,budget,trips,groceries,notes,auth}/`,
+`src/hooks/`, `src/lib/offline/`, `src/types/`. All 11 now survive a fresh checkout.
+
+### 2. Unified dark-mode mechanisms in src/index.css
+
+Previously shadcn's semantic tokens (`--background`, `--primary`, `--muted`, ...)
+only flipped via a `.dark` class (with `@custom-variant dark (&:is(.dark *))`),
+disconnected from the brief's `data-theme` mechanism. Now:
+
+- shadcn's dark token values are duplicated into the SAME two blocks as the custom
+  tokens: `@media (prefers-color-scheme: dark) { :root:not([data-theme]) { ... } }`
+  and `[data-theme='dark'] { ... }`. The `.dark` class block is deleted; no `.dark`
+  selector exists anywhere in source.
+- While merging, shadcn's colliding `--accent`/`--sidebar` dark values were dropped
+  in favor of the brief's exact dark values (`#e0b45f` / `#252421`) — same collision
+  resolution as light mode in round 1.
+- `@custom-variant dark` was rewritten to key off `data-theme` instead of `.dark`.
+  One deliberate elaboration beyond the literal instruction: the variant uses the
+  block form to mirror BOTH mechanisms —
+  `&:where([data-theme='dark'], [data-theme='dark'] *)` plus
+  `@media (prefers-color-scheme: dark)` scoped to `:root:not([data-theme])` — because
+  the shadcn components also use `dark:` *utility* variants (e.g. `dark:bg-input/30`),
+  not just tokens. Keying the variant off `[data-theme="dark"]` alone would have left
+  those utilities inert under system-preference dark (no attribute set), recreating
+  the same split the review flagged, just on the other mechanism. With the block form,
+  utilities and tokens flip together under both. `data-theme` remains the single
+  source of truth for manual override; absence of it means "follow the OS".
+
+Verified in the compiled bundle: `dark:` utilities emit selectors like
+`.dark\:bg-destructive\/20:where([data-theme=dark],[data-theme=dark] *)` plus the
+media-query twin scoped to `:root:not([data-theme])`; zero bare `.dark` selectors
+in the output (the only ".dark" strings are escaped `dark:` utility class names).
+
+### Verification re-run
+
+```
+$ npm run build
+✓ built in 141ms   (dist/assets/index-mIuSe0Yy.css 69.39 kB — grew ~9 kB from the
+                    duplicated dark token block + double-mechanism variants, expected)
+
+$ npx eslint .
+(no output — exit 0)
+
+$ npx vitest run
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+
+$ grep -o '\.dark[^\\]' dist/assets/index-*.css
+(no matches — no bare .dark selector in compiled CSS)
+```
+
+`dist/` removed after verification.
