@@ -32,12 +32,14 @@ export function TemplatePicker({
   const defaultTemplate: PageTemplate = sectionTemplate?.value ?? 'blank'
   const [title, setTitle] = useState('')
   const [template, setTemplate] = useState<PageTemplate>(defaultTemplate)
+  const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
   const createPage = useCreatePage()
 
   function resetAndClose() {
     setTitle('')
     setTemplate(defaultTemplate)
+    setError(null)
     onOpenChange(false)
   }
 
@@ -45,11 +47,23 @@ export function TemplatePicker({
     const trimmedTitle = title.trim()
     if (!trimmedTitle) return
 
-    const page = await createPage.mutateAsync({
-      section: navItem.section,
-      template,
-      title: trimmedTitle,
-    })
+    setError(null)
+    let page
+    try {
+      page = await createPage.mutateAsync({
+        section: navItem.section,
+        template,
+        title: trimmedTitle,
+      })
+    } catch {
+      // Insert failed (network, RLS, or the household query not having
+      // resolved yet): keep the dialog open with the typed title intact so
+      // a retry is a single click.
+      setError(
+        'Couldn’t create the page — check your connection and try again.',
+      )
+      return
+    }
     resetAndClose()
     navigate(`${navItem.path}/${page.id}`)
   }
@@ -90,6 +104,11 @@ export function TemplatePicker({
                 />
               </div>
             </div>
+          )}
+          {error && (
+            <p role="alert" className="text-sm text-[var(--danger)]">
+              {error}
+            </p>
           )}
         </div>
         <DialogFooter>

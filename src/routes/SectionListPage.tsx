@@ -7,7 +7,7 @@ import { useDeletePage, usePages } from '@/hooks/usePages'
 
 export default function SectionListPage({ navItem }: { navItem: NavItem }) {
   const [pickerOpen, setPickerOpen] = useState(false)
-  const { data: pages, isPending } = usePages(navItem.section)
+  const { data: pages, isPending, isError } = usePages(navItem.section)
   const deletePage = useDeletePage()
 
   return (
@@ -26,7 +26,14 @@ export default function SectionListPage({ navItem }: { navItem: NavItem }) {
         </button>
       </header>
 
-      {pages && pages.length > 0 ? (
+      {isError ? (
+        <p
+          role="alert"
+          className="mt-16 text-center text-sm text-[var(--danger)]"
+        >
+          Couldn’t load pages — check your connection and try again.
+        </p>
+      ) : pages && pages.length > 0 ? (
         <div>
           {pages.map((page) => (
             <PageCard
