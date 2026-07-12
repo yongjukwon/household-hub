@@ -197,7 +197,14 @@ export function BudgetPageView({ page }: BudgetPageViewProps) {
             limitCents={summary.totalLimitCents}
           />
 
-          <div className="mt-5 flex items-center justify-between">
+          {/* Chart sits above the category list: the list grows over time and
+              would otherwise bury the at-a-glance chart below the fold. */}
+          <BudgetChart
+            data={summary.chartData}
+            formatCurrency={formatCurrency}
+          />
+
+          <div className="mt-6 flex items-center justify-between">
             <h2 className="text-xs font-semibold tracking-wide text-[var(--meta)]">
               CATEGORIES
             </h2>
@@ -230,11 +237,6 @@ export function BudgetPageView({ page }: BudgetPageViewProps) {
               />
             ))}
           </div>
-
-          <BudgetChart
-            data={summary.chartData}
-            formatCurrency={formatCurrency}
-          />
         </>
       )}
 

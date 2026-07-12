@@ -137,11 +137,15 @@ function BookingCard({
   )
 }
 
+// 24-hour clock (hourCycle 'h23') so bookings read without AM/PM. Note this
+// only controls rendered output — native datetime-local pickers follow the
+// device OS locale.
 const timestampFormatter = new Intl.DateTimeFormat(undefined, {
   month: 'short',
   day: 'numeric',
-  hour: 'numeric',
+  hour: '2-digit',
   minute: '2-digit',
+  hourCycle: 'h23',
 })
 
 function formatRange(startsAt: string | null, endsAt: string | null): string {

@@ -118,10 +118,13 @@ function formatDay(value: string): string {
   }).format(new Date(year, month - 1, day))
 }
 
+// 24-hour clock (hourCycle 'h23'), so itinerary times read without AM/PM.
+// Rendered output only — native time pickers follow the device OS locale.
 function formatTime(value: string): string {
   const [hours, minutes] = value.split(':').map(Number)
   return new Intl.DateTimeFormat(undefined, {
-    hour: 'numeric',
+    hour: '2-digit',
     minute: '2-digit',
+    hourCycle: 'h23',
   }).format(new Date(1970, 0, 1, hours, minutes))
 }

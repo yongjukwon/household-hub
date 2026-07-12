@@ -39,7 +39,7 @@ export function BudgetChart({ data, formatCurrency }: BudgetChartProps) {
         SPENDING BY CATEGORY
       </h2>
       <div
-        className="h-64 rounded-xl border border-[var(--line2)] bg-[var(--panel)] px-2 py-4"
+        className="h-44 rounded-xl border border-[var(--line2)] bg-[var(--panel)] px-2 py-4"
         role="img"
         aria-label="Bar chart comparing spending and monthly limits by category"
       >
@@ -47,7 +47,7 @@ export function BudgetChart({ data, formatCurrency }: BudgetChartProps) {
           <BarChart
             data={chartData}
             layout="vertical"
-            margin={{ top: 4, right: 16, bottom: 4, left: 4 }}
+            margin={{ top: 4, right: 12, bottom: 4, left: 0 }}
           >
             <CartesianGrid stroke="var(--line2)" horizontal={false} />
             <XAxis
@@ -60,7 +60,7 @@ export function BudgetChart({ data, formatCurrency }: BudgetChartProps) {
             <YAxis
               type="category"
               dataKey="name"
-              width={84}
+              width={64}
               tick={{ fill: 'var(--text)', fontSize: 12 }}
               axisLine={false}
               tickLine={false}

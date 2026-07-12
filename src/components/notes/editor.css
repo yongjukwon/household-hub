@@ -82,6 +82,14 @@
   min-width: 0;
 }
 
+/* The checkbox label is centered in a 1.6em box; the paragraph inside the
+   text div otherwise adds its own 0.5em top/bottom margin, dropping the
+   first text line below the checkbox. Zero those margins so the box and the
+   first line share a baseline. */
+.tiptap ul[data-type='taskList'] li > div > p {
+  margin: 0;
+}
+
 .tiptap ul[data-type='taskList'] li[data-checked='true'] > div {
   color: var(--meta);
   text-decoration: line-through;
