@@ -86,6 +86,51 @@ describe('RichTextEditor', () => {
     })
   })
 
+  describe('external content re-sync (realtime)', () => {
+    it('applies a changed content prop while the editor is idle, without firing onChange', () => {
+      const onChange = vi.fn()
+      const { rerender } = render(
+        <RichTextEditor content={docWithText('Original')} onChange={onChange} />,
+      )
+
+      act(() => {
+        rerender(
+          <RichTextEditor
+            content={docWithText('Partner edit')}
+            onChange={onChange}
+          />,
+        )
+      })
+
+      expect(screen.getByText('Partner edit')).toBeInTheDocument()
+      expect(screen.queryByText('Original')).not.toBeInTheDocument()
+      expect(onChange).not.toHaveBeenCalled()
+    })
+
+    it('does not clobber the editor while it is focused', async () => {
+      const user = userEvent.setup()
+      const onChange = vi.fn()
+      const { rerender } = render(
+        <RichTextEditor content={docWithText('My draft')} onChange={onChange} />,
+      )
+
+      const editable = document.querySelector('.tiptap') as HTMLElement
+      await user.click(editable)
+
+      act(() => {
+        rerender(
+          <RichTextEditor
+            content={docWithText('Remote overwrite')}
+            onChange={onChange}
+          />,
+        )
+      })
+
+      expect(screen.getByText('My draft')).toBeInTheDocument()
+      expect(screen.queryByText('Remote overwrite')).not.toBeInTheDocument()
+    })
+  })
+
   describe('markdown input rules', () => {
     // This app is explicitly click/tap-toolbar-only (bullet/blockquote
     // have no toolbar escape) — StarterKit's Markdown input rules must be

@@ -24,6 +24,10 @@ vi.mock('@/hooks/useGroceries', async (importOriginal) => {
   }
 })
 
+vi.mock('@/hooks/useRealtimeTable', () => ({
+  useRealtimeTable: vi.fn(),
+}))
+
 const mockUseGroceryItems = vi.mocked(useGroceryItems)
 const mockUseGroceryPriceHistory = vi.mocked(useGroceryPriceHistory)
 const mockUseCreateGroceryItem = vi.mocked(useCreateGroceryItem)

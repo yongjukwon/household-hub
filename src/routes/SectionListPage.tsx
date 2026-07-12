@@ -4,10 +4,16 @@ import type { NavItem } from '@/components/layout/nav-items'
 import { PageCard } from '@/components/pages/PageCard'
 import { TemplatePicker } from '@/components/pages/TemplatePicker'
 import { useDeletePage, usePages } from '@/hooks/usePages'
+import { useHousehold } from '@/hooks/useHousehold'
+import { useRealtimeTable } from '@/hooks/useRealtimeTable'
 
 export default function SectionListPage({ navItem }: { navItem: NavItem }) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const { data: pages, isPending, isError } = usePages(navItem.section)
+  const { data: household } = useHousehold()
+  // Every section's list shares the household-wide pages channel, so the
+  // ['pages'] prefix covers whichever section the changed row belongs to.
+  useRealtimeTable('pages', 'household_id', household?.id ?? '', ['pages'])
   const deletePage = useDeletePage()
   const [deleteFailed, setDeleteFailed] = useState(false)
 

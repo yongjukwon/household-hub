@@ -1,6 +1,7 @@
 import type { JSONContent } from '@tiptap/react'
 import { RichTextEditor } from './RichTextEditor'
 import { useUpdatePageContent, type PageRow } from '@/hooks/usePages'
+import { useRealtimeTable } from '@/hooks/useRealtimeTable'
 import type { Json } from '@/types/database'
 
 interface NotesPageViewProps {
@@ -27,6 +28,10 @@ interface NotesPageViewProps {
 // returns to normal document flow.
 export function NotesPageView({ page }: NotesPageViewProps) {
   const updateContent = useUpdatePageContent()
+  // Remote edits to this page (the partner saving from their device) refetch
+  // ['page', id]; RichTextEditor re-syncs the new content only while the
+  // editor is neither focused nor holding an unsaved debounced edit.
+  useRealtimeTable('pages', 'id', page.id, ['page', page.id])
 
   function handleChange(json: JSONContent) {
     updateContent.mutate({ pageId: page.id, content: json as unknown as Json })

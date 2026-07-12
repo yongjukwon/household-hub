@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { MoreHorizontal, Plus } from 'lucide-react'
 import type { PageRow } from '@/hooks/usePages'
 import {
+  budgetKeys,
   centsToAmount,
   currentMonthKey,
   moneyToCents,
@@ -12,6 +13,7 @@ import {
   type BudgetCategory,
   type BudgetEntry,
 } from '@/hooks/useBudget'
+import { useRealtimeTable } from '@/hooks/useRealtimeTable'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import {
@@ -55,6 +57,20 @@ export function BudgetPageView({ page }: BudgetPageViewProps) {
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null)
   const categoriesQuery = useBudgetCategories(page.id)
   const entriesQuery = useBudgetEntries(page.id, month)
+  useRealtimeTable(
+    'budget_categories',
+    'page_id',
+    page.id,
+    budgetKeys.categories(page.id),
+  )
+  // The entries prefix covers every cached month for this page — a remote
+  // edit may move an entry across months.
+  useRealtimeTable(
+    'budget_entries',
+    'page_id',
+    page.id,
+    budgetKeys.entries(page.id),
+  )
   const deleteCategory = useDeleteBudgetCategory()
   const deleteEntry = useDeleteBudgetEntry()
 

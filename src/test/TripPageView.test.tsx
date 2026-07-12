@@ -38,6 +38,10 @@ vi.mock('@/hooks/useTrip', async (importOriginal) => {
   }
 })
 
+vi.mock('@/hooks/useRealtimeTable', () => ({
+  useRealtimeTable: vi.fn(),
+}))
+
 const mockUseTripItinerary = vi.mocked(useTripItinerary)
 const mockUseTripBookings = vi.mocked(useTripBookings)
 const mockUseTripChecklist = vi.mocked(useTripChecklist)

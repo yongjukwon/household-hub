@@ -38,6 +38,10 @@ vi.mock('@/hooks/useBudget', async (importOriginal) => {
   }
 })
 
+vi.mock('@/hooks/useRealtimeTable', () => ({
+  useRealtimeTable: vi.fn(),
+}))
+
 vi.mock('@/components/budget/BudgetChart', () => ({
   BudgetChart: ({
     data,

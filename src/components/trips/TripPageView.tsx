@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { PageRow } from '@/hooks/usePages'
 import {
+  tripKeys,
   useDeleteBooking,
   useDeleteChecklistItem,
   useDeleteItineraryItem,
@@ -11,6 +12,7 @@ import {
   type TripChecklistItem,
   type TripItineraryItem,
 } from '@/hooks/useTrip'
+import { useRealtimeTable } from '@/hooks/useRealtimeTable'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DeleteDialog } from '@/components/common/DeleteDialog'
@@ -50,6 +52,24 @@ export function TripPageView({ page }: TripPageViewProps) {
   const itineraryQuery = useTripItinerary(page.id)
   const bookingsQuery = useTripBookings(page.id)
   const checklistQuery = useTripChecklist(page.id)
+  useRealtimeTable(
+    'trip_itinerary_items',
+    'page_id',
+    page.id,
+    tripKeys.itinerary(page.id),
+  )
+  useRealtimeTable(
+    'trip_bookings',
+    'page_id',
+    page.id,
+    tripKeys.bookings(page.id),
+  )
+  useRealtimeTable(
+    'trip_checklist_items',
+    'page_id',
+    page.id,
+    tripKeys.checklist(page.id),
+  )
   const deleteItineraryItem = useDeleteItineraryItem()
   const deleteBooking = useDeleteBooking()
   const deleteChecklistItem = useDeleteChecklistItem()

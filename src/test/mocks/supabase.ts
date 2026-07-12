@@ -5,6 +5,28 @@ export const mockOnAuthStateChange = vi.fn()
 export const mockSignInWithPassword = vi.fn()
 export const mockSignOut = vi.fn()
 export const mockFrom = vi.fn()
+export const mockChannel = vi.fn()
+export const mockRemoveChannel = vi.fn()
+
+// One realtime channel mock per supabase.channel() call: chainable .on()
+// records the postgres_changes handler so tests can fire fake events.
+export interface ChannelMock {
+  on: ReturnType<typeof vi.fn>
+  subscribe: ReturnType<typeof vi.fn>
+  handlers: Array<{ config: unknown; callback: (payload: unknown) => void }>
+}
+
+function makeChannelMock(): ChannelMock {
+  const channel: ChannelMock = {
+    handlers: [],
+    on: vi.fn((_event: string, config: unknown, callback: never) => {
+      channel.handlers.push({ config, callback })
+      return channel
+    }),
+    subscribe: vi.fn(() => channel),
+  }
+  return channel
+}
 
 interface QueryResult {
   data: unknown
@@ -74,6 +96,8 @@ export const supabase = {
     signOut: mockSignOut,
   },
   from: mockFrom,
+  channel: mockChannel,
+  removeChannel: mockRemoveChannel,
 }
 
 export function resetSupabaseMocks() {
@@ -84,4 +108,10 @@ export function resetSupabaseMocks() {
   mockSignInWithPassword.mockReset()
   mockSignOut.mockReset().mockResolvedValue({ error: null })
   mockFrom.mockReset()
+  mockChannel.mockReset().mockImplementation(makeChannelMock)
+  mockRemoveChannel.mockReset()
 }
+
+// Default behavior even before the first resetSupabaseMocks() call, since
+// some suites render realtime-subscribing components without resetting.
+mockChannel.mockImplementation(makeChannelMock)

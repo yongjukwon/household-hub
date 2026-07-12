@@ -11,9 +11,11 @@ import './editor.css'
 const ONCHANGE_DEBOUNCE_MS = 800
 
 interface RichTextEditorProps {
-  /** Initial Tiptap JSON doc. Initial-value only — later prop changes are
-   * not re-synced into the editor (external-update reconciliation is a
-   * later phase). */
+  /** Tiptap JSON doc. Used as the initial value, and later prop changes
+   * (e.g. a realtime refetch after the partner saved) are re-synced into
+   * the editor — but only while it is neither focused nor holding an
+   * unsaved debounced edit, so remote updates can never clobber
+   * in-progress typing (last-write-wins otherwise). */
   content: JSONContent
   /** Called with the full doc, debounced; not fired per keystroke. */
   onChange: (json: JSONContent) => void
@@ -57,6 +59,19 @@ export function RichTextEditor({
       debouncedOnChange.flush()
     }
   }, [debouncedOnChange])
+
+  // External-update re-sync (Phase 5): when the content prop changes under
+  // an idle editor — a realtime refetch delivering the partner's save —
+  // replace the document. Skipped while focused or while a debounced local
+  // edit is unsaved (the local buffer is newer), and skipped when the
+  // incoming doc already matches (our own save echoing back), so the
+  // cursor/scroll are never reset spuriously. emitUpdate: false keeps the
+  // re-sync from triggering an autosave of its own.
+  useEffect(() => {
+    if (!editor || editor.isFocused || debouncedOnChange.isPending()) return
+    if (JSON.stringify(content) === JSON.stringify(editor.getJSON())) return
+    editor.commands.setContent(content, { emitUpdate: false })
+  }, [content, editor, debouncedOnChange])
 
   return (
     <div className="flex flex-col-reverse md:flex-col">

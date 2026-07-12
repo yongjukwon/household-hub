@@ -3,6 +3,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import { useDebounce } from 'use-debounce'
 import type { PageRow } from '@/hooks/usePages'
 import {
+  groceryKeys,
   normalizeItemName,
   useClearCheckedGroceryItems,
   useCreateGroceryItem,
@@ -12,6 +13,7 @@ import {
   useUpdateGroceryItem,
   type GroceryItem,
 } from '@/hooks/useGroceries'
+import { useRealtimeTable } from '@/hooks/useRealtimeTable'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DeleteDialog } from '@/components/common/DeleteDialog'
@@ -43,6 +45,15 @@ export function GroceryPageView({ page }: GroceryPageViewProps) {
   const createId = useRef<string | null>(null)
 
   const itemsQuery = useGroceryItems(page.id)
+  useRealtimeTable('grocery_items', 'page_id', page.id, groceryKeys.items(page.id))
+  // History rows are appended by the price trigger; the prefix covers both
+  // the last-seen hint and any open popover's per-name entries.
+  useRealtimeTable(
+    'grocery_price_history',
+    'page_id',
+    page.id,
+    groceryKeys.history(page.id),
+  )
   const createItem = useCreateGroceryItem()
   const updateItem = useUpdateGroceryItem()
   const deleteItem = useDeleteGroceryItem()
