@@ -89,7 +89,7 @@ describe('grocery helpers', () => {
 describe('grocery queries', () => {
   beforeEach(resetSupabaseMocks)
 
-  it('loads items in stable sort order and normalizes prices', async () => {
+  it('loads items newest-first and normalizes prices', async () => {
     const builder = mockFromResult([milk])
     const { wrapper } = createHarness()
     const { result } = renderHook(() => useGroceryItems('page-1'), { wrapper })
@@ -99,9 +99,8 @@ describe('grocery queries', () => {
     expect(mockFrom).toHaveBeenCalledWith('grocery_items')
     expect(builder.eq).toHaveBeenCalledWith('page_id', 'page-1')
     expect(builder.order.mock.calls).toEqual([
-      ['sort_order', { ascending: true }],
-      ['created_at', { ascending: true }],
-      ['id', { ascending: true }],
+      ['created_at', { ascending: false }],
+      ['id', { ascending: false }],
     ])
     expect(result.current.data?.[0].last_price).toBe(5.49)
   })
@@ -212,6 +211,43 @@ describe('grocery mutations (offline-capable outbox writes)', () => {
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: groceryKeys.names(),
     })
+  })
+
+  it('includes last_price in the create when a price is given and prepends the row', async () => {
+    const { wrapper, queryClient } = createHarness()
+    queryClient.setQueryData(groceryKeys.items('page-1'), [
+      { id: 'existing', name_normalized: 'bread' },
+    ])
+    const { result } = renderHook(() => useCreateGroceryItem(), { wrapper })
+    result.current.mutate({
+      id: 'item-milk',
+      pageId: 'page-1',
+      name: 'Milk',
+      sortOrder: 0,
+      lastPrice: 5.49,
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(mockQueueWrite).toHaveBeenCalledWith({
+      clientId: 'item-milk',
+      table: 'grocery_items',
+      op: 'upsert',
+      payload: {
+        id: 'item-milk',
+        page_id: 'page-1',
+        name: 'Milk',
+        sort_order: 0,
+        last_price: 5.49,
+      },
+      match: { id: 'item-milk' },
+    })
+    // Prepended (newest-first) and carries the price optimistically.
+    const cached = queryClient.getQueryData<
+      Array<{ id: string; last_price: number | null }>
+    >(groceryKeys.items('page-1'))
+    expect(cached?.[0].id).toBe('item-milk')
+    expect(cached?.[0].last_price).toBe(5.49)
+    expect(cached?.[1].id).toBe('existing')
   })
 
   it('resolves as queued while offline without invalidating (cache keeps the optimistic row)', async () => {

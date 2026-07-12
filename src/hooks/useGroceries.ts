@@ -38,13 +38,15 @@ export function useGroceryItems(pageId: string) {
     queryKey: groceryKeys.items(pageId),
     enabled: !!pageId,
     queryFn: async (): Promise<GroceryItem[]> => {
+      // Newest-first: the most recently added item appears at the top of the
+      // list. (sort_order is still stored but no longer drives display — there
+      // is no manual reordering UI.)
       const { data, error } = await supabase
         .from('grocery_items')
         .select('*')
         .eq('page_id', pageId)
-        .order('sort_order', { ascending: true })
-        .order('created_at', { ascending: true })
-        .order('id', { ascending: true })
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
 
       if (error) throw error
       return (data ?? []).map(normalizeItem)
@@ -127,6 +129,9 @@ export interface CreateGroceryItemInput {
   pageId: string
   name: string
   sortOrder: number
+  /** Optional price set at add time; recorded to price history by the DB
+   * trigger just like editing a price later. */
+  lastPrice?: number | null
 }
 
 export interface UpdateGroceryItemInput {
@@ -175,6 +180,7 @@ export function useCreateGroceryItem() {
       input: CreateGroceryItemInput,
     ): Promise<'synced' | 'queued'> => {
       const now = new Date().toISOString()
+      const lastPrice = input.lastPrice ?? null
       // Optimistic row: household_id is trigger-derived server-side and never
       // rendered, so a placeholder is fine until server truth arrives.
       const optimistic: GroceryItem = {
@@ -184,14 +190,16 @@ export function useCreateGroceryItem() {
         name: input.name,
         name_normalized: normalizeItemName(input.name),
         checked: false,
-        last_price: null,
+        last_price: lastPrice,
         sort_order: input.sortOrder,
         created_at: now,
         updated_at: now,
       }
+      // Prepend so a newly added item lands at the top (matches the
+      // newest-first list order).
       queryClient.setQueryData<GroceryItem[]>(
         groceryKeys.items(input.pageId),
-        (old = []) => [...old, optimistic],
+        (old = []) => [optimistic, ...old],
       )
       return queueWrite({
         clientId: input.id,
@@ -202,6 +210,9 @@ export function useCreateGroceryItem() {
           page_id: input.pageId,
           name: input.name,
           sort_order: input.sortOrder,
+          // Included only when a price was entered at add time; the INSERT
+          // then fires the price-history trigger.
+          ...(lastPrice !== null ? { last_price: lastPrice } : {}),
         },
         match: { id: input.id },
       })

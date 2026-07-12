@@ -157,7 +157,7 @@ describe('GroceryPageView', () => {
     expect(refetchItems).toHaveBeenCalledOnce()
   })
 
-  it('adds an item through the inline form with a client-generated id', async () => {
+  it('adds an item through the inline form with a client-generated id (no price)', async () => {
     const user = userEvent.setup()
     createItem.mockResolvedValue(milk)
     render(<GroceryPageView page={page} />)
@@ -170,6 +170,25 @@ describe('GroceryPageView', () => {
       pageId: 'page-1',
       name: 'Milk',
       sortOrder: 0,
+      lastPrice: null,
+    })
+  })
+
+  it('adds an item with a price entered in the same row', async () => {
+    const user = userEvent.setup()
+    createItem.mockResolvedValue(milk)
+    render(<GroceryPageView page={page} />)
+
+    await user.type(screen.getByLabelText('Add grocery item'), 'Milk')
+    await user.type(screen.getByLabelText('Price (optional)'), '5.49')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+
+    expect(createItem).toHaveBeenCalledWith({
+      id: expect.stringMatching(/[0-9a-f-]{36}/),
+      pageId: 'page-1',
+      name: 'Milk',
+      sortOrder: 0,
+      lastPrice: 5.49,
     })
   })
 

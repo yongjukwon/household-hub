@@ -39,6 +39,7 @@ interface GroceryPageViewProps {
 
 export function GroceryPageView({ page }: GroceryPageViewProps) {
   const [name, setName] = useState('')
+  const [price, setPrice] = useState('')
   const [addError, setAddError] = useState<string | null>(null)
   const [toggleError, setToggleError] = useState<string | null>(null)
   const [editingItem, setEditingItem] = useState<GroceryItem | null>(null)
@@ -95,6 +96,12 @@ export function GroceryPageView({ page }: GroceryPageViewProps) {
     const trimmedName = name.trim()
     if (!trimmedName) return
 
+    const lastPrice = parseAddPrice(price)
+    if (lastPrice === undefined) {
+      setAddError('Enter a price from $0.01 to $99,999,999.99, or leave it blank.')
+      return
+    }
+
     createId.current ??= crypto.randomUUID()
     setAddError(null)
     try {
@@ -103,9 +110,11 @@ export function GroceryPageView({ page }: GroceryPageViewProps) {
         pageId: page.id,
         name: trimmedName,
         sortOrder: nextSortOrder(items),
+        lastPrice,
       })
       createId.current = null
       setName('')
+      setPrice('')
     } catch (mutationError) {
       console.error('Failed to add grocery item', mutationError)
       setAddError(
@@ -193,6 +202,17 @@ export function GroceryPageView({ page }: GroceryPageViewProps) {
             </ul>
           )}
         </div>
+        <label htmlFor="grocery-add-price" className="sr-only">
+          Price (optional)
+        </label>
+        <Input
+          id="grocery-add-price"
+          className="w-24 shrink-0"
+          inputMode="decimal"
+          value={price}
+          onChange={(event) => setPrice(event.target.value)}
+          placeholder="Price"
+        />
         <Button
           type="submit"
           variant="outline"
@@ -310,4 +330,19 @@ function nextSortOrder(items: GroceryItem[]): number {
     (maximum, item) => Math.max(maximum, item.sort_order + 1),
     0,
   )
+}
+
+const MAX_MONEY = 99_999_999.99
+const MONEY_PATTERN = /^\d+(?:\.\d{1,2})?$/
+
+/** Blank → null (no price); a valid positive amount → number; else undefined. */
+function parseAddPrice(value: string): number | null | undefined {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  if (!MONEY_PATTERN.test(trimmed)) return undefined
+  const amount = Number(trimmed)
+  if (!Number.isFinite(amount) || amount <= 0 || amount > MAX_MONEY) {
+    return undefined
+  }
+  return amount
 }
