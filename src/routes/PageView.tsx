@@ -10,10 +10,16 @@ const BudgetPageView = lazy(() =>
   })),
 )
 
+const TripPageView = lazy(() =>
+  import('@/components/trips/TripPageView').then((module) => ({
+    default: module.TripPageView,
+  })),
+)
+
 // Routes by the page's own `template`, not the URL section: every 'blank'
 // page (all notes-section pages) gets the Tiptap editor via NotesPageView.
-// The other templates ('budget', 'trip', 'grocery') keep the placeholder
-// body — their dedicated views are Phases 2-4.
+// The remaining 'grocery' template keeps the placeholder body — its
+// dedicated view is Phase 4.
 export default function PageView() {
   const { section, pageId } = useParams<{ section: string; pageId: string }>()
   const knownSection = section ? sectionFromPath(`/${section}`) : undefined
@@ -50,6 +56,13 @@ export default function PageView() {
     return (
       <Suspense fallback={<PageLoading label="Loading budget…" />}>
         <BudgetPageView key={page.id} page={page} />
+      </Suspense>
+    )
+  }
+  if (page.template === 'trip') {
+    return (
+      <Suspense fallback={<PageLoading label="Loading trip…" />}>
+        <TripPageView key={page.id} page={page} />
       </Suspense>
     )
   }

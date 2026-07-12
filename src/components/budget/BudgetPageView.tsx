@@ -22,7 +22,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { MonthPicker } from './MonthPicker'
 import { BudgetChart, type BudgetChartDatum } from './BudgetChart'
-import { CategoryDialog, DeleteDialog, EntryDialog } from './BudgetDialogs'
+import { DeleteDialog } from '@/components/common/DeleteDialog'
+import { CategoryDialog, EntryDialog } from './BudgetDialogs'
 
 const currencyFormatter = new Intl.NumberFormat(undefined, {
   style: 'currency',

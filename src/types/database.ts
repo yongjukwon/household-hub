@@ -17,10 +17,10 @@ export type Database = {
     Functions: {
       graphql: {
         Args: {
+          extensions?: Json
           operationName?: string
           query?: string
           variables?: Json
-          extensions?: Json
         }
         Returns: Json
       }
@@ -240,6 +240,171 @@ export type Database = {
           },
         ]
       }
+      trip_bookings: {
+        Row: {
+          address: string | null
+          confirmation_number: string | null
+          created_at: string
+          ends_at: string | null
+          household_id: string
+          id: string
+          notes: string | null
+          page_id: string
+          sort_order: number
+          starts_at: string | null
+          title: string
+          type: Database['public']['Enums']['booking_type']
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          confirmation_number?: string | null
+          created_at?: string
+          ends_at?: string | null
+          household_id: string
+          id?: string
+          notes?: string | null
+          page_id: string
+          sort_order?: number
+          starts_at?: string | null
+          title: string
+          type: Database['public']['Enums']['booking_type']
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          confirmation_number?: string | null
+          created_at?: string
+          ends_at?: string | null
+          household_id?: string
+          id?: string
+          notes?: string | null
+          page_id?: string
+          sort_order?: number
+          starts_at?: string | null
+          title?: string
+          type?: Database['public']['Enums']['booking_type']
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'trip_bookings_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'trip_bookings_page_id_fkey'
+            columns: ['page_id']
+            isOneToOne: false
+            referencedRelation: 'pages'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      trip_checklist_items: {
+        Row: {
+          checked: boolean
+          created_at: string
+          household_id: string
+          id: string
+          label: string
+          page_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          checked?: boolean
+          created_at?: string
+          household_id: string
+          id?: string
+          label: string
+          page_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          checked?: boolean
+          created_at?: string
+          household_id?: string
+          id?: string
+          label?: string
+          page_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'trip_checklist_items_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'trip_checklist_items_page_id_fkey'
+            columns: ['page_id']
+            isOneToOne: false
+            referencedRelation: 'pages'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      trip_itinerary_items: {
+        Row: {
+          created_at: string
+          household_id: string
+          id: string
+          item_date: string
+          notes: string | null
+          page_id: string
+          sort_order: number
+          start_time: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          household_id: string
+          id?: string
+          item_date: string
+          notes?: string | null
+          page_id: string
+          sort_order?: number
+          start_time?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          household_id?: string
+          id?: string
+          item_date?: string
+          notes?: string | null
+          page_id?: string
+          sort_order?: number
+          start_time?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'trip_itinerary_items_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'trip_itinerary_items_page_id_fkey'
+            columns: ['page_id']
+            isOneToOne: false
+            referencedRelation: 'pages'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -251,6 +416,7 @@ export type Database = {
       }
     }
     Enums: {
+      booking_type: 'flight' | 'hotel' | 'car' | 'other'
       page_section: 'budget' | 'trip' | 'grocery' | 'notes'
       page_template: 'blank' | 'budget' | 'trip' | 'grocery'
     }
@@ -260,21 +426,25 @@ export type Database = {
   }
 }
 
-type DefaultSchema = Database[Extract<keyof Database, 'public'>]
+type DatabaseWithoutInternals = Omit<Database, '__InternalSupabase'>
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, 'public'>]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema['Tables'] & DefaultSchema['Views'])
-    | { schema: keyof Database },
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends (DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (Database[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
-        Database[DefaultSchemaTableNameOrOptions['schema']]['Views'])
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])
     : never) = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
-      Database[DefaultSchemaTableNameOrOptions['schema']]['Views'])[TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])[TableName] extends {
       Row: infer R
     }
     ? R
@@ -291,14 +461,16 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema['Tables'] | { schema: keyof Database },
+    keyof DefaultSchema['Tables'] | { schema: keyof DatabaseWithoutInternals },
   TableName extends (DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaTableNameOrOptions['schema']]['Tables']
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
     : never) = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
       Insert: infer I
     }
     ? I
@@ -313,14 +485,16 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema['Tables'] | { schema: keyof Database },
+    keyof DefaultSchema['Tables'] | { schema: keyof DatabaseWithoutInternals },
   TableName extends (DefaultSchemaTableNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaTableNameOrOptions['schema']]['Tables']
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
     : never) = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
       Update: infer U
     }
     ? U
@@ -335,28 +509,33 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    keyof DefaultSchema['Enums'] | { schema: keyof Database },
+    keyof DefaultSchema['Enums'] | { schema: keyof DatabaseWithoutInternals },
   EnumName extends (DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[DefaultSchemaEnumNameOrOptions['schema']]['Enums']
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums']
     : never) = never,
-> = DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[DefaultSchemaEnumNameOrOptions['schema']]['Enums'][EnumName]
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums'][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema['Enums']
     ? DefaultSchema['Enums'][DefaultSchemaEnumNameOrOptions]
     : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    keyof DefaultSchema['CompositeTypes'] | { schema: keyof Database },
+    | keyof DefaultSchema['CompositeTypes']
+    | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes']
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes']
     : never) = never,
-> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes'][CompositeTypeName]
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes'][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema['CompositeTypes']
     ? DefaultSchema['CompositeTypes'][PublicCompositeTypeNameOrOptions]
     : never
@@ -367,6 +546,7 @@ export const Constants = {
   },
   public: {
     Enums: {
+      booking_type: ['flight', 'hotel', 'car', 'other'],
       page_section: ['budget', 'trip', 'grocery', 'notes'],
       page_template: ['blank', 'budget', 'trip', 'grocery'],
     },

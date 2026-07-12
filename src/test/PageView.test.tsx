@@ -17,6 +17,12 @@ vi.mock('@/components/budget/BudgetPageView', () => ({
   ),
 }))
 
+vi.mock('@/components/trips/TripPageView', () => ({
+  TripPageView: ({ page }: { page: PageRow }) => (
+    <p>Trip view for {page.title}</p>
+  ),
+}))
+
 function pageWithDoc(id: string, title: string, text: string) {
   return {
     id,
@@ -50,11 +56,19 @@ const blankBudgetPage: PageRow = {
   section: 'budget',
   title: 'Budget notes',
 }
+const tripPage: PageRow = {
+  ...pageA,
+  id: 'trip-page',
+  section: 'trip',
+  template: 'trip',
+  title: 'Tokyo 2026',
+}
 const pagesById: Record<string, PageRow> = {
   'page-a': pageA,
   'page-b': pageB,
   'budget-page': budgetPage,
   'blank-budget-page': blankBudgetPage,
+  'trip-page': tripPage,
 }
 
 // Resolves usePage's `.eq('id', ...).single()` per requested id, so both
@@ -176,6 +190,27 @@ describe('PageView', () => {
 
     expect(
       await screen.findByText('Budget view for Household budget'),
+    ).toBeInTheDocument()
+  })
+
+  it('routes a trip template page to the dedicated Trip view', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    queryClient.setQueryData(['page', 'trip-page'], tripPage)
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/trips/trip-page']}>
+          <Routes>
+            <Route path="/:section/:pageId" element={<PageView />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    expect(
+      await screen.findByText('Trip view for Tokyo 2026'),
     ).toBeInTheDocument()
   })
 
