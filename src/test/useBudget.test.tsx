@@ -4,17 +4,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   budgetKeys,
   currentMonthKey,
+  effectiveLimit,
   monthBounds,
   moneyToCents,
   shiftMonthKey,
   useBudgetCategories,
+  useBudgetCategoryLimits,
   useBudgetEntries,
   useCreateBudgetCategory,
   useCreateBudgetEntry,
   useDeleteBudgetCategory,
   useDeleteBudgetEntry,
+  useSetBudgetCategoryLimit,
   useUpdateBudgetCategory,
   useUpdateBudgetEntry,
+  type BudgetCategory,
+  type BudgetCategoryLimit,
 } from '@/hooks/useBudget'
 import { mockFrom, mockFromResult, resetSupabaseMocks } from './mocks/supabase'
 
@@ -83,6 +88,48 @@ describe('budget month and money helpers', () => {
   })
 })
 
+describe('effectiveLimit (carry-forward per-month limits)', () => {
+  const category = {
+    id: 'cat-1',
+    monthly_limit: 100,
+  } as unknown as BudgetCategory
+
+  function limit(month: string, amount: number): BudgetCategoryLimit {
+    return {
+      id: `limit-${month}`,
+      category_id: 'cat-1',
+      month,
+      amount,
+    } as unknown as BudgetCategoryLimit
+  }
+
+  it('falls back to the category baseline when no override applies', () => {
+    expect(effectiveLimit(category, [], '2026-07')).toBe(100)
+    // An override only in a LATER month does not apply to an earlier month.
+    expect(effectiveLimit(category, [limit('2026-08', 200)], '2026-07')).toBe(
+      100,
+    )
+  })
+
+  it('uses the most recent override at or before the month (carry-forward)', () => {
+    const limits = [limit('2026-05', 200), limit('2026-08', 300)]
+    expect(effectiveLimit(category, limits, '2026-05')).toBe(200) // exact
+    expect(effectiveLimit(category, limits, '2026-07')).toBe(200) // carried from May
+    expect(effectiveLimit(category, limits, '2026-08')).toBe(300) // exact
+    expect(effectiveLimit(category, limits, '2026-12')).toBe(300) // carried from Aug
+  })
+
+  it('ignores overrides for other categories', () => {
+    const other = {
+      id: 'limit-x',
+      category_id: 'cat-OTHER',
+      month: '2026-07',
+      amount: 999,
+    } as unknown as BudgetCategoryLimit
+    expect(effectiveLimit(category, [other], '2026-07')).toBe(100)
+  })
+})
+
 describe('budget queries', () => {
   beforeEach(resetSupabaseMocks)
 
@@ -139,6 +186,72 @@ describe('budget queries', () => {
     const failed = renderHook(() => useBudgetCategories('page-2'), { wrapper })
     await waitFor(() => expect(failed.result.current.isError).toBe(true))
     expect(failed.result.current.error).toEqual(new Error('budget unavailable'))
+  })
+
+  it('loads a page’s per-month limit rows and normalizes amounts', async () => {
+    const limitRow = {
+      id: 'limit-1',
+      household_id: 'household-1',
+      page_id: 'page-1',
+      category_id: 'category-1',
+      month: '2026-07',
+      amount: '250.00',
+      created_at: '2026-07-01T00:00:00.000Z',
+      updated_at: '2026-07-01T00:00:00.000Z',
+    }
+    const builder = mockFromResult([limitRow])
+    const { wrapper } = createHarness()
+    const { result } = renderHook(() => useBudgetCategoryLimits('page-1'), {
+      wrapper,
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(mockFrom).toHaveBeenCalledWith('budget_category_limits')
+    expect(builder.eq).toHaveBeenCalledWith('page_id', 'page-1')
+    expect(builder.order).toHaveBeenCalledWith('month', { ascending: true })
+    expect(result.current.data?.[0].amount).toBe(250)
+  })
+})
+
+describe('budget category-limit mutation', () => {
+  beforeEach(resetSupabaseMocks)
+
+  it('upserts a month’s limit on (category_id, month) and invalidates the limits query', async () => {
+    const builder = mockFromResult({
+      id: 'limit-1',
+      household_id: 'household-1',
+      page_id: 'page-1',
+      category_id: 'category-1',
+      month: '2026-08',
+      amount: '300.00',
+      created_at: '2026-07-01T00:00:00.000Z',
+      updated_at: '2026-07-01T00:00:00.000Z',
+    })
+    const { wrapper, invalidateSpy } = createHarness()
+    const { result } = renderHook(() => useSetBudgetCategoryLimit(), { wrapper })
+    result.current.mutate({
+      id: 'limit-1',
+      pageId: 'page-1',
+      categoryId: 'category-1',
+      month: '2026-08',
+      amount: 300,
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(builder.upsert).toHaveBeenCalledWith(
+      {
+        id: 'limit-1',
+        page_id: 'page-1',
+        category_id: 'category-1',
+        month: '2026-08',
+        amount: 300,
+      },
+      { onConflict: 'category_id,month' },
+    )
+    expect(result.current.data?.amount).toBe(300)
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: budgetKeys.limits('page-1'),
+    })
   })
 })
 

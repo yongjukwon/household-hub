@@ -82,6 +82,61 @@ export type Database = {
           },
         ]
       }
+      budget_category_limits: {
+        Row: {
+          amount: number
+          category_id: string
+          created_at: string
+          household_id: string
+          id: string
+          month: string
+          page_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          category_id: string
+          created_at?: string
+          household_id: string
+          id?: string
+          month: string
+          page_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category_id?: string
+          created_at?: string
+          household_id?: string
+          id?: string
+          month?: string
+          page_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'budget_category_limits_category_page_fkey'
+            columns: ['category_id', 'page_id', 'household_id']
+            isOneToOne: false
+            referencedRelation: 'budget_categories'
+            referencedColumns: ['id', 'page_id', 'household_id']
+          },
+          {
+            foreignKeyName: 'budget_category_limits_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'budget_category_limits_page_id_fkey'
+            columns: ['page_id']
+            isOneToOne: false
+            referencedRelation: 'pages'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       budget_entries: {
         Row: {
           amount: number

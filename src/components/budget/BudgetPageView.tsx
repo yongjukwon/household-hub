@@ -5,12 +5,15 @@ import {
   budgetKeys,
   centsToAmount,
   currentMonthKey,
+  effectiveLimit,
   moneyToCents,
   useBudgetCategories,
+  useBudgetCategoryLimits,
   useBudgetEntries,
   useDeleteBudgetCategory,
   useDeleteBudgetEntry,
   type BudgetCategory,
+  type BudgetCategoryLimit,
   type BudgetEntry,
 } from '@/hooks/useBudget'
 import { useRealtimeTable } from '@/hooks/useRealtimeTable'
@@ -33,6 +36,7 @@ const currencyFormatter = new Intl.NumberFormat(undefined, {
 })
 const EMPTY_CATEGORIES: BudgetCategory[] = []
 const EMPTY_ENTRIES: BudgetEntry[] = []
+const EMPTY_LIMITS: BudgetCategoryLimit[] = []
 
 type DeleteTarget =
   | { kind: 'category'; category: BudgetCategory }
@@ -57,6 +61,7 @@ export function BudgetPageView({ page }: BudgetPageViewProps) {
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null)
   const categoriesQuery = useBudgetCategories(page.id)
   const entriesQuery = useBudgetEntries(page.id, month)
+  const limitsQuery = useBudgetCategoryLimits(page.id)
   useRealtimeTable(
     'budget_categories',
     'page_id',
@@ -71,14 +76,31 @@ export function BudgetPageView({ page }: BudgetPageViewProps) {
     page.id,
     budgetKeys.entries(page.id),
   )
+  useRealtimeTable(
+    'budget_category_limits',
+    'page_id',
+    page.id,
+    budgetKeys.limits(page.id),
+  )
   const deleteCategory = useDeleteBudgetCategory()
   const deleteEntry = useDeleteBudgetEntry()
 
   const categories = categoriesQuery.data ?? EMPTY_CATEGORIES
   const entries = entriesQuery.data ?? EMPTY_ENTRIES
+  const limits = limitsQuery.data ?? EMPTY_LIMITS
+  // Effective per-category limit (in cents) for the selected month, honoring
+  // carry-forward overrides. Everything downstream — totals, chart, progress —
+  // reads from this map rather than category.monthly_limit directly.
+  const limitCentsByCategory = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const category of categories) {
+      map.set(category.id, moneyToCents(effectiveLimit(category, limits, month)))
+    }
+    return map
+  }, [categories, limits, month])
   const summary = useMemo(
-    () => buildSummary(categories, entries),
-    [categories, entries],
+    () => buildSummary(categories, entries, limitCentsByCategory),
+    [categories, entries, limitCentsByCategory],
   )
 
   function openNewCategory() {
@@ -118,8 +140,10 @@ export function BudgetPageView({ page }: BudgetPageViewProps) {
     }
   }
 
-  const isPending = categoriesQuery.isPending || entriesQuery.isPending
-  const isError = categoriesQuery.isError || entriesQuery.isError
+  const isPending =
+    categoriesQuery.isPending || entriesQuery.isPending || limitsQuery.isPending
+  const isError =
+    categoriesQuery.isError || entriesQuery.isError || limitsQuery.isError
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 md:px-8 md:py-10">
@@ -165,6 +189,7 @@ export function BudgetPageView({ page }: BudgetPageViewProps) {
             onClick={() => {
               void categoriesQuery.refetch()
               void entriesQuery.refetch()
+              void limitsQuery.refetch()
             }}
           >
             Try again
@@ -225,6 +250,7 @@ export function BudgetPageView({ page }: BudgetPageViewProps) {
                 category={category}
                 entries={summary.entriesByCategory.get(category.id) ?? []}
                 spentCents={summary.spentByCategory.get(category.id) ?? 0}
+                limitCents={limitCentsByCategory.get(category.id) ?? 0}
                 onAddEntry={() => openNewEntry(category.id)}
                 onEditCategory={() => openEditCategory(category)}
                 onDeleteCategory={() =>
@@ -246,7 +272,13 @@ export function BudgetPageView({ page }: BudgetPageViewProps) {
           open
           onOpenChange={setCategoryDialogOpen}
           pageId={page.id}
+          month={month}
           category={editingCategory}
+          initialLimit={
+            editingCategory
+              ? centsToAmount(limitCentsByCategory.get(editingCategory.id) ?? 0)
+              : 0
+          }
           nextSortOrder={nextSortOrder(categories)}
         />
       )}
@@ -341,6 +373,7 @@ interface CategoryCardProps {
   category: BudgetCategory
   entries: BudgetEntry[]
   spentCents: number
+  limitCents: number
   onAddEntry: () => void
   onEditCategory: () => void
   onDeleteCategory: () => void
@@ -352,13 +385,13 @@ function CategoryCard({
   category,
   entries,
   spentCents,
+  limitCents,
   onAddEntry,
   onEditCategory,
   onDeleteCategory,
   onEditEntry,
   onDeleteEntry,
 }: CategoryCardProps) {
-  const limitCents = moneyToCents(category.monthly_limit)
   const percent =
     limitCents === 0
       ? spentCents > 0
@@ -476,7 +509,11 @@ function CategoryCard({
   )
 }
 
-function buildSummary(categories: BudgetCategory[], entries: BudgetEntry[]) {
+function buildSummary(
+  categories: BudgetCategory[],
+  entries: BudgetEntry[],
+  limitCentsByCategory: Map<string, number>,
+) {
   const spentByCategory = new Map<string, number>()
   const entriesByCategory = new Map<string, BudgetEntry[]>()
   let totalSpentCents = 0
@@ -485,7 +522,7 @@ function buildSummary(categories: BudgetCategory[], entries: BudgetEntry[]) {
   for (const category of categories) {
     spentByCategory.set(category.id, 0)
     entriesByCategory.set(category.id, [])
-    totalLimitCents += moneyToCents(category.monthly_limit)
+    totalLimitCents += limitCentsByCategory.get(category.id) ?? 0
   }
   for (const entry of entries) {
     const amountCents = moneyToCents(entry.amount)
@@ -501,7 +538,7 @@ function buildSummary(categories: BudgetCategory[], entries: BudgetEntry[]) {
   const chartData: BudgetChartDatum[] = categories.map((category) => ({
     name: category.name,
     spentCents: spentByCategory.get(category.id) ?? 0,
-    limitCents: moneyToCents(category.monthly_limit),
+    limitCents: limitCentsByCategory.get(category.id) ?? 0,
   }))
 
   return {

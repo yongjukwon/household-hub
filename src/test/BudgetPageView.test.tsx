@@ -6,6 +6,7 @@ import {
   currentMonthKey,
   shiftMonthKey,
   useBudgetCategories,
+  useBudgetCategoryLimits,
   useBudgetEntries,
   useDeleteBudgetCategory,
   useDeleteBudgetEntry,
@@ -17,6 +18,7 @@ vi.mock('@/hooks/useBudget', async (importOriginal) => {
     ...actual,
     useBudgetCategories: vi.fn(),
     useBudgetEntries: vi.fn(),
+    useBudgetCategoryLimits: vi.fn(),
     useDeleteBudgetCategory: vi.fn(),
     useDeleteBudgetEntry: vi.fn(),
     useCreateBudgetCategory: vi.fn(() => ({
@@ -24,6 +26,10 @@ vi.mock('@/hooks/useBudget', async (importOriginal) => {
       mutateAsync: vi.fn(),
     })),
     useUpdateBudgetCategory: vi.fn(() => ({
+      isPending: false,
+      mutateAsync: vi.fn(),
+    })),
+    useSetBudgetCategoryLimit: vi.fn(() => ({
       isPending: false,
       mutateAsync: vi.fn(),
     })),
@@ -52,11 +58,13 @@ vi.mock('@/components/budget/BudgetChart', () => ({
 
 const mockUseBudgetCategories = vi.mocked(useBudgetCategories)
 const mockUseBudgetEntries = vi.mocked(useBudgetEntries)
+const mockUseBudgetCategoryLimits = vi.mocked(useBudgetCategoryLimits)
 const mockUseDeleteBudgetCategory = vi.mocked(useDeleteBudgetCategory)
 const mockUseDeleteBudgetEntry = vi.mocked(useDeleteBudgetEntry)
 
 const refetchCategories = vi.fn()
 const refetchEntries = vi.fn()
+const refetchLimits = vi.fn()
 const deleteCategory = vi.fn()
 const deleteEntry = vi.fn()
 
@@ -122,6 +130,7 @@ function queryResult(
 function setQueries({
   categories = [],
   entries = [],
+  limits = [],
   categoriesPending = false,
   entriesPending = false,
   categoriesError = false,
@@ -129,6 +138,7 @@ function setQueries({
 }: {
   categories?: unknown[]
   entries?: unknown[]
+  limits?: unknown[]
   categoriesPending?: boolean
   entriesPending?: boolean
   categoriesError?: boolean
@@ -147,6 +157,9 @@ function setQueries({
       isError: entriesError,
       refetch: refetchEntries,
     }) as never,
+  )
+  mockUseBudgetCategoryLimits.mockReturnValue(
+    queryResult(limits, { refetch: refetchLimits }) as never,
   )
 }
 
@@ -232,6 +245,36 @@ describe('BudgetPageView', () => {
     expect(screen.getByTestId('budget-chart')).toHaveTextContent(
       '"spentCents":12500',
     )
+  })
+
+  it("uses the selected month's effective limit override instead of the baseline", () => {
+    const override = {
+      id: 'limit-food-this-month',
+      household_id: 'household-1',
+      page_id: 'page-1',
+      category_id: 'category-food',
+      month: currentMonthKey(),
+      amount: 200, // overrides food's 100 baseline for this month
+      created_at: '2026-07-01T00:00:00.000Z',
+      updated_at: '2026-07-01T00:00:00.000Z',
+    }
+    setQueries({
+      categories: [food, transport],
+      entries: [lunch],
+      limits: [override],
+    })
+    render(<BudgetPageView page={page} />)
+
+    const summary = screen.getByRole('region', { name: 'Budget summary' })
+    // Total limit = 200 (food override) + 50 (transport baseline) = 250.
+    expect(summary).toHaveTextContent(/250\.00/)
+    // Remaining = 250 - 125 spent = 125, and food is no longer over budget.
+    expect(summary).toHaveTextContent('REMAINING')
+    const foodRegion = screen
+      .getByRole('heading', { name: 'Food' })
+      .closest('section')!
+    expect(within(foodRegion).queryByText(/over/)).not.toBeInTheDocument()
+    expect(within(foodRegion).getByText(/of.*200\.00/)).toBeInTheDocument()
   })
 
   it('changes the selected month and re-runs the entries hook with the new key', async () => {

@@ -13,8 +13,10 @@ import { Label } from '@/components/ui/label'
 import {
   currentMonthKey,
   monthBounds,
+  monthLabel,
   useCreateBudgetCategory,
   useCreateBudgetEntry,
+  useSetBudgetCategoryLimit,
   useUpdateBudgetCategory,
   useUpdateBudgetEntry,
   type BudgetCategory,
@@ -28,7 +30,11 @@ interface CategoryDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   pageId: string
+  /** The month currently being viewed; limit edits apply from here onward. */
+  month: string
   category: BudgetCategory | null
+  /** Effective limit for `month` when editing (prefills the field). */
+  initialLimit: number
   nextSortOrder: number
 }
 
@@ -36,21 +42,27 @@ export function CategoryDialog({
   open,
   onOpenChange,
   pageId,
+  month,
   category,
+  initialLimit,
   nextSortOrder,
 }: CategoryDialogProps) {
   const [name, setName] = useState(category?.name ?? '')
-  const [limit, setLimit] = useState(
-    category ? String(category.monthly_limit) : '',
-  )
+  const [limit, setLimit] = useState(category ? String(initialLimit) : '')
   const [error, setError] = useState<string | null>(null)
   const createId = useRef<string | null>(null)
+  const limitId = useRef<string | null>(null)
   const createCategory = useCreateBudgetCategory()
   const updateCategory = useUpdateBudgetCategory()
-  const pending = createCategory.isPending || updateCategory.isPending
+  const setCategoryLimit = useSetBudgetCategoryLimit()
+  const pending =
+    createCategory.isPending ||
+    updateCategory.isPending ||
+    setCategoryLimit.isPending
 
   function close() {
     createId.current = null
+    limitId.current = null
     setError(null)
     onOpenChange(false)
   }
@@ -71,14 +83,26 @@ export function CategoryDialog({
     setError(null)
     try {
       if (category) {
+        // Name/order are global; the limit is scoped to the shown month.
         await updateCategory.mutateAsync({
           id: category.id,
           pageId,
           name: trimmedName,
-          monthlyLimit,
+          monthlyLimit: Number(category.monthly_limit),
           sortOrder: category.sort_order,
         })
+        if (monthlyLimit !== initialLimit) {
+          limitId.current ??= crypto.randomUUID()
+          await setCategoryLimit.mutateAsync({
+            id: limitId.current,
+            pageId,
+            categoryId: category.id,
+            month,
+            amount: monthlyLimit,
+          })
+        }
       } else {
+        // New category: the entered limit is the baseline for all months.
         createId.current ??= crypto.randomUUID()
         await createCategory.mutateAsync({
           id: createId.current,
@@ -108,7 +132,9 @@ export function CategoryDialog({
             {category ? 'Edit category' : 'New category'}
           </DialogTitle>
           <DialogDescription>
-            Set the spending limit used for every month.
+            {category
+              ? `Changing the limit applies from ${monthLabel(month)} onward.`
+              : 'Set the starting monthly limit; you can adjust it per month later.'}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={(event) => void handleSubmit(event)}>
@@ -125,7 +151,9 @@ export function CategoryDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="budget-category-limit">Monthly limit</Label>
+              <Label htmlFor="budget-category-limit">
+                {category ? `Limit for ${monthLabel(month)}` : 'Monthly limit'}
+              </Label>
               <Input
                 id="budget-category-limit"
                 inputMode="decimal"

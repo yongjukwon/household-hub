@@ -4,6 +4,7 @@ import type { Tables, TablesInsert, TablesUpdate } from '@/types/database'
 
 export type BudgetCategory = Tables<'budget_categories'>
 export type BudgetEntry = Tables<'budget_entries'>
+export type BudgetCategoryLimit = Tables<'budget_category_limits'>
 
 export const budgetKeys = {
   all: ['budget'] as const,
@@ -12,6 +13,7 @@ export const budgetKeys = {
   entries: (pageId: string) => ['budget', pageId, 'entries'] as const,
   monthEntries: (pageId: string, month: string) =>
     ['budget', pageId, 'entries', month] as const,
+  limits: (pageId: string) => ['budget', pageId, 'limits'] as const,
 }
 
 const MONTH_KEY_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/
@@ -65,6 +67,30 @@ function normalizeEntry(row: BudgetEntry): BudgetEntry {
   return { ...row, amount: Number(row.amount) }
 }
 
+function normalizeLimit(row: BudgetCategoryLimit): BudgetCategoryLimit {
+  return { ...row, amount: Number(row.amount) }
+}
+
+/**
+ * The limit in effect for a category in a given month: the amount of the most
+ * recent override at-or-before that month (carry-forward until changed). With
+ * no such override, falls back to the category's baseline monthly_limit — so a
+ * category that never sets a per-month limit behaves exactly as before.
+ */
+export function effectiveLimit(
+  category: BudgetCategory,
+  limits: BudgetCategoryLimit[],
+  month: string,
+): number {
+  let best: BudgetCategoryLimit | null = null
+  for (const limit of limits) {
+    if (limit.category_id !== category.id) continue
+    if (limit.month > month) continue
+    if (!best || limit.month > best.month) best = limit
+  }
+  return best ? Number(best.amount) : Number(category.monthly_limit)
+}
+
 export function useBudgetCategories(pageId: string) {
   return useQuery({
     queryKey: budgetKeys.categories(pageId),
@@ -102,6 +128,69 @@ export function useBudgetEntries(pageId: string, month: string) {
 
       if (error) throw error
       return (data ?? []).map(normalizeEntry)
+    },
+  })
+}
+
+export function useBudgetCategoryLimits(pageId: string) {
+  return useQuery({
+    queryKey: budgetKeys.limits(pageId),
+    enabled: !!pageId,
+    queryFn: async (): Promise<BudgetCategoryLimit[]> => {
+      const { data, error } = await supabase
+        .from('budget_category_limits')
+        .select('*')
+        .eq('page_id', pageId)
+        .order('month', { ascending: true })
+
+      if (error) throw error
+      return (data ?? []).map(normalizeLimit)
+    },
+  })
+}
+
+export interface SetBudgetCategoryLimitInput {
+  id: string
+  pageId: string
+  categoryId: string
+  month: string
+  amount: number
+}
+
+/**
+ * Sets (upserts) a category's limit for one month. Upsert keys on
+ * (category_id, month) so re-setting the same month updates in place and a
+ * retry is idempotent; the client-provided id only matters for a first insert.
+ */
+export function useSetBudgetCategoryLimit() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (
+      input: SetBudgetCategoryLimitInput,
+    ): Promise<BudgetCategoryLimit> => {
+      const row: Omit<TablesInsert<'budget_category_limits'>, 'household_id'> = {
+        id: input.id,
+        page_id: input.pageId,
+        category_id: input.categoryId,
+        month: input.month,
+        amount: input.amount,
+      }
+      const { data, error } = await supabase
+        .from('budget_category_limits')
+        .upsert(row as unknown as TablesInsert<'budget_category_limits'>, {
+          onConflict: 'category_id,month',
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+      return normalizeLimit(data)
+    },
+    onSuccess: (_data, input) => {
+      queryClient.invalidateQueries({
+        queryKey: budgetKeys.limits(input.pageId),
+      })
     },
   })
 }
@@ -206,6 +295,10 @@ export function useDeleteBudgetCategory() {
       })
       queryClient.invalidateQueries({
         queryKey: budgetKeys.entries(input.pageId),
+      })
+      // Deleting a category cascades its per-month limit rows.
+      queryClient.invalidateQueries({
+        queryKey: budgetKeys.limits(input.pageId),
       })
     },
   })
