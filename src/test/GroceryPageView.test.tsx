@@ -210,7 +210,10 @@ describe('GroceryPageView', () => {
     expect(screen.getByText(/Price history is kept/)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Delete' }))
-    expect(clearChecked).toHaveBeenCalledWith('page-1')
+    expect(clearChecked).toHaveBeenCalledWith({
+      pageId: 'page-1',
+      ids: ['item-bread'],
+    })
   })
 
   it('confirms item deletion via the row menu and notes history is kept', async () => {

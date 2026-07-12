@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import type { Tables, TablesInsert, TablesUpdate } from '@/types/database'
+import { queueWrite } from '@/lib/offline/outbox'
+import type { Tables, TablesUpdate } from '@/types/database'
 
 export type GroceryItem = Tables<'grocery_items'>
 export type GroceryPriceRecord = Tables<'grocery_price_history'>
@@ -97,6 +98,13 @@ export interface DeleteGroceryItemInput {
   pageId: string
 }
 
+export interface ClearCheckedInput {
+  pageId: string
+  /** The currently-checked item ids — queued as row-scoped deletes so a
+   * later replay can never remove items checked after the clear. */
+  ids: string[]
+}
+
 function invalidateGroceries(
   queryClient: ReturnType<typeof useQueryClient>,
   pageId: string,
@@ -107,35 +115,54 @@ function invalidateGroceries(
   queryClient.invalidateQueries({ queryKey: groceryKeys.history(pageId) })
 }
 
+// Grocery writes are offline-capable (offline-mutation-outbox pattern): the
+// cache is patched optimistically with the row's final client-generated id,
+// the write is queued durably BEFORE any network attempt, and 'queued'
+// resolves as success. When a queued write later syncs, the resulting
+// realtime event refreshes the cache with server truth; 'synced' writes
+// invalidate immediately.
+
 export function useCreateGroceryItem() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (input: CreateGroceryItemInput): Promise<GroceryItem> => {
-      const row: Omit<
-        TablesInsert<'grocery_items'>,
-        'household_id' | 'name_normalized'
-      > = {
+    mutationFn: async (
+      input: CreateGroceryItemInput,
+    ): Promise<'synced' | 'queued'> => {
+      const now = new Date().toISOString()
+      // Optimistic row: household_id is trigger-derived server-side and never
+      // rendered, so a placeholder is fine until server truth arrives.
+      const optimistic: GroceryItem = {
         id: input.id,
+        household_id: '',
         page_id: input.pageId,
         name: input.name,
+        name_normalized: normalizeItemName(input.name),
+        checked: false,
+        last_price: null,
         sort_order: input.sortOrder,
+        created_at: now,
+        updated_at: now,
       }
-      // household_id is trigger-derived and name_normalized is a generated
-      // column; the codegen Insert type cannot express either.
-      const { data, error } = await supabase
-        .from('grocery_items')
-        .upsert(row as unknown as TablesInsert<'grocery_items'>, {
-          onConflict: 'id',
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-      return normalizeItem(data)
+      queryClient.setQueryData<GroceryItem[]>(
+        groceryKeys.items(input.pageId),
+        (old = []) => [...old, optimistic],
+      )
+      return queueWrite({
+        clientId: input.id,
+        table: 'grocery_items',
+        op: 'upsert',
+        payload: {
+          id: input.id,
+          page_id: input.pageId,
+          name: input.name,
+          sort_order: input.sortOrder,
+        },
+        match: { id: input.id },
+      })
     },
-    onSuccess: (_data, input) => {
-      invalidateGroceries(queryClient, input.pageId)
+    onSuccess: (status, input) => {
+      if (status === 'synced') invalidateGroceries(queryClient, input.pageId)
     },
   })
 }
@@ -144,24 +171,39 @@ export function useUpdateGroceryItem() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (input: UpdateGroceryItemInput): Promise<GroceryItem> => {
+    mutationFn: async (
+      input: UpdateGroceryItemInput,
+    ): Promise<'synced' | 'queued'> => {
       const updates: TablesUpdate<'grocery_items'> = {}
       if (input.name !== undefined) updates.name = input.name
       if (input.checked !== undefined) updates.checked = input.checked
       if (input.lastPrice !== undefined) updates.last_price = input.lastPrice
-      const { data, error } = await supabase
-        .from('grocery_items')
-        .update(updates)
-        .eq('id', input.id)
-        .eq('page_id', input.pageId)
-        .select()
-        .single()
-
-      if (error) throw error
-      return normalizeItem(data)
+      queryClient.setQueryData<GroceryItem[]>(
+        groceryKeys.items(input.pageId),
+        (old = []) =>
+          old.map((item) =>
+            item.id === input.id
+              ? {
+                  ...item,
+                  ...updates,
+                  name_normalized:
+                    input.name !== undefined
+                      ? normalizeItemName(input.name)
+                      : item.name_normalized,
+                }
+              : item,
+          ),
+      )
+      return queueWrite({
+        clientId: input.id,
+        table: 'grocery_items',
+        op: 'update',
+        payload: updates,
+        match: { id: input.id, page_id: input.pageId },
+      })
     },
-    onSuccess: (_data, input) => {
-      invalidateGroceries(queryClient, input.pageId)
+    onSuccess: (status, input) => {
+      if (status === 'synced') invalidateGroceries(queryClient, input.pageId)
     },
   })
 }
@@ -170,37 +212,63 @@ export function useDeleteGroceryItem() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (input: DeleteGroceryItemInput): Promise<void> => {
-      const { error } = await supabase
-        .from('grocery_items')
-        .delete()
-        .eq('id', input.id)
-        .eq('page_id', input.pageId)
-
-      if (error) throw error
+    mutationFn: async (
+      input: DeleteGroceryItemInput,
+    ): Promise<'synced' | 'queued'> => {
+      queryClient.setQueryData<GroceryItem[]>(
+        groceryKeys.items(input.pageId),
+        (old = []) => old.filter((item) => item.id !== input.id),
+      )
+      return queueWrite({
+        clientId: input.id,
+        table: 'grocery_items',
+        op: 'delete',
+        payload: {},
+        match: { id: input.id, page_id: input.pageId },
+      })
     },
-    onSuccess: (_data, input) => {
-      queryClient.invalidateQueries({ queryKey: groceryKeys.items(input.pageId) })
+    onSuccess: (status, input) => {
+      if (status === 'synced') {
+        queryClient.invalidateQueries({
+          queryKey: groceryKeys.items(input.pageId),
+        })
+      }
     },
   })
 }
 
-/** Deletes checked items only; price history is untouched by design. */
+/** Deletes the given (checked) items only; price history is untouched. */
 export function useClearCheckedGroceryItems() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (pageId: string): Promise<void> => {
-      const { error } = await supabase
-        .from('grocery_items')
-        .delete()
-        .eq('page_id', pageId)
-        .eq('checked', true)
-
-      if (error) throw error
+    mutationFn: async (
+      input: ClearCheckedInput,
+    ): Promise<'synced' | 'queued'> => {
+      const cleared = new Set(input.ids)
+      queryClient.setQueryData<GroceryItem[]>(
+        groceryKeys.items(input.pageId),
+        (old = []) => old.filter((item) => !cleared.has(item.id)),
+      )
+      let status: 'synced' | 'queued' = 'synced'
+      for (const id of input.ids) {
+        const result = await queueWrite({
+          clientId: id,
+          table: 'grocery_items',
+          op: 'delete',
+          payload: {},
+          match: { id, page_id: input.pageId },
+        })
+        if (result === 'queued') status = 'queued'
+      }
+      return status
     },
-    onSuccess: (_data, pageId) => {
-      queryClient.invalidateQueries({ queryKey: groceryKeys.items(pageId) })
+    onSuccess: (status, input) => {
+      if (status === 'synced') {
+        queryClient.invalidateQueries({
+          queryKey: groceryKeys.items(input.pageId),
+        })
+      }
     },
   })
 }

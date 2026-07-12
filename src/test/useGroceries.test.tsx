@@ -18,6 +18,14 @@ vi.mock('@/lib/supabase', async () => {
   return { supabase: mod.supabase }
 })
 
+vi.mock('@/lib/offline/outbox', () => ({
+  queueWrite: vi.fn(),
+}))
+
+const mockQueueWrite = vi.mocked(
+  (await import('@/lib/offline/outbox')).queueWrite,
+)
+
 function createHarness() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -31,7 +39,7 @@ function createHarness() {
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     )
   }
-  return { wrapper, invalidateSpy }
+  return { wrapper, queryClient, invalidateSpy }
 }
 
 const milk = {
@@ -118,12 +126,53 @@ describe('grocery queries', () => {
   })
 })
 
-describe('grocery mutations', () => {
-  beforeEach(resetSupabaseMocks)
+describe('grocery mutations (offline-capable outbox writes)', () => {
+  beforeEach(() => {
+    resetSupabaseMocks()
+    mockQueueWrite.mockReset().mockResolvedValue('synced')
+  })
 
-  it('creates an idempotent item payload and invalidates items plus history', async () => {
-    const builder = mockFromResult(milk)
-    const { wrapper, invalidateSpy } = createHarness()
+  it('creates via a queued idempotent upsert, patching the cache optimistically', async () => {
+    const { wrapper, queryClient, invalidateSpy } = createHarness()
+    queryClient.setQueryData(groceryKeys.items('page-1'), [])
+    const { result } = renderHook(() => useCreateGroceryItem(), { wrapper })
+    result.current.mutate({
+      id: 'item-milk',
+      pageId: 'page-1',
+      name: '  Milk ',
+      sortOrder: 0,
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(mockQueueWrite).toHaveBeenCalledWith({
+      clientId: 'item-milk',
+      table: 'grocery_items',
+      op: 'upsert',
+      payload: {
+        id: 'item-milk',
+        page_id: 'page-1',
+        name: '  Milk ',
+        sort_order: 0,
+      },
+      match: { id: 'item-milk' },
+    })
+    const cached = queryClient.getQueryData<
+      Array<{ id: string; name_normalized: string }>
+    >(groceryKeys.items('page-1'))
+    expect(cached?.[0].id).toBe('item-milk')
+    expect(cached?.[0].name_normalized).toBe('milk')
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: groceryKeys.items('page-1'),
+    })
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: groceryKeys.history('page-1'),
+    })
+  })
+
+  it('resolves as queued while offline without invalidating (cache keeps the optimistic row)', async () => {
+    mockQueueWrite.mockResolvedValue('queued')
+    const { wrapper, queryClient, invalidateSpy } = createHarness()
+    queryClient.setQueryData(groceryKeys.items('page-1'), [])
     const { result } = renderHook(() => useCreateGroceryItem(), { wrapper })
     result.current.mutate({
       id: 'item-milk',
@@ -133,77 +182,78 @@ describe('grocery mutations', () => {
     })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(builder.upsert).toHaveBeenCalledWith(
-      {
-        id: 'item-milk',
-        page_id: 'page-1',
-        name: 'Milk',
-        sort_order: 0,
-      },
-      { onConflict: 'id' },
+    expect(result.current.data).toBe('queued')
+    expect(invalidateSpy).not.toHaveBeenCalled()
+    const cached = queryClient.getQueryData<Array<{ id: string }>>(
+      groceryKeys.items('page-1'),
     )
-    expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: groceryKeys.items('page-1'),
-    })
-    expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: groceryKeys.history('page-1'),
-    })
+    expect(cached).toHaveLength(1)
   })
 
-  it('sends only provided fields on partial updates, scoped to id and page', async () => {
-    const builder = mockFromResult({ ...milk, checked: true })
-    const { wrapper } = createHarness()
+  it('queues only provided fields on partial updates, patching the cached row', async () => {
+    const { wrapper, queryClient } = createHarness()
+    queryClient.setQueryData(groceryKeys.items('page-1'), [milk])
     const { result } = renderHook(() => useUpdateGroceryItem(), { wrapper })
     result.current.mutate({ id: 'item-milk', pageId: 'page-1', checked: true })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(builder.update).toHaveBeenCalledWith({ checked: true })
-    expect(builder.eq.mock.calls).toEqual([
-      ['id', 'item-milk'],
-      ['page_id', 'page-1'],
-    ])
-  })
-
-  it('updates price through the same partial contract (history is appended server-side)', async () => {
-    const builder = mockFromResult(milk)
-    const { wrapper, invalidateSpy } = createHarness()
-    const { result } = renderHook(() => useUpdateGroceryItem(), { wrapper })
-    result.current.mutate({ id: 'item-milk', pageId: 'page-1', lastPrice: 5.49 })
-
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(builder.update).toHaveBeenCalledWith({ last_price: 5.49 })
-    expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: groceryKeys.history('page-1'),
+    expect(mockQueueWrite).toHaveBeenCalledWith({
+      clientId: 'item-milk',
+      table: 'grocery_items',
+      op: 'update',
+      payload: { checked: true },
+      match: { id: 'item-milk', page_id: 'page-1' },
     })
+    const cached = queryClient.getQueryData<Array<{ checked: boolean }>>(
+      groceryKeys.items('page-1'),
+    )
+    expect(cached?.[0].checked).toBe(true)
   })
 
-  it('deletes an item and surfaces database errors without invalidating', async () => {
-    const failure = new Error('delete denied')
-    const builder = mockFromResult(null, failure)
-    const { wrapper, invalidateSpy } = createHarness()
+  it('queues a row-scoped delete and removes the row from the cache', async () => {
+    const { wrapper, queryClient } = createHarness()
+    queryClient.setQueryData(groceryKeys.items('page-1'), [milk])
     const { result } = renderHook(() => useDeleteGroceryItem(), { wrapper })
     result.current.mutate({ id: 'item-milk', pageId: 'page-1' })
 
-    await waitFor(() => expect(result.current.isError).toBe(true))
-    expect(builder.delete).toHaveBeenCalled()
-    expect(result.current.error).toBe(failure)
-    expect(invalidateSpy).not.toHaveBeenCalled()
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(mockQueueWrite).toHaveBeenCalledWith({
+      clientId: 'item-milk',
+      table: 'grocery_items',
+      op: 'delete',
+      payload: {},
+      match: { id: 'item-milk', page_id: 'page-1' },
+    })
+    expect(
+      queryClient.getQueryData<unknown[]>(groceryKeys.items('page-1')),
+    ).toHaveLength(0)
   })
 
-  it('clears only checked items for the page and invalidates items', async () => {
-    const builder = mockFromResult(null)
-    const { wrapper, invalidateSpy } = createHarness()
+  it('clears checked items as row-scoped deletes (replays can never remove later check-offs)', async () => {
+    const checkedMilk = { ...milk, checked: true }
+    const other = { ...milk, id: 'item-bread', checked: true }
+    const { wrapper, queryClient, invalidateSpy } = createHarness()
+    queryClient.setQueryData(groceryKeys.items('page-1'), [checkedMilk, other])
     const { result } = renderHook(() => useClearCheckedGroceryItems(), {
       wrapper,
     })
-    result.current.mutate('page-1')
+    result.current.mutate({
+      pageId: 'page-1',
+      ids: ['item-milk', 'item-bread'],
+    })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(builder.delete).toHaveBeenCalled()
-    expect(builder.eq.mock.calls).toEqual([
-      ['page_id', 'page-1'],
-      ['checked', true],
-    ])
+    expect(mockQueueWrite).toHaveBeenCalledTimes(2)
+    expect(mockQueueWrite).toHaveBeenNthCalledWith(1, {
+      clientId: 'item-milk',
+      table: 'grocery_items',
+      op: 'delete',
+      payload: {},
+      match: { id: 'item-milk', page_id: 'page-1' },
+    })
+    expect(
+      queryClient.getQueryData<unknown[]>(groceryKeys.items('page-1')),
+    ).toHaveLength(0)
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: groceryKeys.items('page-1'),
     })

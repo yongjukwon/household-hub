@@ -245,7 +245,10 @@ export function GroceryPageView({ page }: GroceryPageViewProps) {
         title="Clear checked items?"
         description={`${checkedCount} checked ${checkedCount === 1 ? 'item' : 'items'} will be removed from the list. Price history is kept.`}
         onConfirm={async () => {
-          await clearChecked.mutateAsync(page.id)
+          await clearChecked.mutateAsync({
+            pageId: page.id,
+            ids: items.filter((item) => item.checked).map((item) => item.id),
+          })
         }}
       />
     </div>

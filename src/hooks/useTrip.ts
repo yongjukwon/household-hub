@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { queueWrite } from '@/lib/offline/outbox'
 import type {
   Enums,
   Tables,
@@ -314,34 +315,52 @@ export interface UpdateChecklistItemInput {
   checked?: boolean
 }
 
+// Checklist writes are offline-capable (offline-mutation-outbox pattern),
+// matching the grocery list: optimistic cache patch with the final
+// client-generated id, durable queue-first write, 'queued' resolves as
+// success, realtime refreshes server truth after a later flush.
+
 export function useCreateChecklistItem() {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async (
       input: CreateChecklistItemInput,
-    ): Promise<TripChecklistItem> => {
-      const row: Omit<TablesInsert<'trip_checklist_items'>, 'household_id'> = {
+    ): Promise<'synced' | 'queued'> => {
+      const now = new Date().toISOString()
+      const optimistic: TripChecklistItem = {
         id: input.id,
+        household_id: '',
         page_id: input.pageId,
         label: input.label,
+        checked: false,
         sort_order: input.sortOrder,
+        created_at: now,
+        updated_at: now,
       }
-      const { data, error } = await supabase
-        .from('trip_checklist_items')
-        .upsert(row as unknown as TablesInsert<'trip_checklist_items'>, {
-          onConflict: 'id',
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-      return data
-    },
-    onSuccess: (_data, input) => {
-      queryClient.invalidateQueries({
-        queryKey: tripKeys.checklist(input.pageId),
+      queryClient.setQueryData<TripChecklistItem[]>(
+        tripKeys.checklist(input.pageId),
+        (old = []) => [...old, optimistic],
+      )
+      return queueWrite({
+        clientId: input.id,
+        table: 'trip_checklist_items',
+        op: 'upsert',
+        payload: {
+          id: input.id,
+          page_id: input.pageId,
+          label: input.label,
+          sort_order: input.sortOrder,
+        },
+        match: { id: input.id },
       })
+    },
+    onSuccess: (status, input) => {
+      if (status === 'synced') {
+        queryClient.invalidateQueries({
+          queryKey: tripKeys.checklist(input.pageId),
+        })
+      }
     },
   })
 }
@@ -352,25 +371,31 @@ export function useUpdateChecklistItem() {
   return useMutation({
     mutationFn: async (
       input: UpdateChecklistItemInput,
-    ): Promise<TripChecklistItem> => {
+    ): Promise<'synced' | 'queued'> => {
       const updates: TablesUpdate<'trip_checklist_items'> = {}
       if (input.label !== undefined) updates.label = input.label
       if (input.checked !== undefined) updates.checked = input.checked
-      const { data, error } = await supabase
-        .from('trip_checklist_items')
-        .update(updates)
-        .eq('id', input.id)
-        .eq('page_id', input.pageId)
-        .select()
-        .single()
-
-      if (error) throw error
-      return data
-    },
-    onSuccess: (_data, input) => {
-      queryClient.invalidateQueries({
-        queryKey: tripKeys.checklist(input.pageId),
+      queryClient.setQueryData<TripChecklistItem[]>(
+        tripKeys.checklist(input.pageId),
+        (old = []) =>
+          old.map((item) =>
+            item.id === input.id ? { ...item, ...updates } : item,
+          ),
+      )
+      return queueWrite({
+        clientId: input.id,
+        table: 'trip_checklist_items',
+        op: 'update',
+        payload: updates,
+        match: { id: input.id, page_id: input.pageId },
       })
+    },
+    onSuccess: (status, input) => {
+      if (status === 'synced') {
+        queryClient.invalidateQueries({
+          queryKey: tripKeys.checklist(input.pageId),
+        })
+      }
     },
   })
 }
@@ -379,19 +404,27 @@ export function useDeleteChecklistItem() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (input: DeleteTripRowInput): Promise<void> => {
-      const { error } = await supabase
-        .from('trip_checklist_items')
-        .delete()
-        .eq('id', input.id)
-        .eq('page_id', input.pageId)
-
-      if (error) throw error
-    },
-    onSuccess: (_data, input) => {
-      queryClient.invalidateQueries({
-        queryKey: tripKeys.checklist(input.pageId),
+    mutationFn: async (
+      input: DeleteTripRowInput,
+    ): Promise<'synced' | 'queued'> => {
+      queryClient.setQueryData<TripChecklistItem[]>(
+        tripKeys.checklist(input.pageId),
+        (old = []) => old.filter((item) => item.id !== input.id),
+      )
+      return queueWrite({
+        clientId: input.id,
+        table: 'trip_checklist_items',
+        op: 'delete',
+        payload: {},
+        match: { id: input.id, page_id: input.pageId },
       })
+    },
+    onSuccess: (status, input) => {
+      if (status === 'synced') {
+        queryClient.invalidateQueries({
+          queryKey: tripKeys.checklist(input.pageId),
+        })
+      }
     },
   })
 }

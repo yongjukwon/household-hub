@@ -23,6 +23,14 @@ vi.mock('@/lib/supabase', async () => {
   return { supabase: mod.supabase }
 })
 
+vi.mock('@/lib/offline/outbox', () => ({
+  queueWrite: vi.fn(),
+}))
+
+const mockQueueWrite = vi.mocked(
+  (await import('@/lib/offline/outbox')).queueWrite,
+)
+
 function createHarness() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -36,7 +44,7 @@ function createHarness() {
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     )
   }
-  return { wrapper, invalidateSpy }
+  return { wrapper, queryClient, invalidateSpy }
 }
 
 const itineraryItem = {
@@ -293,12 +301,15 @@ describe('booking mutations', () => {
   })
 })
 
-describe('checklist mutations', () => {
-  beforeEach(resetSupabaseMocks)
+describe('checklist mutations (offline-capable outbox writes)', () => {
+  beforeEach(() => {
+    resetSupabaseMocks()
+    mockQueueWrite.mockReset().mockResolvedValue('synced')
+  })
 
-  it('creates an idempotent checklist payload and invalidates the checklist', async () => {
-    const builder = mockFromResult(checklistItem)
-    const { wrapper, invalidateSpy } = createHarness()
+  it('creates via a queued idempotent upsert, patching the cache optimistically', async () => {
+    const { wrapper, queryClient, invalidateSpy } = createHarness()
+    queryClient.setQueryData(tripKeys.checklist('page-1'), [])
     const { result } = renderHook(() => useCreateChecklistItem(), { wrapper })
     result.current.mutate({
       id: 'checklist-1',
@@ -308,44 +319,68 @@ describe('checklist mutations', () => {
     })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(builder.upsert).toHaveBeenCalledWith(
-      {
+    expect(mockQueueWrite).toHaveBeenCalledWith({
+      clientId: 'checklist-1',
+      table: 'trip_checklist_items',
+      op: 'upsert',
+      payload: {
         id: 'checklist-1',
         page_id: 'page-1',
         label: 'Passports',
         sort_order: 0,
       },
-      { onConflict: 'id' },
-    )
+      match: { id: 'checklist-1' },
+    })
+    expect(
+      queryClient.getQueryData<Array<{ id: string }>>(
+        tripKeys.checklist('page-1'),
+      )?.[0].id,
+    ).toBe('checklist-1')
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: tripKeys.checklist('page-1'),
     })
   })
 
-  it('sends only the provided fields on partial checklist updates', async () => {
-    const builder = mockFromResult({ ...checklistItem, checked: true })
-    const { wrapper } = createHarness()
+  it('resolves queued toggles as success without invalidating, keeping the optimistic patch', async () => {
+    mockQueueWrite.mockResolvedValue('queued')
+    const { wrapper, queryClient, invalidateSpy } = createHarness()
+    queryClient.setQueryData(tripKeys.checklist('page-1'), [checklistItem])
     const { result } = renderHook(() => useUpdateChecklistItem(), { wrapper })
     result.current.mutate({ id: 'checklist-1', pageId: 'page-1', checked: true })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(builder.update).toHaveBeenCalledWith({ checked: true })
-    expect(builder.eq.mock.calls).toEqual([
-      ['id', 'checklist-1'],
-      ['page_id', 'page-1'],
-    ])
+    expect(result.current.data).toBe('queued')
+    expect(mockQueueWrite).toHaveBeenCalledWith({
+      clientId: 'checklist-1',
+      table: 'trip_checklist_items',
+      op: 'update',
+      payload: { checked: true },
+      match: { id: 'checklist-1', page_id: 'page-1' },
+    })
+    expect(invalidateSpy).not.toHaveBeenCalled()
+    expect(
+      queryClient.getQueryData<Array<{ checked: boolean }>>(
+        tripKeys.checklist('page-1'),
+      )?.[0].checked,
+    ).toBe(true)
   })
 
-  it('deletes checklist items and surfaces database errors without invalidating', async () => {
-    const failure = new Error('delete denied')
-    const builder = mockFromResult(null, failure)
-    const { wrapper, invalidateSpy } = createHarness()
+  it('queues a row-scoped delete and removes the row from the cache', async () => {
+    const { wrapper, queryClient } = createHarness()
+    queryClient.setQueryData(tripKeys.checklist('page-1'), [checklistItem])
     const { result } = renderHook(() => useDeleteChecklistItem(), { wrapper })
     result.current.mutate({ id: 'checklist-1', pageId: 'page-1' })
 
-    await waitFor(() => expect(result.current.isError).toBe(true))
-    expect(builder.delete).toHaveBeenCalled()
-    expect(result.current.error).toBe(failure)
-    expect(invalidateSpy).not.toHaveBeenCalled()
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(mockQueueWrite).toHaveBeenCalledWith({
+      clientId: 'checklist-1',
+      table: 'trip_checklist_items',
+      op: 'delete',
+      payload: {},
+      match: { id: 'checklist-1', page_id: 'page-1' },
+    })
+    expect(
+      queryClient.getQueryData<unknown[]>(tripKeys.checklist('page-1')),
+    ).toHaveLength(0)
   })
 })
