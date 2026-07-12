@@ -30,6 +30,13 @@ export function RichTextEditor({
   }, ONCHANGE_DEBOUNCE_MS)
 
   const editor = useEditor({
+    // Click/tap-toolbar-only by design (see the plan): typed Markdown
+    // shorthand is explicitly rejected, and bullet/blockquote have no
+    // toolbar escape hatch, so StarterKit's Markdown input rules (typing
+    // "# ", "**x**", "- ", "> " auto-formatting) must not run. Paste rules
+    // are left enabled — pasting already-rich/markdown text should still
+    // format, only *typing* shorthand shouldn't.
+    enableInputRules: false,
     extensions: [
       StarterKit,
       TaskList,
@@ -52,7 +59,7 @@ export function RichTextEditor({
   }, [debouncedOnChange])
 
   return (
-    <div className="flex flex-col-reverse sm:flex-col">
+    <div className="flex flex-col-reverse md:flex-col">
       <FormatToolbar editor={editor} />
       <EditorContent editor={editor} className="tiptap-content" />
     </div>

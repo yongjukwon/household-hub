@@ -30,3 +30,12 @@ if (!Element.prototype.getClientRects) {
   Element.prototype.getClientRects = Range.prototype
     .getClientRects as typeof Element.prototype.getClientRects
 }
+
+// jsdom has no layout engine, so it doesn't implement elementFromPoint
+// either — ProseMirror's mousedown handler calls it (via posAtCoords) to
+// resolve a click into a document position. Returning null is fine for
+// tests here: none of them assert on click-to-position placement, only on
+// resulting doc content.
+if (!document.elementFromPoint) {
+  document.elementFromPoint = () => null
+}

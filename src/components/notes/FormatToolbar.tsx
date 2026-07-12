@@ -28,9 +28,12 @@ const TIER_LABEL: Record<HeadingTier, string> = {
 }
 
 // Sticky slim bar: bottom of the editor container on mobile (docked above
-// the on-screen keyboard), top bar on desktop. CSS-only breakpoint switch,
-// no JS media queries, no text-selection bubble menu (unreliable on
-// mobile — deliberately excluded).
+// the on-screen keyboard), top bar on desktop. Switches at `md` to match
+// the app shell's own mobile/desktop breakpoint (BottomNav/MobileBackBar/
+// AppShell's pb-20) — using `sm` here would top-dock the toolbar against
+// unbounded scroll while the shell is still rendering its mobile chrome.
+// CSS-only breakpoint switch, no JS media queries, no text-selection
+// bubble menu (unreliable on mobile — deliberately excluded).
 const EMPTY_STATE = {
   isBold: false,
   isItalic: false,
@@ -63,7 +66,7 @@ export function FormatToolbar({ editor }: FormatToolbarProps) {
   if (!editor) return null
 
   return (
-    <div className="sticky bottom-0 z-10 flex items-center gap-1 border-t border-[var(--line2)] bg-[var(--panel)] px-2 py-1 sm:top-0 sm:bottom-auto sm:border-t-0 sm:border-b">
+    <div className="sticky bottom-0 z-10 flex items-center gap-1 border-t border-[var(--line2)] bg-[var(--panel)] px-2 py-1 md:top-0 md:bottom-auto md:border-t-0 md:border-b">
       <ToolbarButton
         label="Bold"
         active={state.isBold}
@@ -111,7 +114,7 @@ function HeadingMenu({ editor, tier }: { editor: Editor; tier: HeadingTier }) {
         <button
           type="button"
           aria-label="Paragraph style"
-          className="flex h-10 min-w-10 items-center gap-1 rounded-md px-2 text-sm text-[var(--text)] hover:bg-[var(--hover)] sm:h-8"
+          className="flex h-10 min-w-10 items-center gap-1 rounded-md px-2 text-sm text-[var(--text)] hover:bg-[var(--hover)] md:h-8"
         >
           {TIER_LABEL[tier]}
           <ChevronDown className="size-3.5" />
@@ -150,7 +153,7 @@ function ToolbarButton({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        'flex size-10 shrink-0 items-center justify-center rounded-md sm:size-8',
+        'flex size-10 shrink-0 items-center justify-center rounded-md md:size-8',
         active
           ? 'bg-[var(--accentSoft)] text-[var(--accent)]'
           : 'text-[var(--text)] hover:bg-[var(--hover)]',

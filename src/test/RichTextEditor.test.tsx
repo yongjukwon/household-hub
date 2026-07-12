@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { JSONContent } from '@tiptap/react'
 import { RichTextEditor } from '@/components/notes/RichTextEditor'
@@ -82,6 +83,28 @@ describe('RichTextEditor', () => {
       expect(onChange).toHaveBeenCalledTimes(1)
       const doc = onChange.mock.calls[0][0] as JSONContent
       expect(JSON.stringify(doc)).toContain('taskList')
+    })
+  })
+
+  describe('markdown input rules', () => {
+    // This app is explicitly click/tap-toolbar-only (bullet/blockquote
+    // have no toolbar escape) — StarterKit's Markdown input rules must be
+    // disabled so typing "# ", "**x**", "- ", "> " doesn't silently format
+    // text the user only meant to type literally.
+    it('typing "# " at the start of the doc stays a plain paragraph, not a heading', async () => {
+      const user = userEvent.setup()
+      const emptyDoc: JSONContent = {
+        type: 'doc',
+        content: [{ type: 'paragraph' }],
+      }
+      render(<RichTextEditor content={emptyDoc} onChange={vi.fn()} />)
+
+      const editable = document.querySelector('.tiptap') as HTMLElement
+      await user.click(editable)
+      await user.type(editable, '# ')
+
+      expect(document.querySelector('h1')).toBeNull()
+      expect(editable.querySelector('p')).toHaveTextContent('#')
     })
   })
 })
