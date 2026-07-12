@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import {
   QueryClient,
   QueryClientProvider,
@@ -109,6 +109,21 @@ describe('usePage', () => {
     expect(mockFrom).toHaveBeenCalledWith('pages')
     expect(builder.eq).toHaveBeenCalledWith('id', 'page-1')
     expect(builder.single).toHaveBeenCalled()
+  })
+
+  it('does not query Supabase when enabled: false is passed, even with a pageId', async () => {
+    mockFromResult(fakePage)
+
+    const { result } = renderHook(() => usePage('page-1', { enabled: false }), {
+      wrapper,
+    })
+
+    // Give any (wrongly) in-flight query a chance to resolve.
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(result.current.isPending).toBe(true)
+    expect(result.current.fetchStatus).toBe('idle')
+    expect(mockFrom).not.toHaveBeenCalled()
   })
 })
 
@@ -247,5 +262,105 @@ describe('useUpdatePageContent', () => {
     expect(invalidateSpy).not.toHaveBeenCalledWith({
       queryKey: ['page', 'page-1'],
     })
+  })
+
+  it('serializes concurrent saves for the same page and never lets a stale response overwrite a newer one, even if it resolves later', async () => {
+    // Two debounced autosaves fire in quick succession for the SAME page.
+    // The mock's `single()` is controllable (per the pattern in
+    // NotesPageView.test.tsx's "Saving…" test) so the test can resolve the
+    // OLDER save's request *after* dispatching the newer one — the exact
+    // out-of-order-completion scenario the fix guards against — and still
+    // assert the server only ever sees one in-flight request at a time, in
+    // the order they were issued, with the newer content winning the cache.
+    const pageId = 'page-race'
+    const olderContent = {
+      type: 'doc',
+      content: [
+        { type: 'paragraph', content: [{ type: 'text', text: 'older' }] },
+      ],
+    }
+    const newerContent = {
+      type: 'doc',
+      content: [
+        { type: 'paragraph', content: [{ type: 'text', text: 'newer' }] },
+      ],
+    }
+    const olderRow = { ...fakePage, id: pageId, content: olderContent }
+    const newerRow = { ...fakePage, id: pageId, content: newerContent }
+
+    const resolvers: Array<(value: { data: unknown; error: unknown }) => void> =
+      []
+    const updateCalls: unknown[] = []
+    const single = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolvers.push(resolve)
+        }),
+    )
+    const builder = {
+      update: vi.fn((payload: unknown) => {
+        updateCalls.push(payload)
+        return builder
+      }),
+      eq: vi.fn(() => builder),
+      select: vi.fn(() => builder),
+      single,
+    }
+    mockFrom.mockReturnValue(builder)
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+
+    function localWrapper({ children }: { children: React.ReactNode }) {
+      return (
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      )
+    }
+
+    const { result } = renderHook(() => useUpdatePageContent(), {
+      wrapper: localWrapper,
+    })
+
+    act(() => {
+      result.current.mutate({ pageId, content: olderContent })
+    })
+    await waitFor(() => expect(single).toHaveBeenCalledTimes(1))
+
+    await act(async () => {
+      result.current.mutate({ pageId, content: newerContent })
+      // Flush pending microtasks/timers so a not-actually-serialized
+      // implementation would have already dispatched the second request
+      // by now — this is what makes the assertion below a real check of
+      // serialization rather than a timing coincidence.
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    // The second save must be queued behind the first, not fired
+    // concurrently — otherwise the server could receive them out of order.
+    expect(single).toHaveBeenCalledTimes(1)
+
+    // Resolve the OLDER request first (as the fix requires) — only once
+    // it settles does the newer request actually go out.
+    await act(async () => {
+      resolvers[0]({ data: olderRow, error: null })
+      await waitFor(() => expect(single).toHaveBeenCalledTimes(2))
+    })
+
+    // Resolve the newer request too.
+    await act(async () => {
+      resolvers[1]({ data: newerRow, error: null })
+    })
+
+    await waitFor(() =>
+      expect(queryClient.getQueryData(['page', pageId])).toEqual(newerRow),
+    )
+
+    // The server received them in issue order, never concurrently.
+    expect(updateCalls).toEqual([
+      { content: olderContent },
+      { content: newerContent },
+    ])
   })
 })

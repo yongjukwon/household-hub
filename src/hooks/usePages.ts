@@ -27,10 +27,11 @@ export function usePages(section: PageSection) {
   })
 }
 
-export function usePage(pageId: string) {
+export function usePage(pageId: string, options?: { enabled?: boolean }) {
+  const enabled = (options?.enabled ?? true) && !!pageId
   return useQuery({
     queryKey: ['page', pageId],
-    enabled: !!pageId,
+    enabled,
     queryFn: async (): Promise<PageRow> => {
       const { data, error } = await supabase
         .from('pages')
@@ -94,6 +95,38 @@ export interface UpdatePageContentInput {
   content: Json
 }
 
+// Per-page monotonic save sequence + request chain. Two debounced
+// autosaves for the SAME page (a slow network reordering them, or two
+// tabs/instances editing at once) must never let an older PUT of the whole
+// `content` doc land on the server after a newer one, and an older
+// response resolving late must never clobber the cache with stale content
+// once it does arrive. Module-level (not a ref) and keyed by pageId, since
+// the guard needs to hold across the whole app for a given page, not just
+// within one component instance.
+//
+// Two mechanisms, both required:
+// 1. `chain` — each save's actual request is queued behind the previous
+//    save's request settling, so the server only ever sees one in-flight
+//    write per page, in issue order. This is what prevents out-of-order
+//    writes at the network level.
+// 2. `seq` — an incrementing counter tagging each save. onSuccess only
+//    writes through setQueryData when the resolving save is still the
+//    most recent one issued for that page — a belt-and-braces guard in
+//    case that ordering assumption is ever broken elsewhere.
+const pageSaveState = new Map<
+  string,
+  { seq: number; chain: Promise<unknown> }
+>()
+
+function getPageSaveState(pageId: string) {
+  let state = pageSaveState.get(pageId)
+  if (!state) {
+    state = { seq: 0, chain: Promise.resolve() }
+    pageSaveState.set(pageId, state)
+  }
+  return state
+}
+
 // Debounced autosave target for RichTextEditor's onChange (NotesPageView).
 // Deliberately does NOT invalidate ['page', pageId]: a refetch racing a
 // focused editor could clobber in-progress typing. setQueryData with the
@@ -108,19 +141,38 @@ export function useUpdatePageContent() {
     mutationFn: async ({
       pageId,
       content,
-    }: UpdatePageContentInput): Promise<PageRow> => {
-      const { data, error } = await supabase
-        .from('pages')
-        .update({ content })
-        .eq('id', pageId)
-        .select()
-        .single()
+    }: UpdatePageContentInput): Promise<{ data: PageRow; seq: number }> => {
+      const state = getPageSaveState(pageId)
+      const seq = ++state.seq
+      const previous = state.chain
 
-      if (error) throw error
-      return data
+      // Queue the real request behind the previous save's request
+      // settling (ignoring its outcome — a failed prior save shouldn't
+      // block this one, just order after it).
+      const request = previous
+        .catch(() => undefined)
+        .then(async () => {
+          const { data, error } = await supabase
+            .from('pages')
+            .update({ content })
+            .eq('id', pageId)
+            .select()
+            .single()
+
+          if (error) throw error
+          return data as PageRow
+        })
+
+      state.chain = request.catch(() => undefined)
+
+      const data = await request
+      return { data, seq }
     },
-    onSuccess: (data) => {
-      queryClient.setQueryData(['page', data.id], data)
+    onSuccess: ({ data, seq }) => {
+      const state = getPageSaveState(data.id)
+      if (state.seq === seq) {
+        queryClient.setQueryData(['page', data.id], data)
+      }
       queryClient.invalidateQueries({ queryKey: ['pages', data.section] })
     },
   })
