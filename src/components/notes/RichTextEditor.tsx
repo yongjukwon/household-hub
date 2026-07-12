@@ -4,6 +4,9 @@ import StarterKit from '@tiptap/starter-kit'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import Placeholder from '@tiptap/extension-placeholder'
+import TextAlign from '@tiptap/extension-text-align'
+import Highlight from '@tiptap/extension-highlight'
+import { Color, TextStyle } from '@tiptap/extension-text-style'
 import { useDebouncedCallback } from 'use-debounce'
 import { FormatToolbar } from './FormatToolbar'
 import './editor.css'
@@ -40,10 +43,25 @@ export function RichTextEditor({
     // format, only *typing* shorthand shouldn't.
     enableInputRules: false,
     extensions: [
-      StarterKit,
+      // StarterKit v3 bundles Link, Underline and undo/redo history. Link is
+      // configured to open on click (so stored URLs are followable) and to
+      // only accept safe schemes — never javascript: — since a note's links
+      // are rendered as real anchors.
+      StarterKit.configure({
+        link: {
+          openOnClick: true,
+          autolink: true,
+          protocols: ['http', 'https', 'mailto'],
+          HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' },
+        },
+      }),
       TaskList,
       TaskItem.configure({ nested: true }),
       Placeholder.configure({ placeholder }),
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      Highlight,
+      TextStyle,
+      Color,
     ],
     content,
     onUpdate: ({ editor }) => {

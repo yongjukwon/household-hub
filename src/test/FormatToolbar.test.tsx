@@ -5,6 +5,9 @@ import { EditorContent, useEditor, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
+import TextAlign from '@tiptap/extension-text-align'
+import Highlight from '@tiptap/extension-highlight'
+import { Color, TextStyle } from '@tiptap/extension-text-style'
 import { FormatToolbar } from '@/components/notes/FormatToolbar'
 
 // Test harness: a real Tiptap editor (same extensions RichTextEditor wires
@@ -12,7 +15,15 @@ import { FormatToolbar } from '@/components/notes/FormatToolbar'
 // test, with the live editor instance exposed for assertions.
 function Harness({ onReady }: { onReady: (editor: Editor) => void }) {
   const editor = useEditor({
-    extensions: [StarterKit, TaskList, TaskItem.configure({ nested: true })],
+    extensions: [
+      StarterKit,
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      Highlight,
+      TextStyle,
+      Color,
+    ],
     content: {
       type: 'doc',
       content: [
@@ -99,6 +110,75 @@ describe('FormatToolbar', () => {
     expect(document.querySelector('ul[data-type="taskList"]')).not.toBeNull()
     await waitFor(() =>
       expect(checklistButton).toHaveAttribute('aria-pressed', 'true'),
+    )
+  })
+
+  it('toggles underline and highlight marks on the selection', async () => {
+    const user = userEvent.setup()
+    const getEditor = renderHarness()
+    getEditor().commands.selectAll()
+
+    await user.click(screen.getByRole('button', { name: 'Underline' }))
+    expect(getEditor().isActive('underline')).toBe(true)
+
+    await user.click(screen.getByRole('button', { name: 'Highlight' }))
+    expect(getEditor().isActive('highlight')).toBe(true)
+    expect(document.querySelector('mark')).not.toBeNull()
+  })
+
+  it('applies center alignment through the alignment menu', async () => {
+    const user = userEvent.setup()
+    const getEditor = renderHarness()
+
+    await user.click(screen.getByRole('button', { name: 'Text alignment' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Center' }))
+
+    expect(getEditor().isActive({ textAlign: 'center' })).toBe(true)
+  })
+
+  it('sets and clears a text color through the color menu', async () => {
+    const user = userEvent.setup()
+    const getEditor = renderHarness()
+    getEditor().commands.selectAll()
+
+    await user.click(screen.getByRole('button', { name: 'Text color' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Blue' }))
+    expect(document.querySelector('span[style*="color"]')).not.toBeNull()
+
+    await user.click(screen.getByRole('button', { name: 'Text color' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Default' }))
+    expect(getEditor().getAttributes('textStyle').color ?? null).toBeNull()
+  })
+
+  it('adds a clickable link to the selection via the link dialog', async () => {
+    const user = userEvent.setup()
+    const getEditor = renderHarness()
+    getEditor().commands.selectAll()
+
+    await user.click(screen.getByRole('button', { name: 'Link' }))
+    await user.type(
+      await screen.findByLabelText('URL'),
+      'https://example.com',
+    )
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(getEditor().isActive('link')).toBe(true)
+    const anchor = document.querySelector('a')
+    expect(anchor).not.toBeNull()
+    expect(anchor).toHaveAttribute('href', 'https://example.com')
+  })
+
+  it('disables undo until there is history, then enables it after an edit', async () => {
+    const user = userEvent.setup()
+    const getEditor = renderHarness()
+
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled()
+
+    getEditor().commands.selectAll()
+    await user.click(screen.getByRole('button', { name: 'Bold' }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Undo' })).toBeEnabled(),
     )
   })
 })

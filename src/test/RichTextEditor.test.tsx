@@ -86,6 +86,31 @@ describe('RichTextEditor', () => {
     })
   })
 
+  it('renders stored links as clickable anchors that open in a new tab', () => {
+    const docWithLink: JSONContent = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              marks: [{ type: 'link', attrs: { href: 'https://example.com' } }],
+              text: 'a link',
+            },
+          ],
+        },
+      ],
+    }
+    render(<RichTextEditor content={docWithLink} onChange={vi.fn()} />)
+
+    const anchor = document.querySelector('a')
+    expect(anchor).not.toBeNull()
+    expect(anchor).toHaveAttribute('href', 'https://example.com')
+    expect(anchor).toHaveAttribute('target', '_blank')
+    expect(anchor).toHaveAttribute('rel', expect.stringContaining('noopener'))
+  })
+
   describe('external content re-sync (realtime)', () => {
     it('applies a changed content prop while the editor is idle, without firing onChange', () => {
       const onChange = vi.fn()

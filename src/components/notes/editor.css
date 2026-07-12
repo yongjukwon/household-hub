@@ -40,6 +40,21 @@
   color: var(--text);
 }
 
+/* Links are clickable anchors (openOnClick). */
+.tiptap a {
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Highlight mark. */
+.tiptap mark {
+  background-color: var(--accentSoft);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 0.1em;
+}
+
 /* Placeholder extension (empty-doc hint). */
 .tiptap p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
