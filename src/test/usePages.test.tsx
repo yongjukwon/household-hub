@@ -10,6 +10,7 @@ import {
   usePage,
   useCreatePage,
   useDeletePage,
+  useRenamePage,
   useUpdatePageContent,
 } from '@/hooks/usePages'
 import { mockFrom, mockFromResult, resetSupabaseMocks } from './mocks/supabase'
@@ -208,6 +209,46 @@ describe('useDeletePage', () => {
     expect(builder.delete).toHaveBeenCalled()
     expect(builder.eq).toHaveBeenCalledWith('id', 'page-1')
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['pages'] })
+  })
+})
+
+describe('useRenamePage', () => {
+  beforeEach(() => {
+    resetSupabaseMocks()
+  })
+
+  it('updates the title, caches the returned row, and invalidates the section list by the row section', async () => {
+    const renamedPage = { ...fakePage, title: 'New title' }
+    const builder = mockFromResult(renamedPage)
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const setQueryDataSpy = vi.spyOn(queryClient, 'setQueryData')
+
+    function localWrapper({ children }: { children: React.ReactNode }) {
+      return (
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      )
+    }
+
+    const { result } = renderHook(() => useRenamePage(), {
+      wrapper: localWrapper,
+    })
+
+    result.current.mutate({ pageId: 'page-1', title: 'New title' })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(mockFrom).toHaveBeenCalledWith('pages')
+    expect(builder.update).toHaveBeenCalledWith({ title: 'New title' })
+    expect(builder.eq).toHaveBeenCalledWith('id', 'page-1')
+    expect(setQueryDataSpy).toHaveBeenCalledWith(['page', 'page-1'], renamedPage)
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['pages', 'budget'],
+    })
   })
 })
 

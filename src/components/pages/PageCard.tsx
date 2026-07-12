@@ -7,6 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { RenamePageDialog } from './RenamePageDialog'
 import type { PageRow } from '@/hooks/usePages'
 
 const LONG_PRESS_MS = 500
@@ -23,6 +24,7 @@ interface PageCardProps {
 // second nested dialog.
 export function PageCard({ page, sectionPath, onDelete }: PageCardProps) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [renameOpen, setRenameOpen] = useState(false)
   const longPressTimer = useRef<number | undefined>(undefined)
   // Set when the long-press timer actually fires (menu opened by timer,
   // not by right-click/context-menu). iOS Safari synthesizes a click after
@@ -108,6 +110,9 @@ export function PageCard({ page, sectionPath, onDelete }: PageCardProps) {
         </span>
       </Link>
       <DropdownMenuContent align="start">
+        <DropdownMenuItem onSelect={() => setRenameOpen(true)}>
+          Rename
+        </DropdownMenuItem>
         <DropdownMenuItem
           className="text-[var(--danger)] focus:text-[var(--danger)]"
           onSelect={() => onDelete(page.id)}
@@ -118,6 +123,14 @@ export function PageCard({ page, sectionPath, onDelete }: PageCardProps) {
           Cancel
         </DropdownMenuItem>
       </DropdownMenuContent>
+      {renameOpen && (
+        <RenamePageDialog
+          key={page.title}
+          open
+          onOpenChange={setRenameOpen}
+          page={page}
+        />
+      )}
     </DropdownMenu>
   )
 }

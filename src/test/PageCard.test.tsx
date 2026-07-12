@@ -1,9 +1,15 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PageCard } from '@/components/pages/PageCard'
 import type { PageRow } from '@/hooks/usePages'
+
+vi.mock('@/lib/supabase', async () => {
+  const mod = await import('./mocks/supabase')
+  return { supabase: mod.supabase }
+})
 
 const page: PageRow = {
   id: 'page-1',
@@ -24,18 +30,23 @@ function LocationDisplay() {
 }
 
 function renderCard(onDelete: (id: string) => void = vi.fn()) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  })
   return render(
-    <MemoryRouter initialEntries={['/notes']}>
-      <LocationDisplay />
-      <Routes>
-        <Route
-          path="/notes"
-          element={
-            <PageCard page={page} sectionPath="/notes" onDelete={onDelete} />
-          }
-        />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/notes']}>
+        <LocationDisplay />
+        <Routes>
+          <Route
+            path="/notes"
+            element={
+              <PageCard page={page} sectionPath="/notes" onDelete={onDelete} />
+            }
+          />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   )
 }
 
@@ -91,6 +102,26 @@ describe('PageCard', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Delete page' }))
 
     expect(onDelete).toHaveBeenCalledWith('page-1')
+  })
+
+  it('opens a rename dialog prefilled with the current title from the menu', async () => {
+    renderCard()
+
+    const link = screen.getByRole('link')
+    fireEvent.touchStart(link)
+    act(() => {
+      vi.advanceTimersByTime(500)
+    })
+    fireEvent.touchEnd(link)
+
+    vi.useRealTimers()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('menuitem', { name: 'Rename' }))
+
+    expect(
+      screen.getByRole('heading', { name: 'Rename page' }),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Title')).toHaveValue('Groceries')
   })
 
   it('a short tap (no long-press) navigates normally', () => {

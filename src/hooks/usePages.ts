@@ -178,6 +178,38 @@ export function useUpdatePageContent() {
   })
 }
 
+export interface RenamePageInput {
+  pageId: string
+  title: string
+}
+
+// Renames a page. Invalidates both the single-page key and the section list
+// (the list shows titles) using the RETURNED row's section, so the caller
+// doesn't have to pass or re-derive it — same reasoning as
+// useUpdatePageContent. The pages Realtime subscription refreshes the
+// partner's view.
+export function useRenamePage() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ pageId, title }: RenamePageInput): Promise<PageRow> => {
+      const { data, error } = await supabase
+        .from('pages')
+        .update({ title })
+        .eq('id', pageId)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['page', data.id], data)
+      queryClient.invalidateQueries({ queryKey: ['pages', data.section] })
+    },
+  })
+}
+
 // Hard delete: the design's context menu says "Delete page" with no undo.
 // The `archived` column exists for future use but stays unused here — no
 // archive UI in this task.
