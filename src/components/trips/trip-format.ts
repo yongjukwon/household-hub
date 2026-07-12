@@ -37,7 +37,7 @@ export function formatDayOption(day: string): string {
   }).format(new Date(y, m - 1, d))
 }
 
-/** "Aug 1 – Aug 7" trip-period summary, or null when not fully set. */
+/** "Tue, Aug 1 – Mon, Aug 7" trip-period summary, or null when not fully set. */
 export function formatDateRange(
   start: string | null,
   end: string | null,
@@ -46,6 +46,7 @@ export function formatDateRange(
   const fmt = (day: string) => {
     const [y, m, d] = day.split('-').map(Number)
     return new Intl.DateTimeFormat(undefined, {
+      weekday: 'short',
       month: 'short',
       day: 'numeric',
     }).format(new Date(y, m - 1, d))

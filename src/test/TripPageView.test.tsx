@@ -310,6 +310,21 @@ describe('TripPageView', () => {
     expect(options).toHaveLength(3)
     expect(options[0]).toHaveValue('2026-08-01')
     expect(options[2]).toHaveValue('2026-08-03')
+
+    // Open/close use 24-hour hour+minute dropdowns (no AM/PM native picker).
+    expect(screen.getByLabelText('Opens hour')).toBeInTheDocument()
+    expect(screen.getByLabelText('Opens minute')).toBeInTheDocument()
+    expect(screen.getByLabelText('Closes hour')).toBeInTheDocument()
+  })
+
+  it('shows the weekday in the trip period under the title', () => {
+    const periodPage = {
+      ...page,
+      start_date: '2026-08-01', // Saturday
+      end_date: '2026-08-03', // Monday
+    }
+    render(<TripPageView page={periodPage} />)
+    expect(screen.getByText(/Sat, Aug 1.*Mon, Aug 3/)).toBeInTheDocument()
   })
 
   it('groups bookings by type with confirmation details on the bookings tab', async () => {

@@ -37,8 +37,11 @@ describe('formatDateRange', () => {
     expect(formatDateRange('2026-08-01', null)).toBeNull()
   })
 
-  it('formats a range when both are set', () => {
-    expect(formatDateRange('2026-08-01', '2026-08-07')).toMatch(/Aug 1.*Aug 7/)
+  it('formats a range with weekdays when both are set', () => {
+    // 2026-08-01 is a Saturday, 2026-08-07 a Friday.
+    expect(formatDateRange('2026-08-01', '2026-08-07')).toMatch(
+      /Sat, Aug 1.*Fri, Aug 7/,
+    )
   })
 })
 

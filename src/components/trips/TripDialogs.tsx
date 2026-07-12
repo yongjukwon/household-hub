@@ -23,6 +23,7 @@ import {
   type TripItineraryItem,
 } from '@/hooks/useTrip'
 import { useUpdatePageDates } from '@/hooks/usePages'
+import { TimeSelect } from '@/components/common/TimeSelect'
 import {
   BOOKING_TYPE_LABELS,
   daysInRange,
@@ -31,6 +32,21 @@ import {
   localInputToIso,
   normalizeUrl,
 } from './trip-format'
+
+// Split/recombine a datetime-local string ("YYYY-MM-DDTHH:MM") so bookings use
+// a date input + a 24-hour TimeSelect instead of a native datetime-local
+// picker (which shows AM/PM on 12-hour devices).
+function datePart(value: string): string {
+  return value ? value.slice(0, 10) : ''
+}
+
+function timePart(value: string): string {
+  return value.length >= 16 ? value.slice(11, 16) : ''
+}
+
+function combineDateTime(date: string, time: string): string {
+  return date ? `${date}T${time || '00:00'}` : ''
+}
 
 const selectClassName =
   'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
@@ -174,21 +190,21 @@ export function ItineraryDialog({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="itinerary-open">Opens</Label>
-                <Input
-                  id="itinerary-open"
-                  type="time"
+                <span className="text-sm font-medium">Opens</span>
+                <TimeSelect
                   value={openTime}
-                  onChange={(event) => setOpenTime(event.target.value)}
+                  onChange={setOpenTime}
+                  hourLabel="Opens hour"
+                  minuteLabel="Opens minute"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="itinerary-close">Closes</Label>
-                <Input
-                  id="itinerary-close"
-                  type="time"
+                <span className="text-sm font-medium">Closes</span>
+                <TimeSelect
                   value={closeTime}
-                  onChange={(event) => setCloseTime(event.target.value)}
+                  onChange={setCloseTime}
+                  hourLabel="Closes hour"
+                  minuteLabel="Closes minute"
                 />
               </div>
             </div>
@@ -415,23 +431,51 @@ export function BookingDialog({
                 placeholder="Optional"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="booking-starts">Starts</Label>
+            <div className="space-y-1.5">
+              <span className="text-sm font-medium">Starts</span>
+              <div className="flex flex-wrap items-center gap-2">
                 <Input
-                  id="booking-starts"
-                  type="datetime-local"
-                  value={startsAt}
-                  onChange={(event) => setStartsAt(event.target.value)}
+                  aria-label="Start date"
+                  className="w-40"
+                  type="date"
+                  value={datePart(startsAt)}
+                  onChange={(event) =>
+                    setStartsAt(
+                      combineDateTime(event.target.value, timePart(startsAt)),
+                    )
+                  }
+                />
+                <TimeSelect
+                  value={timePart(startsAt)}
+                  onChange={(time) =>
+                    setStartsAt(combineDateTime(datePart(startsAt), time))
+                  }
+                  hourLabel="Start hour"
+                  minuteLabel="Start minute"
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="booking-ends">Ends</Label>
+            </div>
+            <div className="space-y-1.5">
+              <span className="text-sm font-medium">Ends</span>
+              <div className="flex flex-wrap items-center gap-2">
                 <Input
-                  id="booking-ends"
-                  type="datetime-local"
-                  value={endsAt}
-                  onChange={(event) => setEndsAt(event.target.value)}
+                  aria-label="End date"
+                  className="w-40"
+                  type="date"
+                  value={datePart(endsAt)}
+                  onChange={(event) =>
+                    setEndsAt(
+                      combineDateTime(event.target.value, timePart(endsAt)),
+                    )
+                  }
+                />
+                <TimeSelect
+                  value={timePart(endsAt)}
+                  onChange={(time) =>
+                    setEndsAt(combineDateTime(datePart(endsAt), time))
+                  }
+                  hourLabel="End hour"
+                  minuteLabel="End minute"
                 />
               </div>
             </div>
