@@ -9,6 +9,14 @@ export default function SectionListPage({ navItem }: { navItem: NavItem }) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const { data: pages, isPending, isError } = usePages(navItem.section)
   const deletePage = useDeletePage()
+  const [deleteFailed, setDeleteFailed] = useState(false)
+
+  function handleDelete(id: string) {
+    setDeleteFailed(false)
+    deletePage.mutate(id, {
+      onError: () => setDeleteFailed(true),
+    })
+  }
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 md:px-8 md:py-10">
@@ -26,6 +34,12 @@ export default function SectionListPage({ navItem }: { navItem: NavItem }) {
         </button>
       </header>
 
+      {deleteFailed && (
+        <p role="alert" className="mb-4 text-sm text-[var(--danger)]">
+          Couldn’t delete the page — check your connection and try again.
+        </p>
+      )}
+
       {isError ? (
         <p
           role="alert"
@@ -40,7 +54,7 @@ export default function SectionListPage({ navItem }: { navItem: NavItem }) {
               key={page.id}
               page={page}
               sectionPath={navItem.path}
-              onDelete={(id) => deletePage.mutate(id)}
+              onDelete={handleDelete}
             />
           ))}
         </div>

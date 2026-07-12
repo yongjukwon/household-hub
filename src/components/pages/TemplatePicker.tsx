@@ -55,10 +55,11 @@ export function TemplatePicker({
         template,
         title: trimmedTitle,
       })
-    } catch {
+    } catch (err) {
       // Insert failed (network, RLS, or the household query not having
       // resolved yet): keep the dialog open with the typed title intact so
       // a retry is a single click.
+      console.error('Failed to create page', err)
       setError(
         'Couldn’t create the page — check your connection and try again.',
       )
@@ -77,51 +78,59 @@ export function TemplatePicker({
         <DialogHeader>
           <DialogTitle>New {navItem.label} page</DialogTitle>
         </DialogHeader>
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="page-title">Title</Label>
-            <Input
-              id="page-title"
-              autoFocus
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="Untitled"
-            />
-          </div>
-          {sectionTemplate && (
+        <form
+          className="contents"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void handleCreate()
+          }}
+        >
+          <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label>Template</Label>
-              <div className="flex gap-2">
-                <TemplateOption
-                  label={sectionTemplate.label}
-                  selected={template === sectionTemplate.value}
-                  onClick={() => setTemplate(sectionTemplate.value)}
-                />
-                <TemplateOption
-                  label="Blank"
-                  selected={template === 'blank'}
-                  onClick={() => setTemplate('blank')}
-                />
-              </div>
+              <Label htmlFor="page-title">Title</Label>
+              <Input
+                id="page-title"
+                autoFocus
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="Untitled"
+              />
             </div>
-          )}
-          {error && (
-            <p role="alert" className="text-sm text-[var(--danger)]">
-              {error}
-            </p>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={resetAndClose}>
-            Cancel
-          </Button>
-          <Button
-            disabled={!title.trim() || createPage.isPending}
-            onClick={handleCreate}
-          >
-            Create
-          </Button>
-        </DialogFooter>
+            {sectionTemplate && (
+              <div className="flex flex-col gap-1.5">
+                <Label>Template</Label>
+                <div className="flex gap-2">
+                  <TemplateOption
+                    label={sectionTemplate.label}
+                    selected={template === sectionTemplate.value}
+                    onClick={() => setTemplate(sectionTemplate.value)}
+                  />
+                  <TemplateOption
+                    label="Blank"
+                    selected={template === 'blank'}
+                    onClick={() => setTemplate('blank')}
+                  />
+                </div>
+              </div>
+            )}
+            {error && (
+              <p role="alert" className="text-sm text-[var(--danger)]">
+                {error}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={resetAndClose}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={!title.trim() || createPage.isPending}
+            >
+              Create
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   )

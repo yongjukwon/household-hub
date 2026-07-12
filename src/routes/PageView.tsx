@@ -10,10 +10,25 @@ import { NotesPageView } from '@/components/notes/NotesPageView'
 export default function PageView() {
   const { section, pageId } = useParams<{ section: string; pageId: string }>()
   const knownSection = section ? sectionFromPath(`/${section}`) : undefined
-  const { data: page, isPending, isError } = usePage(pageId ?? '')
+  // Gated on knownSection too, not just pageId: an unknown section (e.g.
+  // /garbage/xyz) should render PageNotFound without ever hitting
+  // Supabase for a page that can't be reachable through this route anyway.
+  const {
+    data: page,
+    isPending,
+    isError,
+  } = usePage(pageId ?? '', {
+    enabled: !!knownSection,
+  })
 
   if (!knownSection) return <PageNotFound />
-  if (isPending) return null
+  if (isPending) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-6 md:px-8 md:py-10">
+        <p className="mt-16 text-center text-sm text-[var(--meta)]">Loading…</p>
+      </div>
+    )
+  }
   if (isError || !page) return <PageNotFound />
 
   // key={page.id} forces a remount when pageId changes on this shared

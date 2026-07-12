@@ -8,7 +8,7 @@ import {
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TemplatePicker } from '@/components/pages/TemplatePicker'
 import { NAV_ITEMS } from '@/components/layout/nav-items'
-import { mockFromResult, resetSupabaseMocks } from './mocks/supabase'
+import { mockFrom, mockFromResult, resetSupabaseMocks } from './mocks/supabase'
 
 vi.mock('@/lib/supabase', async () => {
   const mod = await import('./mocks/supabase')
@@ -66,6 +66,35 @@ describe('TemplatePicker', () => {
     expect(alert).toHaveTextContent(/couldn.t create the page/i)
     // Dialog stayed open: the title field (with its value) is still there.
     expect(screen.getByLabelText('Title')).toHaveValue('My page')
+  })
+
+  it("submitting the form (native Enter-to-submit in a single-input form) triggers create, matching the dialog's primary action", async () => {
+    mockFromResult({
+      id: 'page-1',
+      household_id: 'household-1',
+      section: 'notes',
+      template: 'blank',
+      title: 'My page',
+      content: { type: 'doc', content: [] },
+      created_by: 'user-1',
+      archived: false,
+      created_at: '2026-07-01T00:00:00.000Z',
+      updated_at: '2026-07-10T00:00:00.000Z',
+    })
+
+    renderPicker()
+
+    fireEvent.change(screen.getByLabelText('Title'), {
+      target: { value: 'My page' },
+    })
+    // jsdom doesn't implement the browser's native implicit-submit-on-Enter
+    // behavior for a lone text input, so this fires the 'submit' event
+    // that behavior triggers directly — it's how the fix is actually
+    // exercised (wrapping the fields in a <form onSubmit>), matching the
+    // dialog's primary "Create" action instead of requiring a click.
+    fireEvent.submit(screen.getByLabelText('Title').closest('form')!)
+
+    await waitFor(() => expect(mockFrom).toHaveBeenCalledWith('pages'))
   })
 
   it('clears the error on a successful retry', async () => {

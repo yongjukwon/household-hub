@@ -72,7 +72,7 @@ describe('PageView', () => {
     mockPagesById()
   })
 
-  it('shows the new page\'s document when pageId changes on the shared route without an unmount (keyed remount)', async () => {
+  it("shows the new page's document when pageId changes on the shared route without an unmount (keyed remount)", async () => {
     // Both pages pre-cached: this is the reviewer's scenario — with data
     // already in the cache, usePage never flips isPending on navigation,
     // so PageView never returns null and nothing unmounts. Without
@@ -111,5 +111,55 @@ describe('PageView', () => {
     ).toBeInTheDocument()
     expect(await screen.findByText('Beta doc text')).toBeInTheDocument()
     expect(screen.queryByText('Alpha doc text')).not.toBeInTheDocument()
+  })
+
+  it('shows "Page not found" for an unknown section without ever querying Supabase', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/garbage/xyz']}>
+          <Routes>
+            <Route path="/:section/:pageId" element={<PageView />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    expect(await screen.findByText('Page not found.')).toBeInTheDocument()
+    // Give a (wrongly) enabled query a chance to fire before asserting.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('shows a centered loading indicator instead of a blank screen on first load', async () => {
+    // A controllable (never-resolving-yet) builder, mirroring the
+    // "Saving…" test's pattern, so the isPending window is actually
+    // observable instead of racing a mock that resolves within a tick.
+    const single = vi.fn(() => new Promise(() => {}))
+    mockFrom.mockImplementation(() => {
+      const builder = {
+        select: vi.fn(() => builder),
+        eq: vi.fn(() => builder),
+        single,
+      }
+      return builder
+    })
+
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter initialEntries={['/notes/page-a']}>
+          <Routes>
+            <Route path="/:section/:pageId" element={<PageView />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    expect(await screen.findByText('Loading…')).toBeInTheDocument()
   })
 })
