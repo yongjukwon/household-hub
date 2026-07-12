@@ -3,12 +3,19 @@ import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import PageView from '@/routes/PageView'
+import type { PageRow } from '@/hooks/usePages'
 import { mockFrom, resetSupabaseMocks } from './mocks/supabase'
 
 vi.mock('@/lib/supabase', async () => {
   const mod = await import('./mocks/supabase')
   return { supabase: mod.supabase }
 })
+
+vi.mock('@/components/budget/BudgetPageView', () => ({
+  BudgetPageView: ({ page }: { page: PageRow }) => (
+    <p>Budget view for {page.title}</p>
+  ),
+}))
 
 function pageWithDoc(id: string, title: string, text: string) {
   return {
@@ -30,9 +37,24 @@ function pageWithDoc(id: string, title: string, text: string) {
 
 const pageA = pageWithDoc('page-a', 'Alpha page', 'Alpha doc text')
 const pageB = pageWithDoc('page-b', 'Beta page', 'Beta doc text')
-const pagesById: Record<string, typeof pageA> = {
+const budgetPage: PageRow = {
+  ...pageA,
+  id: 'budget-page',
+  section: 'budget',
+  template: 'budget',
+  title: 'Household budget',
+}
+const blankBudgetPage: PageRow = {
+  ...pageA,
+  id: 'blank-budget-page',
+  section: 'budget',
+  title: 'Budget notes',
+}
+const pagesById: Record<string, PageRow> = {
   'page-a': pageA,
   'page-b': pageB,
+  'budget-page': budgetPage,
+  'blank-budget-page': blankBudgetPage,
 }
 
 // Resolves usePage's `.eq('id', ...).single()` per requested id, so both
@@ -134,6 +156,49 @@ describe('PageView', () => {
       await new Promise((resolve) => setTimeout(resolve, 0))
     })
     expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('routes a budget template page to the dedicated Budget view', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    queryClient.setQueryData(['page', 'budget-page'], budgetPage)
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/budget/budget-page']}>
+          <Routes>
+            <Route path="/:section/:pageId" element={<PageView />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    expect(
+      await screen.findByText('Budget view for Household budget'),
+    ).toBeInTheDocument()
+  })
+
+  it('keeps a blank-template page in the Budget section in the Notes editor', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    queryClient.setQueryData(['page', 'blank-budget-page'], blankBudgetPage)
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/budget/blank-budget-page']}>
+          <Routes>
+            <Route path="/:section/:pageId" element={<PageView />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: 'Budget notes' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Alpha doc text')).toBeInTheDocument()
   })
 
   it('shows a centered loading indicator instead of a blank screen on first load', async () => {

@@ -20,9 +20,12 @@ interface QueryResult {
 export interface QueryBuilderMock {
   select: ReturnType<typeof vi.fn>
   insert: ReturnType<typeof vi.fn>
+  upsert: ReturnType<typeof vi.fn>
   update: ReturnType<typeof vi.fn>
   delete: ReturnType<typeof vi.fn>
   eq: ReturnType<typeof vi.fn>
+  gte: ReturnType<typeof vi.fn>
+  lt: ReturnType<typeof vi.fn>
   order: ReturnType<typeof vi.fn>
   single: ReturnType<typeof vi.fn>
   then: (
@@ -46,9 +49,12 @@ export function mockFromResult(
   const builder: QueryBuilderMock = {
     select: vi.fn(() => builder),
     insert: vi.fn(() => builder),
+    upsert: vi.fn(() => builder),
     update: vi.fn(() => builder),
     delete: vi.fn(() => builder),
     eq: vi.fn(() => builder),
+    gte: vi.fn(() => builder),
+    lt: vi.fn(() => builder),
     order: vi.fn(() => builder),
     single: vi.fn(() => Promise.resolve(result)),
     then: (onFulfilled, onRejected) =>

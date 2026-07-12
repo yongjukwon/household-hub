@@ -1,7 +1,14 @@
+import { lazy, Suspense } from 'react'
 import { useParams } from 'react-router-dom'
 import { sectionFromPath } from '@/components/layout/nav-items'
 import { usePage } from '@/hooks/usePages'
 import { NotesPageView } from '@/components/notes/NotesPageView'
+
+const BudgetPageView = lazy(() =>
+  import('@/components/budget/BudgetPageView').then((module) => ({
+    default: module.BudgetPageView,
+  })),
+)
 
 // Routes by the page's own `template`, not the URL section: every 'blank'
 // page (all notes-section pages) gets the Tiptap editor via NotesPageView.
@@ -39,6 +46,13 @@ export default function PageView() {
   if (page.template === 'blank') {
     return <NotesPageView key={page.id} page={page} />
   }
+  if (page.template === 'budget') {
+    return (
+      <Suspense fallback={<PageLoading label="Loading budget…" />}>
+        <BudgetPageView key={page.id} page={page} />
+      </Suspense>
+    )
+  }
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 md:px-8 md:py-10">
@@ -46,6 +60,14 @@ export default function PageView() {
         {page.title}
       </h1>
       <p className="mt-6 text-sm text-[var(--meta)]">Editor coming soon</p>
+    </div>
+  )
+}
+
+function PageLoading({ label }: { label: string }) {
+  return (
+    <div className="mx-auto max-w-2xl px-4 py-6 md:px-8 md:py-10">
+      <p className="mt-16 text-center text-sm text-[var(--meta)]">{label}</p>
     </div>
   )
 }
