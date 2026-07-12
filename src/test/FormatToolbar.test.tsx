@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { EditorContent, useEditor, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import TaskList from '@tiptap/extension-task-list'
@@ -8,12 +8,19 @@ import TaskItem from '@tiptap/extension-task-item'
 import TextAlign from '@tiptap/extension-text-align'
 import Highlight from '@tiptap/extension-highlight'
 import { Color, TextStyle } from '@tiptap/extension-text-style'
+import Image from '@tiptap/extension-image'
 import { FormatToolbar } from '@/components/notes/FormatToolbar'
 
 // Test harness: a real Tiptap editor (same extensions RichTextEditor wires
 // up, minus Placeholder which is irrelevant here) driving the toolbar under
 // test, with the live editor instance exposed for assertions.
-function Harness({ onReady }: { onReady: (editor: Editor) => void }) {
+function Harness({
+  onReady,
+  uploadImage,
+}: {
+  onReady: (editor: Editor) => void
+  uploadImage?: (file: File) => Promise<string>
+}) {
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -23,6 +30,7 @@ function Harness({ onReady }: { onReady: (editor: Editor) => void }) {
       Highlight,
       TextStyle,
       Color,
+      Image,
     ],
     content: {
       type: 'doc',
@@ -39,15 +47,15 @@ function Harness({ onReady }: { onReady: (editor: Editor) => void }) {
 
   return (
     <>
-      <FormatToolbar editor={editor} />
+      <FormatToolbar editor={editor} uploadImage={uploadImage} />
       <EditorContent editor={editor} />
     </>
   )
 }
 
-function renderHarness() {
+function renderHarness(uploadImage?: (file: File) => Promise<string>) {
   let editor!: Editor
-  render(<Harness onReady={(e) => (editor = e)} />)
+  render(<Harness onReady={(e) => (editor = e)} uploadImage={uploadImage} />)
   return () => editor
 }
 
@@ -166,6 +174,53 @@ describe('FormatToolbar', () => {
     const anchor = document.querySelector('a')
     expect(anchor).not.toBeNull()
     expect(anchor).toHaveAttribute('href', 'https://example.com')
+  })
+
+  it('hides the image button when no uploader is provided', () => {
+    renderHarness()
+    expect(
+      screen.queryByRole('button', { name: 'Insert image' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('uploads a picked image and inserts it at the returned URL', async () => {
+    const user = userEvent.setup()
+    const uploadImage = vi
+      .fn()
+      .mockResolvedValue('https://cdn.example/note-images/abc.png')
+    const getEditor = renderHarness(uploadImage)
+
+    const file = new File(['x'], 'photo.png', { type: 'image/png' })
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement
+    await user.upload(input, file)
+
+    await waitFor(() =>
+      expect(getEditor().getHTML()).toContain(
+        'https://cdn.example/note-images/abc.png',
+      ),
+    )
+    expect(uploadImage).toHaveBeenCalledWith(file)
+    expect(document.querySelector('img')).toHaveAttribute(
+      'src',
+      'https://cdn.example/note-images/abc.png',
+    )
+  })
+
+  it('surfaces an upload failure without inserting an image', async () => {
+    const user = userEvent.setup()
+    const uploadImage = vi.fn().mockRejectedValue(new Error('Too big'))
+    renderHarness(uploadImage)
+
+    const file = new File(['x'], 'photo.png', { type: 'image/png' })
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement
+    await user.upload(input, file)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Too big')
+    expect(document.querySelector('img')).toBeNull()
   })
 
   it('disables undo until there is history, then enables it after an edit', async () => {

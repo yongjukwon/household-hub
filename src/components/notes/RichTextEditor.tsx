@@ -7,6 +7,7 @@ import Placeholder from '@tiptap/extension-placeholder'
 import TextAlign from '@tiptap/extension-text-align'
 import Highlight from '@tiptap/extension-highlight'
 import { Color, TextStyle } from '@tiptap/extension-text-style'
+import Image from '@tiptap/extension-image'
 import { useDebouncedCallback } from 'use-debounce'
 import { FormatToolbar } from './FormatToolbar'
 import './editor.css'
@@ -23,12 +24,16 @@ interface RichTextEditorProps {
   /** Called with the full doc, debounced; not fired per keystroke. */
   onChange: (json: JSONContent) => void
   placeholder?: string
+  /** Uploads a picked image and resolves its URL. When omitted, the
+   * toolbar's image button is hidden (e.g. no household context). */
+  uploadImage?: (file: File) => Promise<string>
 }
 
 export function RichTextEditor({
   content,
   onChange,
   placeholder = 'Start writing…',
+  uploadImage,
 }: RichTextEditorProps) {
   const debouncedOnChange = useDebouncedCallback((json: JSONContent) => {
     onChange(json)
@@ -62,6 +67,7 @@ export function RichTextEditor({
       Highlight,
       TextStyle,
       Color,
+      Image,
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -93,7 +99,7 @@ export function RichTextEditor({
 
   return (
     <div className="flex flex-col-reverse md:flex-col">
-      <FormatToolbar editor={editor} />
+      <FormatToolbar editor={editor} uploadImage={uploadImage} />
       <EditorContent editor={editor} className="tiptap-content" />
     </div>
   )

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import type { Editor } from '@tiptap/react'
 import { useEditorState } from '@tiptap/react'
 import {
@@ -8,6 +8,7 @@ import {
   Bold,
   ChevronDown,
   Highlighter,
+  ImagePlus,
   Italic,
   Link2,
   ListChecks,
@@ -37,6 +38,9 @@ import { cn } from '@/lib/utils'
 
 interface FormatToolbarProps {
   editor: Editor | null
+  /** Uploads a picked image and resolves its URL; when omitted, the image
+   * button is hidden. */
+  uploadImage?: (file: File) => Promise<string>
 }
 
 type HeadingTier = 'title' | 'heading' | 'body'
@@ -76,8 +80,11 @@ const EMPTY_STATE = {
   canRedo: false,
 }
 
-export function FormatToolbar({ editor }: FormatToolbarProps) {
+export function FormatToolbar({ editor, uploadImage }: FormatToolbarProps) {
   const [linkOpen, setLinkOpen] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const state =
     useEditorState({
       editor,
@@ -108,6 +115,25 @@ export function FormatToolbar({ editor }: FormatToolbarProps) {
         }
       },
     }) ?? EMPTY_STATE
+
+  async function handleImageFile(file: File | undefined) {
+    if (!file || !uploadImage || !editor) return
+    setUploadError(null)
+    setUploading(true)
+    try {
+      const url = await uploadImage(file)
+      editor.chain().focus().setImage({ src: url }).run()
+    } catch (error) {
+      console.error('Failed to upload image', error)
+      setUploadError(
+        error instanceof Error
+          ? error.message
+          : 'Couldn’t add the image — try again.',
+      )
+    } finally {
+      setUploading(false)
+    }
+  }
 
   if (!editor) return null
 
@@ -182,7 +208,34 @@ export function FormatToolbar({ editor }: FormatToolbarProps) {
         >
           <ListChecks className="size-4" />
         </ToolbarButton>
+        {uploadImage && (
+          <ToolbarButton
+            label="Insert image"
+            disabled={uploading}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <ImagePlus className="size-4" />
+          </ToolbarButton>
+        )}
+        {uploadImage && (
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            aria-hidden
+            onChange={(event) => {
+              void handleImageFile(event.target.files?.[0])
+              event.target.value = ''
+            }}
+          />
+        )}
       </div>
+      {uploadError && (
+        <p role="alert" className="px-3 py-1 text-xs text-[var(--danger)]">
+          {uploadError}
+        </p>
+      )}
       {linkOpen && (
         <LinkDialog
           editor={editor}

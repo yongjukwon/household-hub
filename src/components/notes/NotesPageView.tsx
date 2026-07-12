@@ -1,7 +1,9 @@
+import { useCallback } from 'react'
 import type { JSONContent } from '@tiptap/react'
 import { RichTextEditor } from './RichTextEditor'
 import { useUpdatePageContent, type PageRow } from '@/hooks/usePages'
 import { useRealtimeTable } from '@/hooks/useRealtimeTable'
+import { uploadNoteImage } from '@/lib/uploadNoteImage'
 import type { Json } from '@/types/database'
 
 interface NotesPageViewProps {
@@ -37,6 +39,11 @@ export function NotesPageView({ page }: NotesPageViewProps) {
     updateContent.mutate({ pageId: page.id, content: json as unknown as Json })
   }
 
+  const uploadImage = useCallback(
+    (file: File) => uploadNoteImage(page.household_id, file),
+    [page.household_id],
+  )
+
   return (
     <div className="mx-auto flex h-[calc(100dvh-8rem)] max-w-2xl flex-col px-4 pt-6 md:h-auto md:px-8 md:pt-10">
       <div className="flex shrink-0 items-center justify-between gap-3 pb-4">
@@ -60,6 +67,7 @@ export function NotesPageView({ page }: NotesPageViewProps) {
         <RichTextEditor
           content={page.content as unknown as JSONContent}
           onChange={handleChange}
+          uploadImage={uploadImage}
         />
       </div>
     </div>
