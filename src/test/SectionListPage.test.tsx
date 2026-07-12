@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -17,7 +17,12 @@ vi.mock('@/hooks/useHousehold', () => ({
   useHousehold: vi.fn(() => ({ data: undefined })),
 }))
 
+import { useHousehold } from '@/hooks/useHousehold'
+const mockUseHousehold = vi.mocked(useHousehold)
+
 const notesItem = NAV_ITEMS.find((item) => item.section === 'notes')!
+const tripsItem = NAV_ITEMS.find((item) => item.section === 'trip')!
+const budgetItem = NAV_ITEMS.find((item) => item.section === 'budget')!
 
 const onePage = {
   id: 'page-1',
@@ -93,6 +98,74 @@ describe('SectionListPage', () => {
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent(/couldn.t load pages/i)
     expect(screen.queryByText('No pages yet')).not.toBeInTheDocument()
+  })
+
+  it('creates a page with the current section template after switching sections (no stale template)', async () => {
+    // Regression: all four section routes render the same SectionListPage at
+    // the same position, so React reuses the instance across navigation. If
+    // TemplatePicker's template state isn't keyed to the section, switching
+    // Trips -> Budget leaves it on 'trip', producing a budget-section page
+    // with a trip template (which then renders the Trip planner under Budget).
+    mockUseHousehold.mockReturnValue({
+      data: { id: 'household-1', name: 'Our Household', members: [] },
+    } as never)
+
+    let insertPayload: Record<string, unknown> | null = null
+    const created = {
+      ...onePage,
+      id: 'new-page',
+      section: 'budget',
+      template: 'budget',
+      title: '202706',
+    }
+    mockFrom.mockImplementation(() => {
+      let isInsert = false
+      const builder = {
+        select: vi.fn(() => builder),
+        eq: vi.fn(() => builder),
+        order: vi.fn(() => builder),
+        insert: vi.fn((payload: Record<string, unknown>) => {
+          isInsert = true
+          insertPayload = payload
+          return builder
+        }),
+        single: vi.fn(() => Promise.resolve({ data: created, error: null })),
+        then: (onFulfilled: (v: { data: unknown; error: unknown }) => unknown) =>
+          Promise.resolve(
+            isInsert
+              ? { data: created, error: null }
+              : { data: [], error: null },
+          ).then(onFulfilled),
+      }
+      return builder
+    })
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    const view = (navItem: typeof tripsItem) => (
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <SectionListPage navItem={navItem} />
+        </MemoryRouter>
+      </QueryClientProvider>
+    )
+
+    const { rerender } = render(view(tripsItem))
+    // Simulate navigating Trips -> Budget: same instance, new navItem prop.
+    rerender(view(budgetItem))
+
+    fireEvent.click(screen.getByRole('button', { name: 'New Budget page' }))
+    fireEvent.change(screen.getByLabelText('Title'), {
+      target: { value: '202706' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    await waitFor(() => expect(insertPayload).not.toBeNull())
+    expect(insertPayload).toMatchObject({
+      section: 'budget',
+      template: 'budget',
+    })
   })
 
   it('surfaces a failed delete inline (same alert pattern as load/create errors) instead of failing silently', async () => {

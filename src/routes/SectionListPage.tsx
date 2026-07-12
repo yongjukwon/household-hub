@@ -73,6 +73,11 @@ export default function SectionListPage({ navItem }: { navItem: NavItem }) {
       )}
 
       <TemplatePicker
+        // Keyed by section so navigating between section routes (which reuse
+        // this same SectionListPage instance) remounts the picker with the
+        // new section's default template, instead of carrying the previous
+        // section's template into a fresh page.
+        key={navItem.section}
         open={pickerOpen}
         onOpenChange={setPickerOpen}
         navItem={navItem}

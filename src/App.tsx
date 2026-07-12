@@ -34,9 +34,14 @@ const router = createBrowserRouter([
     ),
     children: [
       { path: '/', element: <HomePage /> },
+      // Keyed by section: all four section routes render the same
+      // SectionListPage at the same Outlet position, so without a distinct key
+      // React reuses the instance (and its children's state) across
+      // navigation — which leaked the previous section's template into new
+      // pages. A per-section key forces a clean remount on section change.
       ...NAV_ITEMS.map((navItem) => ({
         path: navItem.path,
-        element: <SectionListPage navItem={navItem} />,
+        element: <SectionListPage key={navItem.section} navItem={navItem} />,
       })),
       { path: '/:section/:pageId', element: <PageView /> },
       { path: '/settings', element: <SettingsPage /> },
