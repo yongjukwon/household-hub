@@ -17,6 +17,7 @@ import { useRealtimeTable } from '@/hooks/useRealtimeTable'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DeleteDialog } from '@/components/common/DeleteDialog'
+import { EditableTitle } from '@/components/pages/EditableTitle'
 import { GroceryItemRow } from './GroceryItemRow'
 import { GroceryItemDialog } from './GroceryItemDialog'
 
@@ -112,10 +113,8 @@ export function GroceryPageView({ page }: GroceryPageViewProps) {
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 md:px-8 md:py-10">
       <header className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-[26px] font-bold tracking-tight text-[var(--text)]">
-            {page.title}
-          </h1>
+        <div className="min-w-0 flex-1">
+          <EditableTitle page={page} />
           <p className="mt-1 text-sm text-[var(--meta)]">Grocery list</p>
         </div>
         {checkedCount > 0 && (

@@ -104,7 +104,7 @@ describe('PageCard', () => {
     expect(onDelete).toHaveBeenCalledWith('page-1')
   })
 
-  it('opens a rename dialog prefilled with the current title from the menu', async () => {
+  it('offers only Delete and Cancel (renaming moved to the page header)', () => {
     renderCard()
 
     const link = screen.getByRole('link')
@@ -114,14 +114,12 @@ describe('PageCard', () => {
     })
     fireEvent.touchEnd(link)
 
-    vi.useRealTimers()
-    const user = userEvent.setup()
-    await user.click(screen.getByRole('menuitem', { name: 'Rename' }))
-
     expect(
-      screen.getByRole('heading', { name: 'Rename page' }),
+      screen.getByRole('menuitem', { name: 'Delete page' }),
     ).toBeInTheDocument()
-    expect(screen.getByLabelText('Title')).toHaveValue('Groceries')
+    expect(
+      screen.queryByRole('menuitem', { name: 'Rename' }),
+    ).not.toBeInTheDocument()
   })
 
   it('a short tap (no long-press) navigates normally', () => {

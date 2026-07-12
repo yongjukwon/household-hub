@@ -42,6 +42,12 @@ vi.mock('@/hooks/useRealtimeTable', () => ({
   useRealtimeTable: vi.fn(),
 }))
 
+vi.mock('@/components/pages/EditableTitle', () => ({
+  EditableTitle: ({ page }: { page: { title: string } }) => (
+    <h1>{page.title}</h1>
+  ),
+}))
+
 const mockUseTripItinerary = vi.mocked(useTripItinerary)
 const mockUseTripBookings = vi.mocked(useTripBookings)
 const mockUseTripChecklist = vi.mocked(useTripChecklist)

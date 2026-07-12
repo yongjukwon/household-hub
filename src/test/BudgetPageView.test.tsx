@@ -48,6 +48,12 @@ vi.mock('@/hooks/useRealtimeTable', () => ({
   useRealtimeTable: vi.fn(),
 }))
 
+vi.mock('@/components/pages/EditableTitle', () => ({
+  EditableTitle: ({ page }: { page: { title: string } }) => (
+    <h1>{page.title}</h1>
+  ),
+}))
+
 vi.mock('@/components/budget/BudgetChart', () => ({
   BudgetChart: ({
     data,

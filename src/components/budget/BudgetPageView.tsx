@@ -28,6 +28,7 @@ import {
 import { MonthPicker } from './MonthPicker'
 import { BudgetChart, type BudgetChartDatum } from './BudgetChart'
 import { DeleteDialog } from '@/components/common/DeleteDialog'
+import { EditableTitle } from '@/components/pages/EditableTitle'
 import { CategoryDialog, EntryDialog } from './BudgetDialogs'
 
 const currencyFormatter = new Intl.NumberFormat(undefined, {
@@ -148,10 +149,8 @@ export function BudgetPageView({ page }: BudgetPageViewProps) {
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 md:px-8 md:py-10">
       <header className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-[26px] font-bold tracking-tight text-[var(--text)]">
-            {page.title}
-          </h1>
+        <div className="min-w-0 flex-1">
+          <EditableTitle page={page} />
           <p className="mt-1 text-sm text-[var(--meta)]">Monthly budget</p>
         </div>
         <Button

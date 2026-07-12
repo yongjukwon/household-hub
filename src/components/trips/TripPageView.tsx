@@ -16,6 +16,7 @@ import { useRealtimeTable } from '@/hooks/useRealtimeTable'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DeleteDialog } from '@/components/common/DeleteDialog'
+import { EditableTitle } from '@/components/pages/EditableTitle'
 import { ItineraryTab } from './ItineraryTab'
 import { BookingsTab } from './BookingsTab'
 import { ChecklistTab } from './ChecklistTab'
@@ -128,9 +129,7 @@ export function TripPageView({ page }: TripPageViewProps) {
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 md:px-8 md:py-10">
       <header>
-        <h1 className="text-[26px] font-bold tracking-tight text-[var(--text)]">
-          {page.title}
-        </h1>
+        <EditableTitle page={page} />
         <p className="mt-1 text-sm text-[var(--meta)]">Trip planner</p>
       </header>
 

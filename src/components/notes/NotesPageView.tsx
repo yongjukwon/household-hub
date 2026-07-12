@@ -4,6 +4,7 @@ import { RichTextEditor } from './RichTextEditor'
 import { useUpdatePageContent, type PageRow } from '@/hooks/usePages'
 import { useRealtimeTable } from '@/hooks/useRealtimeTable'
 import { uploadNoteImage } from '@/lib/uploadNoteImage'
+import { EditableTitle } from '@/components/pages/EditableTitle'
 import type { Json } from '@/types/database'
 
 interface NotesPageViewProps {
@@ -47,11 +48,9 @@ export function NotesPageView({ page }: NotesPageViewProps) {
   return (
     <div className="mx-auto flex h-[calc(100dvh-8rem)] max-w-2xl flex-col px-4 pt-6 md:h-auto md:px-8 md:pt-10">
       <div className="flex shrink-0 items-center justify-between gap-3 pb-4">
-        <h1 className="text-[26px] font-bold tracking-tight text-[var(--text)]">
-          {page.title}
-        </h1>
+        <EditableTitle page={page} />
         {updateContent.isPending && (
-          <span role="status" className="text-sm text-[var(--meta)]">
+          <span role="status" className="shrink-0 text-sm text-[var(--meta)]">
             Saving…
           </span>
         )}
