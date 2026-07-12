@@ -32,6 +32,8 @@ export function TemplatePicker({
   const defaultTemplate: PageTemplate = sectionTemplate?.value ?? 'blank'
   const [title, setTitle] = useState('')
   const [template, setTemplate] = useState<PageTemplate>(defaultTemplate)
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
   const createPage = useCreatePage()
@@ -39,6 +41,8 @@ export function TemplatePicker({
   function resetAndClose() {
     setTitle('')
     setTemplate(defaultTemplate)
+    setStartDate('')
+    setEndDate('')
     setError(null)
     onOpenChange(false)
   }
@@ -47,6 +51,12 @@ export function TemplatePicker({
     const trimmedTitle = title.trim()
     if (!trimmedTitle) return
 
+    const withPeriod = template === 'trip'
+    if (withPeriod && startDate && endDate && endDate < startDate) {
+      setError('The end date can’t be before the start date.')
+      return
+    }
+
     setError(null)
     let page
     try {
@@ -54,6 +64,8 @@ export function TemplatePicker({
         section: navItem.section,
         template,
         title: trimmedTitle,
+        startDate: withPeriod ? startDate || null : null,
+        endDate: withPeriod ? endDate || null : null,
       })
     } catch (err) {
       // Insert failed (network, RLS, or the household query not having
@@ -109,6 +121,27 @@ export function TemplatePicker({
                     label="Blank"
                     selected={template === 'blank'}
                     onClick={() => setTemplate('blank')}
+                  />
+                </div>
+              </div>
+            )}
+            {template === 'trip' && (
+              <div className="flex flex-col gap-1.5">
+                <Label>Dates (optional)</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    aria-label="Start date"
+                    type="date"
+                    value={startDate}
+                    max={endDate || undefined}
+                    onChange={(event) => setStartDate(event.target.value)}
+                  />
+                  <Input
+                    aria-label="End date"
+                    type="date"
+                    value={endDate}
+                    min={startDate || undefined}
+                    onChange={(event) => setEndDate(event.target.value)}
                   />
                 </div>
               </div>

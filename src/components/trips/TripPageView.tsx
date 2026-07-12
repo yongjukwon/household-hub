@@ -17,13 +17,16 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DeleteDialog } from '@/components/common/DeleteDialog'
 import { EditableTitle } from '@/components/pages/EditableTitle'
+import { CalendarRange } from 'lucide-react'
 import { ItineraryTab } from './ItineraryTab'
 import { BookingsTab } from './BookingsTab'
 import { ChecklistTab } from './ChecklistTab'
+import { formatDateRange } from './trip-format'
 import {
   BookingDialog,
   ChecklistItemDialog,
   ItineraryDialog,
+  TripDatesDialog,
 } from './TripDialogs'
 
 const EMPTY_ITINERARY: TripItineraryItem[] = []
@@ -48,6 +51,7 @@ export function TripPageView({ page }: TripPageViewProps) {
   const [editingBooking, setEditingBooking] = useState<TripBooking | null>(null)
   const [editingChecklistItem, setEditingChecklistItem] =
     useState<TripChecklistItem | null>(null)
+  const [datesDialogOpen, setDatesDialogOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null)
 
   const itineraryQuery = useTripItinerary(page.id)
@@ -130,7 +134,14 @@ export function TripPageView({ page }: TripPageViewProps) {
     <div className="mx-auto max-w-2xl px-4 py-6 md:px-8 md:py-10">
       <header>
         <EditableTitle page={page} />
-        <p className="mt-1 text-sm text-[var(--meta)]">Trip planner</p>
+        <button
+          type="button"
+          onClick={() => setDatesDialogOpen(true)}
+          className="mt-1 flex items-center gap-1.5 text-sm text-[var(--meta)] hover:text-[var(--text)]"
+        >
+          <CalendarRange className="size-4" aria-hidden />
+          {formatDateRange(page.start_date, page.end_date) ?? 'Set trip dates'}
+        </button>
       </header>
 
       {isPending ? (
@@ -208,6 +219,18 @@ export function TripPageView({ page }: TripPageViewProps) {
           pageId={page.id}
           item={editingItineraryItem}
           nextSortOrder={nextSortOrder(itinerary)}
+          startDate={page.start_date}
+          endDate={page.end_date}
+        />
+      )}
+      {datesDialogOpen && (
+        <TripDatesDialog
+          key={`${page.start_date}-${page.end_date}`}
+          open
+          onOpenChange={setDatesDialogOpen}
+          pageId={page.id}
+          startDate={page.start_date}
+          endDate={page.end_date}
         />
       )}
       {bookingDialogOpen && (

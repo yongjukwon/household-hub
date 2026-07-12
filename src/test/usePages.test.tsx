@@ -12,6 +12,7 @@ import {
   useDeletePage,
   useRenamePage,
   useUpdatePageContent,
+  useUpdatePageDates,
 } from '@/hooks/usePages'
 import { mockFrom, mockFromResult, resetSupabaseMocks } from './mocks/supabase'
 
@@ -59,6 +60,8 @@ const fakePage = {
   content: { type: 'doc', content: [] },
   created_by: 'user-1',
   archived: false,
+  start_date: null,
+  end_date: null,
   created_at: '2026-07-01T00:00:00.000Z',
   updated_at: '2026-07-10T00:00:00.000Z',
 }
@@ -167,6 +170,8 @@ describe('useCreatePage', () => {
       section: 'budget',
       template: 'budget',
       title: 'Groceries budget',
+      start_date: null,
+      end_date: null,
     })
     expect(builder.select).toHaveBeenCalled()
     expect(builder.single).toHaveBeenCalled()
@@ -209,6 +214,54 @@ describe('useDeletePage', () => {
     expect(builder.delete).toHaveBeenCalled()
     expect(builder.eq).toHaveBeenCalledWith('id', 'page-1')
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['pages'] })
+  })
+})
+
+describe('useUpdatePageDates', () => {
+  beforeEach(() => {
+    resetSupabaseMocks()
+  })
+
+  it('updates the page date range, caches the row, and invalidates the section list', async () => {
+    const updated = {
+      ...fakePage,
+      start_date: '2026-08-01',
+      end_date: '2026-08-07',
+    }
+    const builder = mockFromResult(updated)
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const setQueryDataSpy = vi.spyOn(queryClient, 'setQueryData')
+
+    function localWrapper({ children }: { children: React.ReactNode }) {
+      return (
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      )
+    }
+
+    const { result } = renderHook(() => useUpdatePageDates(), {
+      wrapper: localWrapper,
+    })
+    result.current.mutate({
+      pageId: 'page-1',
+      startDate: '2026-08-01',
+      endDate: '2026-08-07',
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(builder.update).toHaveBeenCalledWith({
+      start_date: '2026-08-01',
+      end_date: '2026-08-07',
+    })
+    expect(builder.eq).toHaveBeenCalledWith('id', 'page-1')
+    expect(setQueryDataSpy).toHaveBeenCalledWith(['page', 'page-1'], updated)
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['pages', 'budget'],
+    })
   })
 })
 

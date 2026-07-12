@@ -22,8 +22,11 @@ import {
   type TripChecklistItem,
   type TripItineraryItem,
 } from '@/hooks/useTrip'
+import { useUpdatePageDates } from '@/hooks/usePages'
 import {
   BOOKING_TYPE_LABELS,
+  daysInRange,
+  formatDayOption,
   isoToLocalInput,
   localInputToIso,
   normalizeUrl,
@@ -41,6 +44,9 @@ interface ItineraryDialogProps {
   pageId: string
   item: TripItineraryItem | null
   nextSortOrder: number
+  /** Trip period; when both set, the date field is a dropdown of its days. */
+  startDate: string | null
+  endDate: string | null
 }
 
 export function ItineraryDialog({
@@ -49,8 +55,19 @@ export function ItineraryDialog({
   pageId,
   item,
   nextSortOrder,
+  startDate,
+  endDate,
 }: ItineraryDialogProps) {
-  const [itemDate, setItemDate] = useState(item?.item_date ?? '')
+  // Days in the trip period; when editing an item dated outside the range,
+  // keep its date selectable so it isn't silently changed.
+  const periodDays = daysInRange(startDate, endDate)
+  const dayOptions =
+    item && item.item_date && !periodDays.includes(item.item_date)
+      ? [item.item_date, ...periodDays]
+      : periodDays
+  const [itemDate, setItemDate] = useState(
+    item?.item_date ?? (periodDays.length > 0 ? periodDays[0] : ''),
+  )
   const [openTime, setOpenTime] = useState(item?.open_time?.slice(0, 5) ?? '')
   const [closeTime, setCloseTime] = useState(
     item?.close_time?.slice(0, 5) ?? '',
@@ -131,13 +148,29 @@ export function ItineraryDialog({
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="itinerary-date">Date</Label>
-              <Input
-                id="itinerary-date"
-                type="date"
-                value={itemDate}
-                onChange={(event) => setItemDate(event.target.value)}
-                required
-              />
+              {dayOptions.length > 0 ? (
+                <select
+                  id="itinerary-date"
+                  className={selectClassName}
+                  value={itemDate}
+                  onChange={(event) => setItemDate(event.target.value)}
+                  required
+                >
+                  {dayOptions.map((day) => (
+                    <option key={day} value={day}>
+                      {formatDayOption(day)}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Input
+                  id="itinerary-date"
+                  type="date"
+                  value={itemDate}
+                  onChange={(event) => setItemDate(event.target.value)}
+                  required
+                />
+              )}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
@@ -511,6 +544,105 @@ export function ChecklistItemDialog({
             </Button>
             <Button type="submit" disabled={updateItem.isPending}>
               {updateItem.isPending ? 'Saving…' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+interface TripDatesDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  pageId: string
+  startDate: string | null
+  endDate: string | null
+}
+
+export function TripDatesDialog({
+  open,
+  onOpenChange,
+  pageId,
+  startDate,
+  endDate,
+}: TripDatesDialogProps) {
+  const [start, setStart] = useState(startDate ?? '')
+  const [end, setEnd] = useState(endDate ?? '')
+  const [error, setError] = useState<string | null>(null)
+  const updateDates = useUpdatePageDates()
+
+  function close() {
+    setError(null)
+    onOpenChange(false)
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (start && end && end < start) {
+      setError('The end date can’t be before the start date.')
+      return
+    }
+    setError(null)
+    try {
+      await updateDates.mutateAsync({
+        pageId,
+        startDate: start || null,
+        endDate: end || null,
+      })
+      close()
+    } catch (mutationError) {
+      console.error('Failed to update trip dates', mutationError)
+      setError('Couldn’t save the dates — check your connection and try again.')
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => (next ? onOpenChange(true) : close())}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Trip dates</DialogTitle>
+          <DialogDescription>
+            Set the trip period; itinerary items pick their day within it.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={(event) => void handleSubmit(event)}>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="trip-start-date">Start</Label>
+              <Input
+                id="trip-start-date"
+                type="date"
+                value={start}
+                max={end || undefined}
+                onChange={(event) => setStart(event.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="trip-end-date">End</Label>
+              <Input
+                id="trip-end-date"
+                type="date"
+                value={end}
+                min={start || undefined}
+                onChange={(event) => setEnd(event.target.value)}
+              />
+            </div>
+          </div>
+          {error && (
+            <p role="alert" className="mt-3 text-sm text-[var(--danger)]">
+              {error}
+            </p>
+          )}
+          <DialogFooter className="mt-5">
+            <Button type="button" variant="outline" onClick={close}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={updateDates.isPending}>
+              {updateDates.isPending ? 'Saving…' : 'Save'}
             </Button>
           </DialogFooter>
         </form>

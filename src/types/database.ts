@@ -356,9 +356,11 @@ export type Database = {
           content: Json
           created_at: string
           created_by: string
+          end_date: string | null
           household_id: string
           id: string
           section: Database['public']['Enums']['page_section']
+          start_date: string | null
           template: Database['public']['Enums']['page_template']
           title: string
           updated_at: string
@@ -368,9 +370,11 @@ export type Database = {
           content?: Json
           created_at?: string
           created_by: string
+          end_date?: string | null
           household_id: string
           id?: string
           section: Database['public']['Enums']['page_section']
+          start_date?: string | null
           template: Database['public']['Enums']['page_template']
           title: string
           updated_at?: string
@@ -380,9 +384,11 @@ export type Database = {
           content?: Json
           created_at?: string
           created_by?: string
+          end_date?: string | null
           household_id?: string
           id?: string
           section?: Database['public']['Enums']['page_section']
+          start_date?: string | null
           template?: Database['public']['Enums']['page_template']
           title?: string
           updated_at?: string

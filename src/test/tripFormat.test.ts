@@ -1,5 +1,46 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeUrl } from '@/components/trips/trip-format'
+import {
+  daysInRange,
+  formatDateRange,
+  normalizeUrl,
+} from '@/components/trips/trip-format'
+
+describe('daysInRange', () => {
+  it('lists each day from start to end inclusive', () => {
+    expect(daysInRange('2026-08-01', '2026-08-04')).toEqual([
+      '2026-08-01',
+      '2026-08-02',
+      '2026-08-03',
+      '2026-08-04',
+    ])
+  })
+
+  it('spans month boundaries', () => {
+    expect(daysInRange('2026-07-30', '2026-08-02')).toEqual([
+      '2026-07-30',
+      '2026-07-31',
+      '2026-08-01',
+      '2026-08-02',
+    ])
+  })
+
+  it('returns [] for a missing bound or inverted range', () => {
+    expect(daysInRange(null, '2026-08-04')).toEqual([])
+    expect(daysInRange('2026-08-04', null)).toEqual([])
+    expect(daysInRange('2026-08-04', '2026-08-01')).toEqual([])
+  })
+})
+
+describe('formatDateRange', () => {
+  it('returns null unless both bounds are set', () => {
+    expect(formatDateRange(null, '2026-08-04')).toBeNull()
+    expect(formatDateRange('2026-08-01', null)).toBeNull()
+  })
+
+  it('formats a range when both are set', () => {
+    expect(formatDateRange('2026-08-01', '2026-08-07')).toMatch(/Aug 1.*Aug 7/)
+  })
+})
 
 describe('normalizeUrl', () => {
   it('treats blank/whitespace as null (cleared link)', () => {

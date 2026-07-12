@@ -59,6 +59,8 @@ const page = {
   content: { type: 'doc', content: [] },
   created_by: 'user-1',
   archived: false,
+  start_date: null,
+  end_date: null,
   created_at: '2026-07-01T00:00:00.000Z',
   updated_at: '2026-07-10T00:00:00.000Z',
 }

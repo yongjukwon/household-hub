@@ -49,6 +49,9 @@ export interface CreatePageInput {
   section: PageSection
   template: PageTemplate
   title: string
+  /** Optional page date range (used by Trip pages for the trip period). */
+  startDate?: string | null
+  endDate?: string | null
 }
 
 export function useCreatePage() {
@@ -60,6 +63,8 @@ export function useCreatePage() {
       section,
       template,
       title,
+      startDate = null,
+      endDate = null,
     }: CreatePageInput): Promise<PageRow> => {
       if (!household) {
         throw new Error('No household found for the signed-in user.')
@@ -77,6 +82,8 @@ export function useCreatePage() {
           section,
           template,
           title,
+          start_date: startDate,
+          end_date: endDate,
         } as unknown as TablesInsert<'pages'>)
         .select()
         .single()
@@ -86,6 +93,41 @@ export function useCreatePage() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['pages', variables.section] })
+    },
+  })
+}
+
+export interface UpdatePageDatesInput {
+  pageId: string
+  startDate: string | null
+  endDate: string | null
+}
+
+// Updates a page's date range (the Trip period). Caches the returned row and
+// invalidates the section list, like useRenamePage; the pages Realtime
+// subscription refreshes the partner.
+export function useUpdatePageDates() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      pageId,
+      startDate,
+      endDate,
+    }: UpdatePageDatesInput): Promise<PageRow> => {
+      const { data, error } = await supabase
+        .from('pages')
+        .update({ start_date: startDate, end_date: endDate })
+        .eq('id', pageId)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['page', data.id], data)
+      queryClient.invalidateQueries({ queryKey: ['pages', data.section] })
     },
   })
 }

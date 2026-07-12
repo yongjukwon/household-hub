@@ -42,6 +42,19 @@ vi.mock('@/hooks/useRealtimeTable', () => ({
   useRealtimeTable: vi.fn(),
 }))
 
+// TripDatesDialog uses useUpdatePageDates (react-query); stub it so this
+// suite doesn't need a QueryClientProvider.
+vi.mock('@/hooks/usePages', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/usePages')>()
+  return {
+    ...actual,
+    useUpdatePageDates: vi.fn(() => ({
+      isPending: false,
+      mutateAsync: vi.fn(),
+    })),
+  }
+})
+
 vi.mock('@/components/pages/EditableTitle', () => ({
   EditableTitle: ({ page }: { page: { title: string } }) => (
     <h1>{page.title}</h1>
@@ -72,6 +85,8 @@ const page = {
   content: { type: 'doc', content: [] },
   created_by: 'user-1',
   archived: false,
+  start_date: null,
+  end_date: null,
   created_at: '2026-07-01T00:00:00.000Z',
   updated_at: '2026-07-10T00:00:00.000Z',
 }
@@ -263,6 +278,38 @@ describe('TripPageView', () => {
     expect(
       screen.getByRole('heading', { name: 'New itinerary item' }),
     ).toBeInTheDocument()
+  })
+
+  it('shows "Set trip dates" and opens the dates dialog when no period is set', async () => {
+    const user = userEvent.setup()
+    render(<TripPageView page={page} />)
+
+    await user.click(screen.getByRole('button', { name: /Set trip dates/ }))
+    expect(
+      screen.getByRole('heading', { name: 'Trip dates' }),
+    ).toBeInTheDocument()
+  })
+
+  it('shows the trip period and constrains itinerary dates to a dropdown of its days', async () => {
+    const user = userEvent.setup()
+    const periodPage = {
+      ...page,
+      start_date: '2026-08-01',
+      end_date: '2026-08-03',
+    }
+    render(<TripPageView page={periodPage} />)
+
+    // Header shows the range.
+    expect(screen.getByText(/Aug 1.*Aug 3/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Add itinerary item' }))
+    // The Date field is now a dropdown of the period's days.
+    const dateSelect = screen.getByLabelText('Date')
+    expect(dateSelect.tagName).toBe('SELECT')
+    const options = within(dateSelect as HTMLElement).getAllByRole('option')
+    expect(options).toHaveLength(3)
+    expect(options[0]).toHaveValue('2026-08-01')
+    expect(options[2]).toHaveValue('2026-08-03')
   })
 
   it('groups bookings by type with confirmation details on the bookings tab', async () => {
