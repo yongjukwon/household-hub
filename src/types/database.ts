@@ -143,6 +143,105 @@ export type Database = {
           },
         ]
       }
+      grocery_items: {
+        Row: {
+          checked: boolean
+          created_at: string
+          household_id: string
+          id: string
+          last_price: number | null
+          name: string
+          name_normalized: string | null
+          page_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          checked?: boolean
+          created_at?: string
+          household_id: string
+          id?: string
+          last_price?: number | null
+          name: string
+          name_normalized?: string | null
+          page_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          checked?: boolean
+          created_at?: string
+          household_id?: string
+          id?: string
+          last_price?: number | null
+          name?: string
+          name_normalized?: string | null
+          page_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'grocery_items_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'grocery_items_page_id_fkey'
+            columns: ['page_id']
+            isOneToOne: false
+            referencedRelation: 'pages'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      grocery_price_history: {
+        Row: {
+          household_id: string
+          id: string
+          item_name_normalized: string
+          page_id: string
+          price: number
+          recorded_at: string
+          recorded_by: string
+        }
+        Insert: {
+          household_id: string
+          id?: string
+          item_name_normalized: string
+          page_id: string
+          price: number
+          recorded_at?: string
+          recorded_by: string
+        }
+        Update: {
+          household_id?: string
+          id?: string
+          item_name_normalized?: string
+          page_id?: string
+          price?: number
+          recorded_at?: string
+          recorded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'grocery_price_history_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'grocery_price_history_page_id_fkey'
+            columns: ['page_id']
+            isOneToOne: false
+            referencedRelation: 'pages'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       household_members: {
         Row: {
           created_at: string

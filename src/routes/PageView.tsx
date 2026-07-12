@@ -16,10 +16,15 @@ const TripPageView = lazy(() =>
   })),
 )
 
+const GroceryPageView = lazy(() =>
+  import('@/components/groceries/GroceryPageView').then((module) => ({
+    default: module.GroceryPageView,
+  })),
+)
+
 // Routes by the page's own `template`, not the URL section: every 'blank'
-// page (all notes-section pages) gets the Tiptap editor via NotesPageView.
-// The remaining 'grocery' template keeps the placeholder body — its
-// dedicated view is Phase 4.
+// page (all notes-section pages) gets the Tiptap editor via NotesPageView;
+// each of the other templates dispatches to its dedicated view.
 export default function PageView() {
   const { section, pageId } = useParams<{ section: string; pageId: string }>()
   const knownSection = section ? sectionFromPath(`/${section}`) : undefined
@@ -68,12 +73,9 @@ export default function PageView() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6 md:px-8 md:py-10">
-      <h1 className="text-[26px] font-bold tracking-tight text-[var(--text)]">
-        {page.title}
-      </h1>
-      <p className="mt-6 text-sm text-[var(--meta)]">Editor coming soon</p>
-    </div>
+    <Suspense fallback={<PageLoading label="Loading list…" />}>
+      <GroceryPageView key={page.id} page={page} />
+    </Suspense>
   )
 }
 

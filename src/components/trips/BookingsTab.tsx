@@ -7,7 +7,8 @@ import {
   type TripBooking,
 } from '@/hooks/useTrip'
 import { BOOKING_TYPE_LABELS } from './trip-format'
-import { EmptyTab, RowMenu } from './ItineraryTab'
+import { RowMenu } from '@/components/common/RowMenu'
+import { EmptyTab } from './ItineraryTab'
 
 const BOOKING_TYPE_ICONS: Record<
   BookingType,

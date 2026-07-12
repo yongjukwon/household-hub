@@ -8,7 +8,7 @@ import {
   useUpdateChecklistItem,
   type TripChecklistItem,
 } from '@/hooks/useTrip'
-import { RowMenu } from './ItineraryTab'
+import { RowMenu } from '@/components/common/RowMenu'
 
 interface ChecklistTabProps {
   pageId: string

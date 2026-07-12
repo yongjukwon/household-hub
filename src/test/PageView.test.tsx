@@ -23,6 +23,12 @@ vi.mock('@/components/trips/TripPageView', () => ({
   ),
 }))
 
+vi.mock('@/components/groceries/GroceryPageView', () => ({
+  GroceryPageView: ({ page }: { page: PageRow }) => (
+    <p>Grocery view for {page.title}</p>
+  ),
+}))
+
 function pageWithDoc(id: string, title: string, text: string) {
   return {
     id,
@@ -63,12 +69,20 @@ const tripPage: PageRow = {
   template: 'trip',
   title: 'Tokyo 2026',
 }
+const groceryPage: PageRow = {
+  ...pageA,
+  id: 'grocery-page',
+  section: 'grocery',
+  template: 'grocery',
+  title: 'Costco',
+}
 const pagesById: Record<string, PageRow> = {
   'page-a': pageA,
   'page-b': pageB,
   'budget-page': budgetPage,
   'blank-budget-page': blankBudgetPage,
   'trip-page': tripPage,
+  'grocery-page': groceryPage,
 }
 
 // Resolves usePage's `.eq('id', ...).single()` per requested id, so both
@@ -211,6 +225,27 @@ describe('PageView', () => {
 
     expect(
       await screen.findByText('Trip view for Tokyo 2026'),
+    ).toBeInTheDocument()
+  })
+
+  it('routes a grocery template page to the dedicated Grocery view', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    queryClient.setQueryData(['page', 'grocery-page'], groceryPage)
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/groceries/grocery-page']}>
+          <Routes>
+            <Route path="/:section/:pageId" element={<PageView />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    expect(
+      await screen.findByText('Grocery view for Costco'),
     ).toBeInTheDocument()
   })
 

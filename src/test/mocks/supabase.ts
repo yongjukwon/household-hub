@@ -27,6 +27,7 @@ export interface QueryBuilderMock {
   gte: ReturnType<typeof vi.fn>
   lt: ReturnType<typeof vi.fn>
   order: ReturnType<typeof vi.fn>
+  limit: ReturnType<typeof vi.fn>
   single: ReturnType<typeof vi.fn>
   then: (
     onFulfilled: (value: QueryResult) => unknown,
@@ -56,6 +57,7 @@ export function mockFromResult(
     gte: vi.fn(() => builder),
     lt: vi.fn(() => builder),
     order: vi.fn(() => builder),
+    limit: vi.fn(() => builder),
     single: vi.fn(() => Promise.resolve(result)),
     then: (onFulfilled, onRejected) =>
       Promise.resolve(result).then(onFulfilled, onRejected),
