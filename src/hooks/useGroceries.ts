@@ -5,14 +5,21 @@ import type { Tables, TablesUpdate } from '@/types/database'
 
 export type GroceryItem = Tables<'grocery_items'>
 export type GroceryPriceRecord = Tables<'grocery_price_history'>
+/** A price record with the store (page title) it was recorded at. */
+export interface GroceryPriceRecordWithStore extends GroceryPriceRecord {
+  store: string | null
+}
 
 export const groceryKeys = {
   all: ['grocery'] as const,
   page: (pageId: string) => ['grocery', pageId] as const,
   items: (pageId: string) => ['grocery', pageId, 'items'] as const,
-  history: (pageId: string) => ['grocery', pageId, 'history'] as const,
-  itemHistory: (pageId: string, nameNormalized: string) =>
-    ['grocery', pageId, 'history', nameNormalized] as const,
+  // Price history and name suggestions are household-wide (across every
+  // grocery page), so their keys are not scoped to a page.
+  history: () => ['grocery', 'history'] as const,
+  itemHistory: (nameNormalized: string) =>
+    ['grocery', 'history', nameNormalized] as const,
+  names: () => ['grocery', 'names'] as const,
 }
 
 export function normalizeItemName(name: string): string {
@@ -24,10 +31,6 @@ function normalizeItem(row: GroceryItem): GroceryItem {
     ...row,
     last_price: row.last_price === null ? null : Number(row.last_price),
   }
-}
-
-function normalizeRecord(row: GroceryPriceRecord): GroceryPriceRecord {
-  return { ...row, price: Number(row.price) }
 }
 
 export function useGroceryItems(pageId: string) {
@@ -50,30 +53,71 @@ export function useGroceryItems(pageId: string) {
 }
 
 /**
- * Last recorded prices for one normalized item name, newest first. Drives
- * both the "last seen $X" hint (first row) and the history popover. History
- * survives item deletion by design — it's keyed by name, not item id.
+ * Household-wide recorded prices for one normalized item name, newest first,
+ * each labeled with the store (page title) it was recorded at. Drives both the
+ * "last seen $X" hint (first row) and the history popover, so an item's prices
+ * are visible across every store — not just the current page. RLS scopes the
+ * query to the household; history survives item deletion (keyed by name).
  */
 export function useGroceryPriceHistory(
-  pageId: string,
   nameNormalized: string,
   { limit = 5 }: { limit?: number } = {},
 ) {
   return useQuery({
-    queryKey: groceryKeys.itemHistory(pageId, nameNormalized),
-    enabled: !!pageId && nameNormalized.length > 0,
-    queryFn: async (): Promise<GroceryPriceRecord[]> => {
+    queryKey: groceryKeys.itemHistory(nameNormalized),
+    enabled: nameNormalized.length > 0,
+    queryFn: async (): Promise<GroceryPriceRecordWithStore[]> => {
       const { data, error } = await supabase
         .from('grocery_price_history')
-        .select('*')
-        .eq('page_id', pageId)
+        .select('*, pages(title)')
         .eq('item_name_normalized', nameNormalized)
         .order('recorded_at', { ascending: false })
         .order('id', { ascending: false })
         .limit(limit)
 
       if (error) throw error
-      return (data ?? []).map(normalizeRecord)
+      return (data ?? []).map((row) => {
+        const { pages, ...record } = row as GroceryPriceRecord & {
+          pages: { title: string } | null
+        }
+        return {
+          ...record,
+          price: Number(record.price),
+          store: pages?.title ?? null,
+        }
+      })
+    },
+  })
+}
+
+/**
+ * Distinct grocery item names known across the whole household — current items
+ * on any page plus names in price history — for the add-field autocomplete.
+ * Deduped by normalized name, preferring a current item's display casing.
+ */
+export function useGroceryNameSuggestions() {
+  return useQuery({
+    queryKey: groceryKeys.names(),
+    queryFn: async (): Promise<string[]> => {
+      const [items, history] = await Promise.all([
+        supabase.from('grocery_items').select('name, name_normalized'),
+        supabase
+          .from('grocery_price_history')
+          .select('item_name, item_name_normalized'),
+      ])
+      if (items.error) throw items.error
+      if (history.error) throw history.error
+
+      const byNormalized = new Map<string, string>()
+      for (const row of items.data ?? []) {
+        if (row.name_normalized) byNormalized.set(row.name_normalized, row.name)
+      }
+      for (const row of history.data ?? []) {
+        const normalized = row.item_name_normalized
+        if (!normalized || byNormalized.has(normalized)) continue
+        byNormalized.set(normalized, row.item_name ?? normalized)
+      }
+      return [...byNormalized.values()].sort((a, b) => a.localeCompare(b))
     },
   })
 }
@@ -110,9 +154,10 @@ function invalidateGroceries(
   pageId: string,
 ) {
   queryClient.invalidateQueries({ queryKey: groceryKeys.items(pageId) })
-  // Price writes append history rows via a database trigger, so any item
-  // mutation may have changed history for this page.
-  queryClient.invalidateQueries({ queryKey: groceryKeys.history(pageId) })
+  // Price writes append history rows via a database trigger (household-wide),
+  // and a new/renamed item changes the name-suggestion set.
+  queryClient.invalidateQueries({ queryKey: groceryKeys.history() })
+  queryClient.invalidateQueries({ queryKey: groceryKeys.names() })
 }
 
 // Grocery writes are offline-capable (offline-mutation-outbox pattern): the
@@ -232,6 +277,7 @@ export function useDeleteGroceryItem() {
         queryClient.invalidateQueries({
           queryKey: groceryKeys.items(input.pageId),
         })
+        queryClient.invalidateQueries({ queryKey: groceryKeys.names() })
       }
     },
   })
@@ -268,6 +314,7 @@ export function useClearCheckedGroceryItems() {
         queryClient.invalidateQueries({
           queryKey: groceryKeys.items(input.pageId),
         })
+        queryClient.invalidateQueries({ queryKey: groceryKeys.names() })
       }
     },
   })

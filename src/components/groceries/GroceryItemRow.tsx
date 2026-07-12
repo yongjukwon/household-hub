@@ -4,7 +4,6 @@ import type { GroceryItem } from '@/hooks/useGroceries'
 import { PriceHistoryPopover } from './PriceHistoryPopover'
 
 interface GroceryItemRowProps {
-  pageId: string
   item: GroceryItem
   formatCurrency: (amount: number) => string
   onToggle: (item: GroceryItem) => void
@@ -13,7 +12,6 @@ interface GroceryItemRowProps {
 }
 
 export function GroceryItemRow({
-  pageId,
   item,
   formatCurrency,
   onToggle,
@@ -44,7 +42,6 @@ export function GroceryItemRow({
         </span>
       )}
       <PriceHistoryPopover
-        pageId={pageId}
         nameNormalized={item.name_normalized ?? ''}
         itemName={item.name}
         formatCurrency={formatCurrency}

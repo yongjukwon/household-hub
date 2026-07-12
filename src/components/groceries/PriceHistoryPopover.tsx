@@ -9,24 +9,20 @@ import {
 import { useGroceryPriceHistory } from '@/hooks/useGroceries'
 
 interface PriceHistoryPopoverProps {
-  pageId: string
   nameNormalized: string
   itemName: string
   formatCurrency: (amount: number) => string
 }
 
 export function PriceHistoryPopover({
-  pageId,
   nameNormalized,
   itemName,
   formatCurrency,
 }: PriceHistoryPopoverProps) {
   const [open, setOpen] = useState(false)
-  // Only fetch once the popover is opened.
-  const historyQuery = useGroceryPriceHistory(
-    pageId,
-    open ? nameNormalized : '',
-  )
+  // Only fetch once the popover is opened. Household-wide: prices from every
+  // store are shown, each labeled with where it was recorded.
+  const historyQuery = useGroceryPriceHistory(open ? nameNormalized : '')
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -58,18 +54,22 @@ export function PriceHistoryPopover({
             No prices recorded yet.
           </p>
         ) : (
-          <ul className="mt-2 space-y-1.5">
+          <ul className="mt-2 space-y-2">
             {historyQuery.data.map((record) => (
-              <li
-                key={record.id}
-                className="flex items-baseline justify-between gap-3 text-sm"
-              >
-                <span className="font-medium text-[var(--text)]">
-                  {formatCurrency(record.price)}
-                </span>
-                <span className="text-xs text-[var(--meta)]">
-                  {formatRecordedAt(record.recorded_at)}
-                </span>
+              <li key={record.id} className="text-sm">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="font-medium text-[var(--text)]">
+                    {formatCurrency(record.price)}
+                  </span>
+                  <span className="text-xs text-[var(--meta)]">
+                    {formatRecordedAt(record.recorded_at)}
+                  </span>
+                </div>
+                {record.store && (
+                  <p className="truncate text-xs text-[var(--meta)]">
+                    {record.store}
+                  </p>
+                )}
               </li>
             ))}
           </ul>

@@ -8,10 +8,24 @@ import {
   useCreateGroceryItem,
   useDeleteGroceryItem,
   useGroceryItems,
+  useGroceryNameSuggestions,
   useGroceryPriceHistory,
   useUpdateGroceryItem,
 } from '@/hooks/useGroceries'
 import { mockFrom, mockFromResult, resetSupabaseMocks } from './mocks/supabase'
+
+// A minimal thenable query builder resolving to { data, error: null } — for
+// the suggestions query, which fires two selects in parallel (Promise.all).
+function makeThenable(data: unknown) {
+  const builder = {
+    select: () => builder,
+    then: (
+      onFulfilled: (value: { data: unknown; error: unknown }) => unknown,
+      onRejected?: (reason: unknown) => unknown,
+    ) => Promise.resolve({ data, error: null }).then(onFulfilled, onRejected),
+  }
+  return builder
+}
 
 vi.mock('@/lib/supabase', async () => {
   const mod = await import('./mocks/supabase')
@@ -92,37 +106,65 @@ describe('grocery queries', () => {
     expect(result.current.data?.[0].last_price).toBe(5.49)
   })
 
-  it('loads newest-first price history for a name, capped by limit', async () => {
-    const builder = mockFromResult([milkPrice])
+  it('loads newest-first household-wide price history for a name, with store labels', async () => {
+    const builder = mockFromResult([
+      { ...milkPrice, pages: { title: 'Costco' } },
+    ])
     const { wrapper } = createHarness()
     const { result } = renderHook(
-      () => useGroceryPriceHistory('page-1', 'milk', { limit: 5 }),
+      () => useGroceryPriceHistory('milk', { limit: 5 }),
       { wrapper },
     )
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(mockFrom).toHaveBeenCalledWith('grocery_price_history')
-    expect(builder.eq.mock.calls).toEqual([
-      ['page_id', 'page-1'],
-      ['item_name_normalized', 'milk'],
-    ])
+    expect(builder.select).toHaveBeenCalledWith('*, pages(title)')
+    // Household-wide: filters by name only (RLS scopes to the household), not
+    // by page_id.
+    expect(builder.eq.mock.calls).toEqual([['item_name_normalized', 'milk']])
     expect(builder.order.mock.calls).toEqual([
       ['recorded_at', { ascending: false }],
       ['id', { ascending: false }],
     ])
     expect(builder.limit).toHaveBeenCalledWith(5)
     expect(result.current.data?.[0].price).toBe(5.49)
+    expect(result.current.data?.[0].store).toBe('Costco')
   })
 
   it('does not query history for an empty name', async () => {
     const { wrapper } = createHarness()
-    const { result } = renderHook(() => useGroceryPriceHistory('page-1', ''), {
+    const { result } = renderHook(() => useGroceryPriceHistory(''), {
       wrapper,
     })
     await new Promise((resolve) => setTimeout(resolve, 0))
     expect(result.current.fetchStatus).toBe('idle')
     expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('builds household-wide name suggestions from items and history, deduped by normalized name', async () => {
+    // Two .from() calls run in parallel: grocery_items then price history.
+    mockFrom
+      .mockReturnValueOnce(
+        makeThenable([
+          { name: 'Whole Milk', name_normalized: 'whole milk' },
+          { name: 'Eggs', name_normalized: 'eggs' },
+        ]),
+      )
+      .mockReturnValueOnce(
+        makeThenable([
+          // Duplicate of a current item (different casing) — deduped, current
+          // item's casing wins.
+          { item_name: 'whole milk', item_name_normalized: 'whole milk' },
+          // History-only name (a cleared item) still surfaces.
+          { item_name: 'Bread', item_name_normalized: 'bread' },
+        ]),
+      )
+    const { wrapper } = createHarness()
+    const { result } = renderHook(() => useGroceryNameSuggestions(), { wrapper })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data).toEqual(['Bread', 'Eggs', 'Whole Milk'])
   })
 })
 
@@ -165,7 +207,10 @@ describe('grocery mutations (offline-capable outbox writes)', () => {
       queryKey: groceryKeys.items('page-1'),
     })
     expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: groceryKeys.history('page-1'),
+      queryKey: groceryKeys.history(),
+    })
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: groceryKeys.names(),
     })
   })
 

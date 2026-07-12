@@ -7,6 +7,7 @@ import {
   useCreateGroceryItem,
   useDeleteGroceryItem,
   useGroceryItems,
+  useGroceryNameSuggestions,
   useGroceryPriceHistory,
   useUpdateGroceryItem,
 } from '@/hooks/useGroceries'
@@ -17,6 +18,7 @@ vi.mock('@/hooks/useGroceries', async (importOriginal) => {
     ...actual,
     useGroceryItems: vi.fn(),
     useGroceryPriceHistory: vi.fn(),
+    useGroceryNameSuggestions: vi.fn(),
     useCreateGroceryItem: vi.fn(),
     useUpdateGroceryItem: vi.fn(),
     useDeleteGroceryItem: vi.fn(),
@@ -36,6 +38,7 @@ vi.mock('@/components/pages/EditableTitle', () => ({
 
 const mockUseGroceryItems = vi.mocked(useGroceryItems)
 const mockUseGroceryPriceHistory = vi.mocked(useGroceryPriceHistory)
+const mockUseGroceryNameSuggestions = vi.mocked(useGroceryNameSuggestions)
 const mockUseCreateGroceryItem = vi.mocked(useCreateGroceryItem)
 const mockUseUpdateGroceryItem = vi.mocked(useUpdateGroceryItem)
 const mockUseDeleteGroceryItem = vi.mocked(useDeleteGroceryItem)
@@ -108,11 +111,18 @@ function setHistory(records: unknown[] = []) {
   )
 }
 
+function setSuggestions(names: string[] = []) {
+  mockUseGroceryNameSuggestions.mockReturnValue(
+    queryResult(names, { isPending: false }) as never,
+  )
+}
+
 describe('GroceryPageView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     setItems()
     setHistory()
+    setSuggestions()
     mockUseCreateGroceryItem.mockReturnValue({
       isPending: false,
       mutateAsync: createItem,
@@ -161,7 +171,7 @@ describe('GroceryPageView', () => {
     })
   })
 
-  it('shows the last-seen price hint for the typed name', async () => {
+  it('shows the last-seen price hint with the store for the typed name', async () => {
     const user = userEvent.setup()
     setHistory([
       {
@@ -169,6 +179,7 @@ describe('GroceryPageView', () => {
         page_id: 'page-1',
         item_name_normalized: 'milk',
         price: 5.49,
+        store: 'Save-On',
         recorded_by: 'user-1',
         recorded_at: '2026-07-01T00:00:00.000Z',
       },
@@ -177,7 +188,31 @@ describe('GroceryPageView', () => {
 
     await user.type(screen.getByLabelText('Add grocery item'), 'Milk')
 
-    expect(await screen.findByText(/Last seen:/)).toHaveTextContent(/5\.49/)
+    const hint = await screen.findByText(/Last seen:/)
+    expect(hint).toHaveTextContent(/5\.49/)
+    expect(hint).toHaveTextContent(/Save-On/)
+  })
+
+  it('suggests matching item names from anywhere and fills the field on select', async () => {
+    const user = userEvent.setup()
+    setSuggestions(['Whole Milk', 'Milk Chocolate', 'Eggs'])
+    render(<GroceryPageView page={page} />)
+
+    const input = screen.getByLabelText('Add grocery item')
+    await user.type(input, 'milk')
+
+    // Both milk names match; Eggs does not.
+    const wholeMilk = await screen.findByRole('button', { name: 'Whole Milk' })
+    expect(wholeMilk).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Milk Chocolate' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Eggs' }),
+    ).not.toBeInTheDocument()
+
+    await user.click(wholeMilk)
+    expect(input).toHaveValue('Whole Milk')
   })
 
   it('renders items with prices, toggles a checkbox, and shows Clear checked only when needed', async () => {

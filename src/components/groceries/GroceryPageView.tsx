@@ -9,6 +9,7 @@ import {
   useCreateGroceryItem,
   useDeleteGroceryItem,
   useGroceryItems,
+  useGroceryNameSuggestions,
   useGroceryPriceHistory,
   useUpdateGroceryItem,
   type GroceryItem,
@@ -43,33 +44,51 @@ export function GroceryPageView({ page }: GroceryPageViewProps) {
   const [editingItem, setEditingItem] = useState<GroceryItem | null>(null)
   const [deletingItem, setDeletingItem] = useState<GroceryItem | null>(null)
   const [confirmingClear, setConfirmingClear] = useState(false)
+  const [inputFocused, setInputFocused] = useState(false)
   const createId = useRef<string | null>(null)
 
   const itemsQuery = useGroceryItems(page.id)
   useRealtimeTable('grocery_items', 'page_id', page.id, groceryKeys.items(page.id))
-  // History rows are appended by the price trigger; the prefix covers both
-  // the last-seen hint and any open popover's per-name entries.
+  // History rows are appended by the price trigger (household-wide); refresh
+  // the global history + name-suggestion families when this page's price
+  // history changes.
   useRealtimeTable(
     'grocery_price_history',
     'page_id',
     page.id,
-    groceryKeys.history(page.id),
+    groceryKeys.history(),
   )
+  const suggestionsQuery = useGroceryNameSuggestions()
   const createItem = useCreateGroceryItem()
   const updateItem = useUpdateGroceryItem()
   const deleteItem = useDeleteGroceryItem()
   const clearChecked = useClearCheckedGroceryItems()
 
   // "Last seen $X" hint for the name being typed, debounced so the history
-  // query isn't refired per keystroke.
+  // query isn't refired per keystroke. Household-wide, so it reflects the most
+  // recent price at any store.
   const [debouncedName] = useDebounce(normalizeItemName(name), 300)
-  const lastSeenQuery = useGroceryPriceHistory(page.id, debouncedName, {
-    limit: 1,
-  })
+  const lastSeenQuery = useGroceryPriceHistory(debouncedName, { limit: 1 })
   const lastSeen = lastSeenQuery.data?.[0] ?? null
 
   const items = itemsQuery.data ?? EMPTY_ITEMS
   const checkedCount = items.filter((item) => item.checked).length
+
+  // Autocomplete: names matching the current input, excluding an exact match
+  // (nothing to suggest once it's fully typed) and names already on this list.
+  const trimmedName = name.trim()
+  const onListNormalized = new Set(items.map((item) => item.name_normalized))
+  const suggestions = trimmedName
+    ? (suggestionsQuery.data ?? [])
+        .filter(
+          (suggestion) =>
+            suggestion.toLowerCase().includes(trimmedName.toLowerCase()) &&
+            normalizeItemName(suggestion) !== normalizeItemName(trimmedName) &&
+            !onListNormalized.has(normalizeItemName(suggestion)),
+        )
+        .slice(0, 8)
+    : []
+  const suggestionsOpen = inputFocused && suggestions.length > 0
 
   async function handleAdd(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -133,15 +152,47 @@ export function GroceryPageView({ page }: GroceryPageViewProps) {
         className="mt-5 flex gap-2"
         onSubmit={(event) => void handleAdd(event)}
       >
-        <label htmlFor="grocery-add" className="sr-only">
-          Add grocery item
-        </label>
-        <Input
-          id="grocery-add"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          placeholder="Add an item…"
-        />
+        <div className="relative flex-1">
+          <label htmlFor="grocery-add" className="sr-only">
+            Add grocery item
+          </label>
+          <Input
+            id="grocery-add"
+            value={name}
+            autoComplete="off"
+            role="combobox"
+            aria-expanded={suggestionsOpen}
+            aria-controls="grocery-suggestions"
+            onChange={(event) => setName(event.target.value)}
+            onFocus={() => setInputFocused(true)}
+            onBlur={() => setInputFocused(false)}
+            placeholder="Add an item…"
+          />
+          {suggestionsOpen && (
+            <ul
+              id="grocery-suggestions"
+              className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-md border border-[var(--line2)] bg-[var(--panel)] py-1 shadow-md"
+            >
+              {suggestions.map((suggestion) => (
+                <li key={suggestion}>
+                  <button
+                    type="button"
+                    // Keep focus on the input so its blur doesn't close the
+                    // list before this click registers.
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      setName(suggestion)
+                      setInputFocused(false)
+                    }}
+                    className="block w-full truncate px-3 py-2 text-left text-sm text-[var(--text)] hover:bg-[var(--hover)]"
+                  >
+                    {suggestion}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
         <Button
           type="submit"
           variant="outline"
@@ -154,6 +205,7 @@ export function GroceryPageView({ page }: GroceryPageViewProps) {
       {lastSeen && name.trim() && (
         <p className="mt-2 text-xs text-[var(--meta)]" role="status">
           Last seen: {formatCurrency(lastSeen.price)}
+          {lastSeen.store ? ` at ${lastSeen.store}` : ''}
         </p>
       )}
       {addError && (
@@ -197,7 +249,6 @@ export function GroceryPageView({ page }: GroceryPageViewProps) {
           {items.map((item) => (
             <GroceryItemRow
               key={item.id}
-              pageId={page.id}
               item={item}
               formatCurrency={formatCurrency}
               onToggle={toggle}

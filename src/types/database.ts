@@ -256,6 +256,7 @@ export type Database = {
         Row: {
           household_id: string
           id: string
+          item_name: string | null
           item_name_normalized: string
           page_id: string
           price: number
@@ -265,6 +266,7 @@ export type Database = {
         Insert: {
           household_id: string
           id?: string
+          item_name?: string | null
           item_name_normalized: string
           page_id: string
           price: number
@@ -274,6 +276,7 @@ export type Database = {
         Update: {
           household_id?: string
           id?: string
+          item_name?: string | null
           item_name_normalized?: string
           page_id?: string
           price?: number
