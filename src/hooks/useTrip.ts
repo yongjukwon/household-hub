@@ -38,7 +38,7 @@ export function useTripItinerary(pageId: string) {
         .select('*')
         .eq('page_id', pageId)
         .order('item_date', { ascending: true })
-        .order('start_time', { ascending: true, nullsFirst: false })
+        .order('open_time', { ascending: true, nullsFirst: false })
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: true })
         .order('id', { ascending: true })
@@ -91,9 +91,12 @@ export interface CreateItineraryItemInput {
   id: string
   pageId: string
   itemDate: string
-  startTime: string | null
+  openTime: string | null
+  closeTime: string | null
   title: string
   notes: string | null
+  ticketUrl: string | null
+  mapUrl: string | null
   sortOrder: number
 }
 
@@ -110,9 +113,12 @@ export function useCreateItineraryItem() {
         id: input.id,
         page_id: input.pageId,
         item_date: input.itemDate,
-        start_time: input.startTime,
+        open_time: input.openTime,
+        close_time: input.closeTime,
         title: input.title,
         notes: input.notes,
+        ticket_url: input.ticketUrl,
+        map_url: input.mapUrl,
         sort_order: input.sortOrder,
       }
       // household_id is always overwritten by the database trigger. The
@@ -145,9 +151,12 @@ export function useUpdateItineraryItem() {
     ): Promise<TripItineraryItem> => {
       const updates: TablesUpdate<'trip_itinerary_items'> = {
         item_date: input.itemDate,
-        start_time: input.startTime,
+        open_time: input.openTime,
+        close_time: input.closeTime,
         title: input.title,
         notes: input.notes,
+        ticket_url: input.ticketUrl,
+        map_url: input.mapUrl,
         sort_order: input.sortOrder,
       }
       const { data, error } = await supabase
@@ -201,6 +210,7 @@ export interface CreateBookingInput {
   type: BookingType
   title: string
   confirmationNumber: string | null
+  confirmationUrl: string | null
   address: string | null
   startsAt: string | null
   endsAt: string | null
@@ -221,6 +231,7 @@ export function useCreateBooking() {
         type: input.type,
         title: input.title,
         confirmation_number: input.confirmationNumber,
+        confirmation_url: input.confirmationUrl,
         address: input.address,
         starts_at: input.startsAt,
         ends_at: input.endsAt,
@@ -255,6 +266,7 @@ export function useUpdateBooking() {
         type: input.type,
         title: input.title,
         confirmation_number: input.confirmationNumber,
+        confirmation_url: input.confirmationUrl,
         address: input.address,
         starts_at: input.startsAt,
         ends_at: input.endsAt,

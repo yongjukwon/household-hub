@@ -26,6 +26,7 @@ import {
   BOOKING_TYPE_LABELS,
   isoToLocalInput,
   localInputToIso,
+  normalizeUrl,
 } from './trip-format'
 
 const selectClassName =
@@ -50,11 +51,14 @@ export function ItineraryDialog({
   nextSortOrder,
 }: ItineraryDialogProps) {
   const [itemDate, setItemDate] = useState(item?.item_date ?? '')
-  const [startTime, setStartTime] = useState(
-    item?.start_time?.slice(0, 5) ?? '',
+  const [openTime, setOpenTime] = useState(item?.open_time?.slice(0, 5) ?? '')
+  const [closeTime, setCloseTime] = useState(
+    item?.close_time?.slice(0, 5) ?? '',
   )
   const [title, setTitle] = useState(item?.title ?? '')
   const [notes, setNotes] = useState(item?.notes ?? '')
+  const [ticketUrl, setTicketUrl] = useState(item?.ticket_url ?? '')
+  const [mapUrl, setMapUrl] = useState(item?.map_url ?? '')
   const [error, setError] = useState<string | null>(null)
   const createId = useRef<string | null>(null)
   const createItem = useCreateItineraryItem()
@@ -74,14 +78,27 @@ export function ItineraryDialog({
       setError('Pick a date and enter a title.')
       return
     }
+    if (openTime && closeTime && closeTime < openTime) {
+      setError('The close time can’t be before the open time.')
+      return
+    }
+    const ticket = normalizeUrl(ticketUrl)
+    const map = normalizeUrl(mapUrl)
+    if (ticket === undefined || map === undefined) {
+      setError('Enter valid links (starting with http:// or https://).')
+      return
+    }
 
     const input = {
       id: item?.id ?? (createId.current ??= crypto.randomUUID()),
       pageId,
       itemDate,
-      startTime: startTime || null,
+      openTime: openTime || null,
+      closeTime: closeTime || null,
       title: trimmedTitle,
       notes: notes.trim() || null,
+      ticketUrl: ticket,
+      mapUrl: map,
       sortOrder: item?.sort_order ?? nextSortOrder,
     }
 
@@ -112,24 +129,33 @@ export function ItineraryDialog({
         </DialogHeader>
         <form onSubmit={(event) => void handleSubmit(event)}>
           <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="itinerary-date">Date</Label>
+              <Input
+                id="itinerary-date"
+                type="date"
+                value={itemDate}
+                onChange={(event) => setItemDate(event.target.value)}
+                required
+              />
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="itinerary-date">Date</Label>
+                <Label htmlFor="itinerary-open">Opens</Label>
                 <Input
-                  id="itinerary-date"
-                  type="date"
-                  value={itemDate}
-                  onChange={(event) => setItemDate(event.target.value)}
-                  required
+                  id="itinerary-open"
+                  type="time"
+                  value={openTime}
+                  onChange={(event) => setOpenTime(event.target.value)}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="itinerary-time">Time</Label>
+                <Label htmlFor="itinerary-close">Closes</Label>
                 <Input
-                  id="itinerary-time"
+                  id="itinerary-close"
                   type="time"
-                  value={startTime}
-                  onChange={(event) => setStartTime(event.target.value)}
+                  value={closeTime}
+                  onChange={(event) => setCloseTime(event.target.value)}
                 />
               </div>
             </div>
@@ -142,6 +168,26 @@ export function ItineraryDialog({
                 onChange={(event) => setTitle(event.target.value)}
                 aria-invalid={!!error && !title.trim()}
                 required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="itinerary-ticket">Ticket link</Label>
+              <Input
+                id="itinerary-ticket"
+                inputMode="url"
+                value={ticketUrl}
+                onChange={(event) => setTicketUrl(event.target.value)}
+                placeholder="Optional"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="itinerary-map">Map link</Label>
+              <Input
+                id="itinerary-map"
+                inputMode="url"
+                value={mapUrl}
+                onChange={(event) => setMapUrl(event.target.value)}
+                placeholder="Optional"
               />
             </div>
             <div className="space-y-1.5">
@@ -198,6 +244,9 @@ export function BookingDialog({
   const [confirmationNumber, setConfirmationNumber] = useState(
     booking?.confirmation_number ?? '',
   )
+  const [confirmationUrl, setConfirmationUrl] = useState(
+    booking?.confirmation_url ?? '',
+  )
   const [address, setAddress] = useState(booking?.address ?? '')
   const [startsAt, setStartsAt] = useState(
     isoToLocalInput(booking?.starts_at ?? null),
@@ -229,6 +278,11 @@ export function BookingDialog({
       setError('The end time can’t be before the start time.')
       return
     }
+    const confirmation = normalizeUrl(confirmationUrl)
+    if (confirmation === undefined) {
+      setError('Enter a valid confirmation link (http:// or https://).')
+      return
+    }
 
     const input = {
       id: booking?.id ?? (createId.current ??= crypto.randomUUID()),
@@ -236,6 +290,7 @@ export function BookingDialog({
       type,
       title: trimmedTitle,
       confirmationNumber: confirmationNumber.trim() || null,
+      confirmationUrl: confirmation,
       address: address.trim() || null,
       startsAt: startsAtIso,
       endsAt: endsAtIso,
@@ -305,6 +360,16 @@ export function BookingDialog({
                 id="booking-confirmation"
                 value={confirmationNumber}
                 onChange={(event) => setConfirmationNumber(event.target.value)}
+                placeholder="Optional"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="booking-confirmation-url">Confirmation link</Label>
+              <Input
+                id="booking-confirmation-url"
+                inputMode="url"
+                value={confirmationUrl}
+                onChange={(event) => setConfirmationUrl(event.target.value)}
                 placeholder="Optional"
               />
             </div>

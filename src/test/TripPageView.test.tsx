@@ -75,9 +75,12 @@ const ferry = {
   household_id: 'household-1',
   page_id: 'page-1',
   item_date: '2026-08-02',
-  start_time: '09:30:00',
+  open_time: '09:30:00',
+  close_time: '17:00:00',
   title: 'Ferry to the island',
   notes: 'Arrive 20 minutes early',
+  ticket_url: 'https://ferries.example/booking',
+  map_url: null,
   sort_order: 0,
   created_at: '2026-07-11T18:00:00.000Z',
   updated_at: '2026-07-11T18:00:00.000Z',
@@ -87,9 +90,12 @@ const museum = {
   ...ferry,
   id: 'itinerary-museum',
   item_date: '2026-08-03',
-  start_time: null,
+  open_time: null,
+  close_time: null,
   title: 'National museum',
   notes: null,
+  ticket_url: null,
+  map_url: null,
 }
 
 const flight = {
@@ -99,6 +105,7 @@ const flight = {
   type: 'flight' as const,
   title: 'YVR → HND',
   confirmation_number: 'ABC123',
+  confirmation_url: 'https://air.example/pnr/ABC123',
   address: null,
   starts_at: '2026-08-01T17:00:00.000Z',
   ends_at: null,
@@ -114,6 +121,7 @@ const hotel = {
   type: 'hotel' as const,
   title: 'Shinjuku hotel',
   confirmation_number: null,
+  confirmation_url: null,
   address: '1-2-3 Nishishinjuku',
   starts_at: null,
 }
@@ -221,10 +229,16 @@ describe('TripPageView', () => {
 
     const day1 = screen.getByRole('region', { name: /Aug 2/ })
     expect(within(day1).getByText('Ferry to the island')).toBeInTheDocument()
-    expect(within(day1).getByText(/9:30/)).toBeInTheDocument()
+    // Open–close range on a 24h clock.
+    expect(within(day1).getByText(/09:30.*17:00/)).toBeInTheDocument()
     expect(
       within(day1).getByText('Arrive 20 minutes early'),
     ).toBeInTheDocument()
+    // Ticket link renders as an anchor to the stored URL.
+    expect(within(day1).getByRole('link', { name: 'Ticket' })).toHaveAttribute(
+      'href',
+      'https://ferries.example/booking',
+    )
     const day2 = screen.getByRole('region', { name: /Aug 3/ })
     expect(within(day2).getByText('National museum')).toBeInTheDocument()
     expect(within(day2).getByText('—')).toBeInTheDocument()
@@ -255,6 +269,9 @@ describe('TripPageView', () => {
     const flightGroup = screen.getByRole('region', { name: 'Flight' })
     expect(within(flightGroup).getByText('YVR → HND')).toBeInTheDocument()
     expect(within(flightGroup).getByText('ABC123')).toBeInTheDocument()
+    expect(
+      within(flightGroup).getByRole('link', { name: /View confirmation/ }),
+    ).toHaveAttribute('href', 'https://air.example/pnr/ABC123')
     const hotelGroup = screen.getByRole('region', { name: 'Hotel' })
     expect(within(hotelGroup).getByText('Shinjuku hotel')).toBeInTheDocument()
     expect(

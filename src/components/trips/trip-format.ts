@@ -26,3 +26,25 @@ export function isoToLocalInput(value: string | null): string {
   const pad = (part: number) => String(part).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
+
+/**
+ * Normalizes a user-typed link for storage: trims, treats blank as null, and
+ * prefixes `https://` when no scheme is present so a bare `example.com` still
+ * becomes a working href. Returns `undefined` for input that can't be a URL.
+ */
+export function normalizeUrl(value: string): string | null | undefined {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  // A bare host like "example.com" gets https://; anything that already
+  // carries a scheme (including unsafe ones like javascript:/mailto:) is
+  // parsed as-is so the http/https protocol check below can reject it.
+  const hasScheme = /^[a-z][a-z0-9+.-]*:/i.test(trimmed)
+  const candidate = hasScheme ? trimmed : `https://${trimmed}`
+  try {
+    const url = new URL(candidate)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return undefined
+    return url.toString()
+  } catch {
+    return undefined
+  }
+}

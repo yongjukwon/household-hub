@@ -52,9 +52,12 @@ const itineraryItem = {
   household_id: 'household-1',
   page_id: 'page-1',
   item_date: '2026-08-02',
-  start_time: '09:30:00',
+  open_time: '09:30:00',
+  close_time: null,
   title: 'Ferry to the island',
   notes: null,
+  ticket_url: null,
+  map_url: null,
   sort_order: 0,
   created_at: '2026-07-11T18:00:00.000Z',
   updated_at: '2026-07-11T18:00:00.000Z',
@@ -67,6 +70,7 @@ const booking = {
   type: 'flight' as const,
   title: 'YVR → HND',
   confirmation_number: 'ABC123',
+  confirmation_url: null,
   address: null,
   starts_at: '2026-08-01T17:00:00.000Z',
   ends_at: null,
@@ -90,7 +94,7 @@ const checklistItem = {
 describe('trip queries', () => {
   beforeEach(resetSupabaseMocks)
 
-  it('loads the itinerary day-ordered with nulls-last start times', async () => {
+  it('loads the itinerary day-ordered with nulls-last open times', async () => {
     const builder = mockFromResult([itineraryItem])
     const { wrapper } = createHarness()
     const { result } = renderHook(() => useTripItinerary('page-1'), { wrapper })
@@ -101,7 +105,7 @@ describe('trip queries', () => {
     expect(builder.eq).toHaveBeenCalledWith('page_id', 'page-1')
     expect(builder.order.mock.calls).toEqual([
       ['item_date', { ascending: true }],
-      ['start_time', { ascending: true, nullsFirst: false }],
+      ['open_time', { ascending: true, nullsFirst: false }],
       ['sort_order', { ascending: true }],
       ['created_at', { ascending: true }],
       ['id', { ascending: true }],
@@ -142,9 +146,12 @@ describe('itinerary mutations', () => {
       id: 'itinerary-1',
       pageId: 'page-1',
       itemDate: '2026-08-02',
-      startTime: '09:30',
+      openTime: '09:30',
+      closeTime: '17:00',
       title: 'Ferry to the island',
       notes: null,
+      ticketUrl: 'https://ferries.example/booking',
+      mapUrl: null,
       sortOrder: 0,
     })
 
@@ -154,9 +161,12 @@ describe('itinerary mutations', () => {
         id: 'itinerary-1',
         page_id: 'page-1',
         item_date: '2026-08-02',
-        start_time: '09:30',
+        open_time: '09:30',
+        close_time: '17:00',
         title: 'Ferry to the island',
         notes: null,
+        ticket_url: 'https://ferries.example/booking',
+        map_url: null,
         sort_order: 0,
       },
       { onConflict: 'id' },
@@ -175,18 +185,24 @@ describe('itinerary mutations', () => {
       id: 'itinerary-1',
       pageId: 'page-1',
       itemDate: '2026-08-03',
-      startTime: null,
+      openTime: null,
+      closeTime: null,
       title: 'Museum day',
       notes: 'Buy tickets ahead',
+      ticketUrl: null,
+      mapUrl: null,
       sortOrder: 2,
     })
 
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(builder.update).toHaveBeenCalledWith({
       item_date: '2026-08-03',
-      start_time: null,
+      open_time: null,
+      close_time: null,
       title: 'Museum day',
       notes: 'Buy tickets ahead',
+      ticket_url: null,
+      map_url: null,
       sort_order: 2,
     })
     expect(builder.eq.mock.calls).toEqual([
@@ -228,6 +244,7 @@ describe('booking mutations', () => {
       type: 'flight',
       title: 'YVR → HND',
       confirmationNumber: 'ABC123',
+      confirmationUrl: 'https://air.example/pnr/ABC123',
       address: null,
       startsAt: '2026-08-01T17:00:00.000Z',
       endsAt: null,
@@ -243,6 +260,7 @@ describe('booking mutations', () => {
         type: 'flight',
         title: 'YVR → HND',
         confirmation_number: 'ABC123',
+        confirmation_url: 'https://air.example/pnr/ABC123',
         address: null,
         starts_at: '2026-08-01T17:00:00.000Z',
         ends_at: null,
@@ -266,6 +284,7 @@ describe('booking mutations', () => {
       type: 'hotel',
       title: 'Shinjuku hotel',
       confirmationNumber: null,
+      confirmationUrl: null,
       address: '1-2-3 Nishishinjuku',
       startsAt: null,
       endsAt: null,
@@ -278,6 +297,7 @@ describe('booking mutations', () => {
       type: 'hotel',
       title: 'Shinjuku hotel',
       confirmation_number: null,
+      confirmation_url: null,
       address: '1-2-3 Nishishinjuku',
       starts_at: null,
       ends_at: null,

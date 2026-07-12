@@ -1,4 +1,4 @@
-import { BedDouble, Car, Plane, Tag } from 'lucide-react'
+import { BedDouble, Car, ExternalLink, Plane, Tag } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import {
@@ -111,6 +111,19 @@ function BookingCard({
               <span className="font-mono text-[var(--text)]">
                 {booking.confirmation_number}
               </span>
+            </p>
+          )}
+          {booking.confirmation_url && (
+            <p className="mt-1 text-sm">
+              <a
+                href={booking.confirmation_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 font-medium text-[var(--accent)] hover:underline"
+              >
+                <ExternalLink className="size-3.5" aria-hidden />
+                View confirmation
+              </a>
             </p>
           )}
           {(booking.starts_at || booking.ends_at) && (

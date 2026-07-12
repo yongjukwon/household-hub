@@ -1,7 +1,29 @@
-import { Plus } from 'lucide-react'
+import { MapPin, Plus, Ticket } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { RowMenu } from '@/components/common/RowMenu'
 import type { TripItineraryItem } from '@/hooks/useTrip'
+
+function ItemLink({
+  href,
+  label,
+  children,
+}: {
+  href: string
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={label}
+      className="inline-flex items-center gap-1 text-xs font-medium text-[var(--accent)] hover:underline"
+    >
+      {children}
+    </a>
+  )
+}
 
 interface ItineraryTabProps {
   items: TripItineraryItem[]
@@ -47,7 +69,7 @@ export function ItineraryTab({
               {dayItems.map((item) => (
                 <li key={item.id} className="flex items-start gap-3 py-3">
                   <span className="w-16 shrink-0 pt-0.5 text-xs font-medium text-[var(--meta)]">
-                    {item.start_time ? formatTime(item.start_time) : '—'}
+                    {formatTimeRange(item.open_time, item.close_time)}
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-[var(--text)]">
@@ -57,6 +79,22 @@ export function ItineraryTab({
                       <p className="mt-0.5 text-xs whitespace-pre-wrap text-[var(--meta)]">
                         {item.notes}
                       </p>
+                    )}
+                    {(item.ticket_url || item.map_url) && (
+                      <div className="mt-1 flex flex-wrap gap-3">
+                        {item.ticket_url && (
+                          <ItemLink href={item.ticket_url} label="Ticket">
+                            <Ticket className="size-3.5" aria-hidden />
+                            Ticket
+                          </ItemLink>
+                        )}
+                        {item.map_url && (
+                          <ItemLink href={item.map_url} label="Map">
+                            <MapPin className="size-3.5" aria-hidden />
+                            Map
+                          </ItemLink>
+                        )}
+                      </div>
                     )}
                   </div>
                   <RowMenu
@@ -127,4 +165,16 @@ function formatTime(value: string): string {
     minute: '2-digit',
     hourCycle: 'h23',
   }).format(new Date(1970, 0, 1, hours, minutes))
+}
+
+// Open/close times are both optional: show "09:00–17:00", a single time, or
+// an em dash when neither is set.
+function formatTimeRange(
+  openTime: string | null,
+  closeTime: string | null,
+): string {
+  const open = openTime ? formatTime(openTime) : null
+  const close = closeTime ? formatTime(closeTime) : null
+  if (open && close) return `${open}–${close}`
+  return open ?? close ?? '—'
 }

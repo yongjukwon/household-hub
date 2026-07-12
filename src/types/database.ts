@@ -343,6 +343,7 @@ export type Database = {
         Row: {
           address: string | null
           confirmation_number: string | null
+          confirmation_url: string | null
           created_at: string
           ends_at: string | null
           household_id: string
@@ -358,6 +359,7 @@ export type Database = {
         Insert: {
           address?: string | null
           confirmation_number?: string | null
+          confirmation_url?: string | null
           created_at?: string
           ends_at?: string | null
           household_id: string
@@ -373,6 +375,7 @@ export type Database = {
         Update: {
           address?: string | null
           confirmation_number?: string | null
+          confirmation_url?: string | null
           created_at?: string
           ends_at?: string | null
           household_id?: string
@@ -452,38 +455,47 @@ export type Database = {
       }
       trip_itinerary_items: {
         Row: {
+          close_time: string | null
           created_at: string
           household_id: string
           id: string
           item_date: string
+          map_url: string | null
           notes: string | null
+          open_time: string | null
           page_id: string
           sort_order: number
-          start_time: string | null
+          ticket_url: string | null
           title: string
           updated_at: string
         }
         Insert: {
+          close_time?: string | null
           created_at?: string
           household_id: string
           id?: string
           item_date: string
+          map_url?: string | null
           notes?: string | null
+          open_time?: string | null
           page_id: string
           sort_order?: number
-          start_time?: string | null
+          ticket_url?: string | null
           title: string
           updated_at?: string
         }
         Update: {
+          close_time?: string | null
           created_at?: string
           household_id?: string
           id?: string
           item_date?: string
+          map_url?: string | null
           notes?: string | null
+          open_time?: string | null
           page_id?: string
           sort_order?: number
-          start_time?: string | null
+          ticket_url?: string | null
           title?: string
           updated_at?: string
         }
