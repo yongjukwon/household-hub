@@ -212,7 +212,8 @@ describe('BudgetPageView', () => {
     expect(
       screen.getByRole('heading', { name: 'Create your first category' }),
     ).toBeInTheDocument()
-    await user.click(screen.getAllByRole('button', { name: 'Add category' })[1])
+    // Empty state has a single "Add category" CTA (the header + button is gone).
+    await user.click(screen.getByRole('button', { name: 'Add category' }))
 
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(
@@ -315,6 +316,29 @@ describe('BudgetPageView', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByText(/all of its entries across every month/i),
+    ).toBeInTheDocument()
+  })
+
+  it('adds categories via the CATEGORIES-row button; entries are added per-category from the card menu', async () => {
+    const user = userEvent.setup()
+    setQueries({ categories: [food] })
+    render(<BudgetPageView page={page} />)
+
+    // No page-level "Add entry" button; adding a category lives with CATEGORIES.
+    expect(
+      screen.queryByRole('button', { name: 'Add entry' }),
+    ).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Add category' }))
+    expect(
+      screen.getByRole('heading', { name: 'New category' }),
+    ).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    // Entries are added from the category card's actions menu.
+    await user.click(screen.getByRole('button', { name: 'Actions for Food' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Add entry' }))
+    expect(
+      screen.getByRole('heading', { name: 'New entry' }),
     ).toBeInTheDocument()
   })
 })

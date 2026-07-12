@@ -148,21 +148,9 @@ export function BudgetPageView({ page }: BudgetPageViewProps) {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 md:px-8 md:py-10">
-      <header className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <EditableTitle page={page} />
-          <p className="mt-1 text-sm text-[var(--meta)]">Monthly budget</p>
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-11 text-[var(--accent)]"
-          aria-label="Add category"
-          onClick={openNewCategory}
-        >
-          <Plus />
-        </Button>
+      <header>
+        <EditableTitle page={page} />
+        <p className="mt-1 text-sm text-[var(--meta)]">Monthly budget</p>
       </header>
 
       <div className="mt-5">
@@ -232,13 +220,9 @@ export function BudgetPageView({ page }: BudgetPageViewProps) {
             <h2 className="text-xs font-semibold tracking-wide text-[var(--meta)]">
               CATEGORIES
             </h2>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => openNewEntry()}
-            >
+            <Button type="button" variant="outline" onClick={openNewCategory}>
               <Plus data-icon="inline-start" />
-              Add entry
+              Add category
             </Button>
           </div>
 
