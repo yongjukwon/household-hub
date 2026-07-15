@@ -1,6 +1,9 @@
-import { ChevronRight, Settings } from 'lucide-react'
+import { ChevronRight, PiggyBank, Settings } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { NAV_ITEMS } from '@/components/layout/nav-items'
+
+// Savings lives outside NAV_ITEMS (flat household list, like /settings).
+const EXTRA_TILES = [{ path: '/savings', label: 'Savings', icon: PiggyBank }]
 
 export default function HomePage() {
   return (
@@ -18,7 +21,7 @@ export default function HomePage() {
         </Link>
       </header>
       <div className="divide-y divide-[var(--line2)]">
-        {NAV_ITEMS.map(({ path, label, icon: Icon }) => (
+        {[...NAV_ITEMS, ...EXTRA_TILES].map(({ path, label, icon: Icon }) => (
           <Link
             key={path}
             to={path}

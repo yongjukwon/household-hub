@@ -15,21 +15,13 @@ import {
   type GroceryItem,
 } from '@/hooks/useGroceries'
 import { useRealtimeTable } from '@/hooks/useRealtimeTable'
+import { formatCurrency } from '@/lib/currency'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DeleteDialog } from '@/components/common/DeleteDialog'
 import { EditableTitle } from '@/components/pages/EditableTitle'
 import { GroceryItemRow } from './GroceryItemRow'
 import { GroceryItemDialog } from './GroceryItemDialog'
-
-const currencyFormatter = new Intl.NumberFormat(undefined, {
-  style: 'currency',
-  currency: 'CAD',
-})
-
-function formatCurrency(amount: number): string {
-  return currencyFormatter.format(amount)
-}
 
 const EMPTY_ITEMS: GroceryItem[] = []
 

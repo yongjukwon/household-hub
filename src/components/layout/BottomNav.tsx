@@ -1,11 +1,16 @@
 import { NavLink } from 'react-router-dom'
+import { PiggyBank } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NAV_ITEMS } from './nav-items'
+
+// Savings lives outside NAV_ITEMS (no page_section of its own — a flat
+// household list, like /settings), so it's appended manually here.
+const EXTRA_TABS = [{ path: '/savings', label: 'Savings', icon: PiggyBank }]
 
 export function BottomNav() {
   return (
     <nav className="fixed inset-x-0 bottom-0 flex border-t border-[var(--line2)] bg-[var(--panel)] pb-[env(safe-area-inset-bottom)] md:hidden">
-      {NAV_ITEMS.map(({ path, label, icon: Icon }) => (
+      {[...NAV_ITEMS, ...EXTRA_TABS].map(({ path, label, icon: Icon }) => (
         <NavLink
           key={path}
           to={path}

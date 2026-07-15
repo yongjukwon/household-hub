@@ -403,6 +403,168 @@ export type Database = {
           },
         ]
       }
+      savings_deposit_rules: {
+        Row: {
+          active: boolean
+          amount: number
+          created_at: string
+          day_of_month_1: number
+          day_of_month_2: number
+          description: string | null
+          household_id: string
+          id: string
+          last_generated_date: string | null
+          source_id: string
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          amount: number
+          created_at?: string
+          day_of_month_1: number
+          day_of_month_2: number
+          description?: string | null
+          household_id: string
+          id?: string
+          last_generated_date?: string | null
+          source_id: string
+          start_date: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          amount?: number
+          created_at?: string
+          day_of_month_1?: number
+          day_of_month_2?: number
+          description?: string | null
+          household_id?: string
+          id?: string
+          last_generated_date?: string | null
+          source_id?: string
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'savings_deposit_rules_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'savings_deposit_rules_source_id_fkey'
+            columns: ['source_id']
+            isOneToOne: false
+            referencedRelation: 'savings_sources'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      savings_sources: {
+        Row: {
+          amount: number
+          created_at: string
+          household_id: string
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          household_id: string
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          household_id?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'savings_sources_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      savings_transactions: {
+        Row: {
+          amount: number
+          auto_deposit_rule_id: string | null
+          created_at: string
+          created_by: string
+          household_id: string
+          id: string
+          occurred_at: string
+          reason: string | null
+          source_id: string
+          type: Database['public']['Enums']['savings_transaction_type']
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          auto_deposit_rule_id?: string | null
+          created_at?: string
+          created_by: string
+          household_id: string
+          id?: string
+          occurred_at?: string
+          reason?: string | null
+          source_id: string
+          type: Database['public']['Enums']['savings_transaction_type']
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          auto_deposit_rule_id?: string | null
+          created_at?: string
+          created_by?: string
+          household_id?: string
+          id?: string
+          occurred_at?: string
+          reason?: string | null
+          source_id?: string
+          type?: Database['public']['Enums']['savings_transaction_type']
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'savings_transactions_auto_deposit_rule_id_fkey'
+            columns: ['auto_deposit_rule_id']
+            isOneToOne: false
+            referencedRelation: 'savings_deposit_rules'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'savings_transactions_household_id_fkey'
+            columns: ['household_id']
+            isOneToOne: false
+            referencedRelation: 'households'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'savings_transactions_source_id_fkey'
+            columns: ['source_id']
+            isOneToOne: false
+            referencedRelation: 'savings_sources'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       trip_bookings: {
         Row: {
           address: string | null
@@ -594,6 +756,7 @@ export type Database = {
       booking_type: 'flight' | 'hotel' | 'car' | 'other'
       page_section: 'budget' | 'trip' | 'grocery' | 'notes'
       page_template: 'blank' | 'budget' | 'trip' | 'grocery'
+      savings_transaction_type: 'deposit' | 'withdrawal'
     }
     CompositeTypes: {
       [_ in never]: never
@@ -724,6 +887,7 @@ export const Constants = {
       booking_type: ['flight', 'hotel', 'car', 'other'],
       page_section: ['budget', 'trip', 'grocery', 'notes'],
       page_template: ['blank', 'budget', 'trip', 'grocery'],
+      savings_transaction_type: ['deposit', 'withdrawal'],
     },
   },
 } as const

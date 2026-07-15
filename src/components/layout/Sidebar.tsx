@@ -1,7 +1,11 @@
 import { Link, NavLink } from 'react-router-dom'
-import { Settings } from 'lucide-react'
+import { PiggyBank, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NAV_ITEMS } from './nav-items'
+
+// Savings lives outside NAV_ITEMS (no page_section of its own — a flat
+// household list, like /settings), so it's appended manually here.
+const EXTRA_LINKS = [{ path: '/savings', label: 'Savings', icon: PiggyBank }]
 
 export function Sidebar() {
   return (
@@ -15,7 +19,7 @@ export function Sidebar() {
         </Link>
       </div>
       <nav className="flex flex-col gap-0.5 px-2">
-        {NAV_ITEMS.map(({ path, label, icon: Icon }) => (
+        {[...NAV_ITEMS, ...EXTRA_LINKS].map(({ path, label, icon: Icon }) => (
           <NavLink
             key={path}
             to={path}

@@ -17,6 +17,7 @@ import {
   type BudgetEntry,
 } from '@/hooks/useBudget'
 import { useRealtimeTable } from '@/hooks/useRealtimeTable'
+import { formatCurrency } from '@/lib/currency'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import {
@@ -31,10 +32,6 @@ import { DeleteDialog } from '@/components/common/DeleteDialog'
 import { EditableTitle } from '@/components/pages/EditableTitle'
 import { CategoryDialog, EntryDialog } from './BudgetDialogs'
 
-const currencyFormatter = new Intl.NumberFormat(undefined, {
-  style: 'currency',
-  currency: 'CAD',
-})
 const EMPTY_CATEGORIES: BudgetCategory[] = []
 const EMPTY_ENTRIES: BudgetEntry[] = []
 const EMPTY_LIMITS: BudgetCategoryLimit[] = []
@@ -538,10 +535,6 @@ function nextSortOrder(categories: BudgetCategory[]): number {
     (maximum, category) => Math.max(maximum, category.sort_order + 1),
     0,
   )
-}
-
-function formatCurrency(amount: number): string {
-  return currencyFormatter.format(amount)
 }
 
 function formatDate(value: string): string {

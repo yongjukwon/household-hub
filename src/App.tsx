@@ -9,6 +9,7 @@ import LoginPage from '@/routes/LoginPage'
 import HomePage from '@/routes/HomePage'
 import SectionListPage from '@/routes/SectionListPage'
 import PageView from '@/routes/PageView'
+import SavingsPage from '@/routes/SavingsPage'
 import SettingsPage from '@/routes/SettingsPage'
 
 const queryClient = new QueryClient({
@@ -43,6 +44,8 @@ const router = createBrowserRouter([
         path: navItem.path,
         element: <SectionListPage key={navItem.section} navItem={navItem} />,
       })),
+      // Savings sits outside the section/page system (flat household list).
+      { path: '/savings', element: <SavingsPage /> },
       { path: '/:section/:pageId', element: <PageView /> },
       { path: '/settings', element: <SettingsPage /> },
     ],
