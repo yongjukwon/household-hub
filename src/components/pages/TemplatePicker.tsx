@@ -185,7 +185,7 @@ function TemplateOption({
       className={cn(
         'rounded-lg border px-3 py-1.5 text-sm',
         selected
-          ? 'border-[var(--accent)] bg-[var(--accentSoft)] text-[var(--accent)]'
+          ? 'border-[var(--accent)] bg-[var(--accentSoft)] text-[var(--accent-ink)]'
           : 'border-[var(--line2)] text-[var(--text)]',
       )}
     >

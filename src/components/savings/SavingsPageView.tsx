@@ -69,18 +69,10 @@ export function SavingsPageView() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 md:px-8 md:py-10">
-      <header className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-[26px] font-bold tracking-tight text-[var(--text)]">
-            Savings
-          </h1>
-          {sources.length > 0 && (
-            <p className="mt-1 text-sm text-[var(--meta)]">
-              {formatCurrency(totalAmount)} across{' '}
-              {sources.length === 1 ? '1 source' : `${sources.length} sources`}
-            </p>
-          )}
-        </div>
+      <header className="flex items-center justify-between gap-3">
+        <h1 className="text-[26px] font-bold tracking-tight text-[var(--text)]">
+          Savings
+        </h1>
         <Button
           type="button"
           variant="outline"
@@ -90,6 +82,19 @@ export function SavingsPageView() {
           New source
         </Button>
       </header>
+
+      {sources.length > 0 && (
+        <div className="mt-6 border-b border-[var(--line)] pb-6">
+          <p className="eyebrow">Total balance</p>
+          <p className="mt-1.5 text-[40px] leading-none font-bold tracking-tight text-[var(--text)]">
+            {formatCurrency(totalAmount)}
+          </p>
+          <p className="mt-2.5 text-sm text-[var(--meta)]">
+            across{' '}
+            {sources.length === 1 ? '1 source' : `${sources.length} sources`}
+          </p>
+        </div>
+      )}
 
       {sourcesQuery.isPending ? (
         <p

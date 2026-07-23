@@ -17,6 +17,9 @@ dev-dist
 .env
 .env.local
 
+# Vercel
+.vercel
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -16,8 +16,10 @@ export function BottomNav() {
           to={path}
           className={({ isActive }) =>
             cn(
-              'flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px]',
-              isActive ? 'text-[var(--accent)]' : 'text-[var(--meta)]',
+              'flex flex-1 flex-col items-center gap-1 border-t-2 py-2.5 text-[11px]',
+              isActive
+                ? 'border-[var(--accent)] font-semibold text-[var(--accent-ink)]'
+                : 'border-transparent text-[var(--meta)]',
             )
           }
         >

@@ -9,7 +9,7 @@ export function MobileBackBar() {
     <div className="flex items-center border-b border-[var(--line2)] px-4 py-3 md:hidden">
       <Link
         to="/"
-        className="flex items-center gap-1 text-[14px] text-[var(--accent)]"
+        className="flex items-center gap-1 text-[14px] text-[var(--accent-ink)]"
       >
         <ChevronLeft size={18} />
         Household

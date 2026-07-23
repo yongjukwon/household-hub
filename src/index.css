@@ -1,6 +1,9 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
+/* Pretendard: self-hosted, full Hangul + Latin. The cross-device stand-in for
+   Apple SD Gothic Neo (near-identical metrics) so Android/Pixel matches Apple. */
+@import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css';
 
 /*
  * Theme state lives on the <html> data-theme attribute (no .dark class):
@@ -21,23 +24,27 @@
 }
 
 :root {
-  --canvas: #e7e6e1;
+  /* Swiss / International Typographic Style — near-monochrome canvas, hairline
+     rules, one bold accent (mustard #FFCE1B used as fills/blocks, never text).
+     --accent-ink is the readable text/link form of the accent. */
+  --canvas: #eeeeec;
   --winbg: #ffffff;
-  --sidebar: #f6f5f2;
+  --sidebar: #ffffff;
   --panel: #ffffff;
-  --text: #22211d;
-  --meta: #96958d;
-  --faint: #c7c6bf;
-  --line: rgba(0, 0, 0, 0.08);
-  --line2: rgba(0, 0, 0, 0.05);
-  --accent: #b1811f;
-  --accentSoft: rgba(177, 129, 31, 0.12);
-  --sel: rgba(177, 129, 31, 0.13);
-  --hover: rgba(0, 0, 0, 0.045);
-  --track: rgba(0, 0, 0, 0.08);
-  --barbg: #dcdbd3;
-  --danger: #b5493a;
-  --onaccent: #fff;
+  --text: #141414;
+  --meta: #7a7a76;
+  --faint: #bdbdb9;
+  --line: rgba(0, 0, 0, 0.14);
+  --line2: rgba(0, 0, 0, 0.08);
+  --accent: #ffce1b;
+  --accent-ink: #6b5300;
+  --accentSoft: rgba(255, 206, 27, 0.22);
+  --sel: rgba(255, 206, 27, 0.28);
+  --hover: rgba(0, 0, 0, 0.05);
+  --track: rgba(0, 0, 0, 0.1);
+  --barbg: #e3e3df;
+  --danger: #c62828;
+  --onaccent: #141414;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -60,7 +67,7 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
+  --radius: 0.5rem;
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
   --sidebar-primary-foreground: oklch(0.985 0 0);
@@ -75,23 +82,24 @@
    mode) while that one applies via the explicit data-theme override. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
-    --canvas: #0e0e0d;
-    --winbg: #1d1c1a;
-    --sidebar: #252421;
-    --panel: #1d1c1a;
-    --text: #ecebe4;
-    --meta: #8d8c84;
-    --faint: #54534d;
-    --line: rgba(255, 255, 255, 0.09);
-    --line2: rgba(255, 255, 255, 0.05);
-    --accent: #e0b45f;
-    --accentSoft: rgba(224, 180, 95, 0.15);
-    --sel: rgba(224, 180, 95, 0.16);
-    --hover: rgba(255, 255, 255, 0.05);
-    --track: rgba(255, 255, 255, 0.1);
-    --barbg: #3a3934;
-    --danger: #e0796a;
-    --onaccent: #241f16;
+    --canvas: #0c0c0c;
+    --winbg: #171717;
+    --sidebar: #121212;
+    --panel: #171717;
+    --text: #f2f2f0;
+    --meta: #8f8f8a;
+    --faint: #4c4c48;
+    --line: rgba(255, 255, 255, 0.14);
+    --line2: rgba(255, 255, 255, 0.07);
+    --accent: #ffce1b;
+    --accent-ink: #ffce1b;
+    --accentSoft: rgba(255, 206, 27, 0.16);
+    --sel: rgba(255, 206, 27, 0.2);
+    --hover: rgba(255, 255, 255, 0.06);
+    --track: rgba(255, 255, 255, 0.12);
+    --barbg: #2a2a27;
+    --danger: #ef5350;
+    --onaccent: #141414;
     --background: oklch(0.145 0 0);
     --foreground: oklch(0.985 0 0);
     --card: oklch(0.205 0 0);
@@ -128,23 +136,24 @@
    same token values, duplicated because that one applies via OS "auto" mode
    while this one applies via the explicit data-theme override. */
 [data-theme='dark'] {
-  --canvas: #0e0e0d;
-  --winbg: #1d1c1a;
-  --sidebar: #252421;
-  --panel: #1d1c1a;
-  --text: #ecebe4;
-  --meta: #8d8c84;
-  --faint: #54534d;
-  --line: rgba(255, 255, 255, 0.09);
-  --line2: rgba(255, 255, 255, 0.05);
-  --accent: #e0b45f;
-  --accentSoft: rgba(224, 180, 95, 0.15);
-  --sel: rgba(224, 180, 95, 0.16);
-  --hover: rgba(255, 255, 255, 0.05);
-  --track: rgba(255, 255, 255, 0.1);
-  --barbg: #3a3934;
-  --danger: #e0796a;
-  --onaccent: #241f16;
+  --canvas: #0c0c0c;
+  --winbg: #171717;
+  --sidebar: #121212;
+  --panel: #171717;
+  --text: #f2f2f0;
+  --meta: #8f8f8a;
+  --faint: #4c4c48;
+  --line: rgba(255, 255, 255, 0.14);
+  --line2: rgba(255, 255, 255, 0.07);
+  --accent: #ffce1b;
+  --accent-ink: #ffce1b;
+  --accentSoft: rgba(255, 206, 27, 0.16);
+  --sel: rgba(255, 206, 27, 0.2);
+  --hover: rgba(255, 255, 255, 0.06);
+  --track: rgba(255, 255, 255, 0.12);
+  --barbg: #2a2a27;
+  --danger: #ef5350;
+  --onaccent: #141414;
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -179,9 +188,11 @@
 body {
   margin: 0;
   font-family:
-    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto,
-    Helvetica, Arial, sans-serif;
+    'Apple SD Gothic Neo', 'Pretendard Variable', Pretendard, -apple-system,
+    BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+  /* Swiss data-first: consistent, aligned figures for money/dates/times. */
+  font-variant-numeric: tabular-nums;
   background: var(--canvas);
   color: var(--text);
 }
@@ -189,8 +200,8 @@ body {
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans:
-    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto,
-    Helvetica, Arial, sans-serif;
+    'Apple SD Gothic Neo', 'Pretendard Variable', Pretendard, -apple-system,
+    BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -240,5 +251,32 @@ body {
   }
   html {
     @apply font-sans;
+  }
+  /* Interactive elements get the pointer cursor (Tailwind's Preflight resets
+     <button> to the default arrow). */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  label[for],
+  summary {
+    cursor: pointer;
+  }
+  /* Swiss headings: tight tracking, strong weight — typography carries the
+     hierarchy rather than color or decoration. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer utilities {
+  /* Uppercase, wide-tracked section label — the Swiss "eyebrow". */
+  .eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--meta);
   }
 }

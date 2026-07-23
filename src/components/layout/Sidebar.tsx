@@ -11,10 +11,7 @@ export function Sidebar() {
   return (
     <aside className="hidden md:flex md:w-56 md:shrink-0 md:flex-col md:border-r md:border-[var(--line2)] md:bg-[var(--sidebar)]">
       <div className="px-5 pt-6 pb-4">
-        <Link
-          to="/"
-          className="text-xs font-semibold tracking-wide text-[var(--meta)]"
-        >
+        <Link to="/" className="eyebrow">
           HOUSEHOLD
         </Link>
       </div>
@@ -25,9 +22,9 @@ export function Sidebar() {
             to={path}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm',
+                'flex items-center gap-2.5 rounded-sm px-3 py-2 text-sm',
                 isActive
-                  ? 'bg-[var(--accentSoft)] text-[var(--accent)]'
+                  ? 'bg-[var(--accent)] font-semibold text-[var(--onaccent)]'
                   : 'text-[var(--text)] hover:bg-[var(--hover)]',
               )
             }

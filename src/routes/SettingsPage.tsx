@@ -91,7 +91,7 @@ export default function SettingsPage() {
               onClick={() => handleThemeChange(option.value)}
               className={
                 theme === option.value
-                  ? 'rounded-lg bg-[var(--accentSoft)] px-3 py-1.5 text-sm text-[var(--accent)]'
+                  ? 'rounded-sm bg-[var(--accentSoft)] px-3 py-1.5 text-sm text-[var(--accent-ink)]'
                   : 'rounded-lg px-3 py-1.5 text-sm text-[var(--meta)] hover:bg-[var(--hover)]'
               }
             >

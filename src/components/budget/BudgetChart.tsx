@@ -68,7 +68,7 @@ export function BudgetChart({ data, formatCurrency }: BudgetChartProps) {
             <Tooltip formatter={(value) => formatCurrency(Number(value))} />
             <Legend wrapperStyle={{ fontSize: 12 }} />
             <Bar dataKey="Limit" fill="var(--barbg)" radius={[0, 4, 4, 0]} />
-            <Bar dataKey="Spent" fill="var(--accent)" radius={[0, 4, 4, 0]} />
+            <Bar dataKey="Spent" fill="var(--accent)" radius={[0, 0, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

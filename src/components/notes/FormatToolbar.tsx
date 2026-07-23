@@ -438,7 +438,7 @@ function ToolbarButton({
         'flex size-10 shrink-0 items-center justify-center rounded-md md:size-8',
         disabled && 'opacity-40',
         active
-          ? 'bg-[var(--accentSoft)] text-[var(--accent)]'
+          ? 'bg-[var(--accentSoft)] text-[var(--accent-ink)]'
           : 'text-[var(--text)] hover:bg-[var(--hover)]',
       )}
     >

@@ -68,7 +68,7 @@ export function TransactionHistoryDialog({
                   {transaction.type === 'deposit' ? (
                     <ArrowDownLeft
                       aria-label="Deposit"
-                      className="size-4 shrink-0 text-[var(--accent)]"
+                      className="size-4 shrink-0 text-[var(--accent-ink)]"
                     />
                   ) : (
                     <ArrowUpRight

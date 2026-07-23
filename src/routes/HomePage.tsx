@@ -27,7 +27,7 @@ export default function HomePage() {
             to={path}
             className="flex items-center gap-3 py-4 first:pt-0"
           >
-            <Icon className="text-[var(--accent)]" size={20} />
+            <Icon className="text-[var(--accent-ink)]" size={20} />
             <span className="flex-1 text-[15px] text-[var(--text)]">
               {label}
             </span>

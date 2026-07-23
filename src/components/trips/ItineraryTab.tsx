@@ -18,7 +18,7 @@ function ItemLink({
       target="_blank"
       rel="noopener noreferrer"
       aria-label={label}
-      className="inline-flex items-center gap-1 text-xs font-medium text-[var(--accent)] hover:underline"
+      className="inline-flex items-center gap-1 text-xs font-medium text-[var(--accent-ink)] hover:underline"
     >
       {children}
     </a>

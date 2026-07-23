@@ -36,28 +36,20 @@ export function SourceCard({
 
   return (
     <section
-      className="rounded-xl border border-[var(--line2)] bg-[var(--panel)] p-4"
+      className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-5"
       aria-labelledby={`savings-source-${source.id}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h3
             id={`savings-source-${source.id}`}
-            className="truncate font-semibold text-[var(--text)]"
+            className="truncate text-[15px] font-semibold text-[var(--text)]"
           >
             {source.name}
           </h3>
-          <p className="mt-1 text-xl font-bold tracking-tight text-[var(--text)]">
+          <p className="mt-2 text-[28px] leading-none font-bold tracking-tight text-[var(--text)]">
             {formatCurrency(source.amount)}
           </p>
-          {activeRule && (
-            <p className="mt-1 flex items-center gap-1 text-xs text-[var(--meta)]">
-              <Repeat aria-hidden className="size-3" />
-              {formatCurrency(activeRule.amount)} on the{' '}
-              {ordinal(activeRule.day_of_month_1)} and{' '}
-              {ordinal(activeRule.day_of_month_2)}
-            </p>
-          )}
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -65,7 +57,7 @@ export function SourceCard({
               type="button"
               variant="ghost"
               size="icon"
-              className="size-11"
+              className="-mt-1 -mr-1 size-9 text-[var(--meta)]"
               aria-label={`Actions for ${source.name}`}
             >
               <MoreHorizontal />
@@ -94,6 +86,14 @@ export function SourceCard({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      {activeRule && (
+        <div className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-[var(--accentSoft)] px-2.5 py-1 text-xs font-medium text-[var(--accent-ink)]">
+          <Repeat aria-hidden className="size-3" />
+          {formatCurrency(activeRule.amount)} on the{' '}
+          {ordinal(activeRule.day_of_month_1)} and{' '}
+          {ordinal(activeRule.day_of_month_2)}
+        </div>
+      )}
     </section>
   )
 }

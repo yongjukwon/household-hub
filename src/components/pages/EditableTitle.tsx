@@ -65,7 +65,7 @@ export function EditableTitle({ page, className }: EditableTitleProps) {
               cancel()
             }
           }}
-          className="w-full truncate bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+          className="w-full truncate bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-ink)]"
         />
       ) : (
         <button

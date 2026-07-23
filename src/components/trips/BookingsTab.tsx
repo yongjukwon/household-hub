@@ -98,7 +98,7 @@ function BookingCard({
     >
       <div className="flex items-start gap-3">
         <Icon
-          className="mt-0.5 size-5 shrink-0 text-[var(--accent)]"
+          className="mt-0.5 size-5 shrink-0 text-[var(--accent-ink)]"
           aria-hidden
         />
         <div className="min-w-0 flex-1">
@@ -119,7 +119,7 @@ function BookingCard({
                 href={booking.confirmation_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 font-medium text-[var(--accent)] hover:underline"
+                className="inline-flex items-center gap-1 font-medium text-[var(--accent-ink)] hover:underline"
               >
                 <ExternalLink className="size-3.5" aria-hidden />
                 View confirmation

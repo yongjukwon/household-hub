@@ -34,7 +34,7 @@ export default function SectionListPage({ navItem }: { navItem: NavItem }) {
           type="button"
           aria-label={`New ${navItem.label} page`}
           onClick={() => setPickerOpen(true)}
-          className="rounded-full p-2 text-[var(--accent)] hover:bg-[var(--hover)]"
+          className="rounded-full p-2 text-[var(--accent-ink)] hover:bg-[var(--hover)]"
         >
           <Plus size={22} />
         </button>
