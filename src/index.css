@@ -260,6 +260,29 @@ body {
   summary {
     cursor: pointer;
   }
+  /* Touch feedback. Tailwind's hover: styles only apply on hover-capable
+     devices, so on iOS (no :hover) tappable rows/tiles/nav give no feedback and
+     feel dead. Replace the default grey tap-flash with an instant "pressed"
+     state, and remove the 300ms tap delay. */
+  a,
+  button,
+  [role='button'],
+  [role='menuitem'],
+  [role='tab'],
+  label[for],
+  summary {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  a:active,
+  button:not(:disabled):active,
+  [role='button']:not([aria-disabled='true']):active,
+  [role='menuitem']:active,
+  [role='tab']:active,
+  label[for]:active {
+    opacity: 0.6;
+    transition: opacity 0s;
+  }
   /* Swiss headings: tight tracking, strong weight — typography carries the
      hierarchy rather than color or decoration. */
   h1,
