@@ -32,19 +32,21 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
+        // woff2 included so the Pretendard subset is available offline.
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,woff2}'],
         navigateFallback: '/index.html',
-        runtimeCaching: [
-          {
-            // Static app-shell only; offline data reads are served by the
-            // React Query IndexedDB persister, not a SW cache of REST JSON.
-            // Realtime uses WebSockets, which service workers can't
-            // intercept — handled by the outbox/persister instead.
-            urlPattern: ({ sameOrigin }) => sameOrigin,
-            handler: 'StaleWhileRevalidate',
-            options: { cacheName: 'app-shell' },
-          },
-        ],
+        // Never satisfy an /assets/* request with the index.html fallback.
+        navigateFallbackDenylist: [/^\/assets\//],
+        cleanupOutdatedCaches: true,
+        // Deliberately NO catch-all runtimeCaching. Hashed build assets (lazy
+        // route chunks, fonts) are precached and immutable, and navigations
+        // fall back to the precached index.html — so the app-shell is fully
+        // offline via the precache. A StaleWhileRevalidate over every
+        // same-origin request (the previous setup) would cache Vercel's
+        // SPA-rewrite HTML under a now-missing chunk URL after a deploy,
+        // yielding "text/html is not a valid JavaScript MIME type". Offline
+        // data reads are served by the React Query IndexedDB persister;
+        // realtime uses WebSockets, which service workers can't intercept.
       },
     }),
   ],
