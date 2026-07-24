@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -67,18 +72,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'budget_categories_household_id_fkey'
-            columns: ['household_id']
+            foreignKeyName: "budget_categories_household_id_fkey"
+            columns: ["household_id"]
             isOneToOne: false
-            referencedRelation: 'households'
-            referencedColumns: ['id']
+            referencedRelation: "households"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'budget_categories_page_id_fkey'
-            columns: ['page_id']
+            foreignKeyName: "budget_categories_page_id_fkey"
+            columns: ["page_id"]
             isOneToOne: false
-            referencedRelation: 'pages'
-            referencedColumns: ['id']
+            referencedRelation: "pages"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -115,25 +120,25 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'budget_category_limits_category_page_fkey'
-            columns: ['category_id', 'page_id', 'household_id']
+            foreignKeyName: "budget_category_limits_category_page_fkey"
+            columns: ["category_id", "page_id", "household_id"]
             isOneToOne: false
-            referencedRelation: 'budget_categories'
-            referencedColumns: ['id', 'page_id', 'household_id']
+            referencedRelation: "budget_categories"
+            referencedColumns: ["id", "page_id", "household_id"]
           },
           {
-            foreignKeyName: 'budget_category_limits_household_id_fkey'
-            columns: ['household_id']
+            foreignKeyName: "budget_category_limits_household_id_fkey"
+            columns: ["household_id"]
             isOneToOne: false
-            referencedRelation: 'households'
-            referencedColumns: ['id']
+            referencedRelation: "households"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'budget_category_limits_page_id_fkey'
-            columns: ['page_id']
+            foreignKeyName: "budget_category_limits_page_id_fkey"
+            columns: ["page_id"]
             isOneToOne: false
-            referencedRelation: 'pages'
-            referencedColumns: ['id']
+            referencedRelation: "pages"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -176,25 +181,81 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'budget_entries_category_page_fkey'
-            columns: ['category_id', 'page_id', 'household_id']
+            foreignKeyName: "budget_entries_category_page_fkey"
+            columns: ["category_id", "page_id", "household_id"]
             isOneToOne: false
-            referencedRelation: 'budget_categories'
-            referencedColumns: ['id', 'page_id', 'household_id']
+            referencedRelation: "budget_categories"
+            referencedColumns: ["id", "page_id", "household_id"]
           },
           {
-            foreignKeyName: 'budget_entries_household_id_fkey'
-            columns: ['household_id']
+            foreignKeyName: "budget_entries_household_id_fkey"
+            columns: ["household_id"]
             isOneToOne: false
-            referencedRelation: 'households'
-            referencedColumns: ['id']
+            referencedRelation: "households"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'budget_entries_page_id_fkey'
-            columns: ['page_id']
+            foreignKeyName: "budget_entries_page_id_fkey"
+            columns: ["page_id"]
             isOneToOne: false
-            referencedRelation: 'pages'
-            referencedColumns: ['id']
+            referencedRelation: "pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendar_events: {
+        Row: {
+          all_day: boolean
+          created_at: string
+          created_by: string
+          end_at: string
+          household_id: string
+          id: string
+          note: string | null
+          owner_id: string | null
+          recurrence_freq: Database["public"]["Enums"]["calendar_recurrence_freq"]
+          recurrence_until: string | null
+          start_at: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          all_day?: boolean
+          created_at?: string
+          created_by: string
+          end_at: string
+          household_id: string
+          id?: string
+          note?: string | null
+          owner_id?: string | null
+          recurrence_freq?: Database["public"]["Enums"]["calendar_recurrence_freq"]
+          recurrence_until?: string | null
+          start_at: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          all_day?: boolean
+          created_at?: string
+          created_by?: string
+          end_at?: string
+          household_id?: string
+          id?: string
+          note?: string | null
+          owner_id?: string | null
+          recurrence_freq?: Database["public"]["Enums"]["calendar_recurrence_freq"]
+          recurrence_until?: string | null
+          start_at?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_events_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -237,18 +298,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'grocery_items_household_id_fkey'
-            columns: ['household_id']
+            foreignKeyName: "grocery_items_household_id_fkey"
+            columns: ["household_id"]
             isOneToOne: false
-            referencedRelation: 'households'
-            referencedColumns: ['id']
+            referencedRelation: "households"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'grocery_items_page_id_fkey'
-            columns: ['page_id']
+            foreignKeyName: "grocery_items_page_id_fkey"
+            columns: ["page_id"]
             isOneToOne: false
-            referencedRelation: 'pages'
-            referencedColumns: ['id']
+            referencedRelation: "pages"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -285,18 +346,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'grocery_price_history_household_id_fkey'
-            columns: ['household_id']
+            foreignKeyName: "grocery_price_history_household_id_fkey"
+            columns: ["household_id"]
             isOneToOne: false
-            referencedRelation: 'households'
-            referencedColumns: ['id']
+            referencedRelation: "households"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'grocery_price_history_page_id_fkey'
-            columns: ['page_id']
+            foreignKeyName: "grocery_price_history_page_id_fkey"
+            columns: ["page_id"]
             isOneToOne: false
-            referencedRelation: 'pages'
-            referencedColumns: ['id']
+            referencedRelation: "pages"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -324,11 +385,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'household_members_household_id_fkey'
-            columns: ['household_id']
+            foreignKeyName: "household_members_household_id_fkey"
+            columns: ["household_id"]
             isOneToOne: false
-            referencedRelation: 'households'
-            referencedColumns: ['id']
+            referencedRelation: "households"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -359,9 +420,9 @@ export type Database = {
           end_date: string | null
           household_id: string
           id: string
-          section: Database['public']['Enums']['page_section']
+          section: Database["public"]["Enums"]["page_section"]
           start_date: string | null
-          template: Database['public']['Enums']['page_template']
+          template: Database["public"]["Enums"]["page_template"]
           title: string
           updated_at: string
         }
@@ -373,9 +434,9 @@ export type Database = {
           end_date?: string | null
           household_id: string
           id?: string
-          section: Database['public']['Enums']['page_section']
+          section: Database["public"]["Enums"]["page_section"]
           start_date?: string | null
-          template: Database['public']['Enums']['page_template']
+          template: Database["public"]["Enums"]["page_template"]
           title: string
           updated_at?: string
         }
@@ -387,19 +448,19 @@ export type Database = {
           end_date?: string | null
           household_id?: string
           id?: string
-          section?: Database['public']['Enums']['page_section']
+          section?: Database["public"]["Enums"]["page_section"]
           start_date?: string | null
-          template?: Database['public']['Enums']['page_template']
+          template?: Database["public"]["Enums"]["page_template"]
           title?: string
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: 'pages_household_id_fkey'
-            columns: ['household_id']
+            foreignKeyName: "pages_household_id_fkey"
+            columns: ["household_id"]
             isOneToOne: false
-            referencedRelation: 'households'
-            referencedColumns: ['id']
+            referencedRelation: "households"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -448,18 +509,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'savings_deposit_rules_household_id_fkey'
-            columns: ['household_id']
+            foreignKeyName: "savings_deposit_rules_household_id_fkey"
+            columns: ["household_id"]
             isOneToOne: false
-            referencedRelation: 'households'
-            referencedColumns: ['id']
+            referencedRelation: "households"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'savings_deposit_rules_source_id_fkey'
-            columns: ['source_id']
+            foreignKeyName: "savings_deposit_rules_source_id_fkey"
+            columns: ["source_id"]
             isOneToOne: false
-            referencedRelation: 'savings_sources'
-            referencedColumns: ['id']
+            referencedRelation: "savings_sources"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -493,11 +554,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'savings_sources_household_id_fkey'
-            columns: ['household_id']
+            foreignKeyName: "savings_sources_household_id_fkey"
+            columns: ["household_id"]
             isOneToOne: false
-            referencedRelation: 'households'
-            referencedColumns: ['id']
+            referencedRelation: "households"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -512,7 +573,7 @@ export type Database = {
           occurred_at: string
           reason: string | null
           source_id: string
-          type: Database['public']['Enums']['savings_transaction_type']
+          type: Database["public"]["Enums"]["savings_transaction_type"]
           updated_at: string
         }
         Insert: {
@@ -525,7 +586,7 @@ export type Database = {
           occurred_at?: string
           reason?: string | null
           source_id: string
-          type: Database['public']['Enums']['savings_transaction_type']
+          type: Database["public"]["Enums"]["savings_transaction_type"]
           updated_at?: string
         }
         Update: {
@@ -538,30 +599,30 @@ export type Database = {
           occurred_at?: string
           reason?: string | null
           source_id?: string
-          type?: Database['public']['Enums']['savings_transaction_type']
+          type?: Database["public"]["Enums"]["savings_transaction_type"]
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: 'savings_transactions_auto_deposit_rule_id_fkey'
-            columns: ['auto_deposit_rule_id']
+            foreignKeyName: "savings_transactions_auto_deposit_rule_id_fkey"
+            columns: ["auto_deposit_rule_id"]
             isOneToOne: false
-            referencedRelation: 'savings_deposit_rules'
-            referencedColumns: ['id']
+            referencedRelation: "savings_deposit_rules"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'savings_transactions_household_id_fkey'
-            columns: ['household_id']
+            foreignKeyName: "savings_transactions_household_id_fkey"
+            columns: ["household_id"]
             isOneToOne: false
-            referencedRelation: 'households'
-            referencedColumns: ['id']
+            referencedRelation: "households"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'savings_transactions_source_id_fkey'
-            columns: ['source_id']
+            foreignKeyName: "savings_transactions_source_id_fkey"
+            columns: ["source_id"]
             isOneToOne: false
-            referencedRelation: 'savings_sources'
-            referencedColumns: ['id']
+            referencedRelation: "savings_sources"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -579,7 +640,7 @@ export type Database = {
           sort_order: number
           starts_at: string | null
           title: string
-          type: Database['public']['Enums']['booking_type']
+          type: Database["public"]["Enums"]["booking_type"]
           updated_at: string
         }
         Insert: {
@@ -595,7 +656,7 @@ export type Database = {
           sort_order?: number
           starts_at?: string | null
           title: string
-          type: Database['public']['Enums']['booking_type']
+          type: Database["public"]["Enums"]["booking_type"]
           updated_at?: string
         }
         Update: {
@@ -611,23 +672,23 @@ export type Database = {
           sort_order?: number
           starts_at?: string | null
           title?: string
-          type?: Database['public']['Enums']['booking_type']
+          type?: Database["public"]["Enums"]["booking_type"]
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: 'trip_bookings_household_id_fkey'
-            columns: ['household_id']
+            foreignKeyName: "trip_bookings_household_id_fkey"
+            columns: ["household_id"]
             isOneToOne: false
-            referencedRelation: 'households'
-            referencedColumns: ['id']
+            referencedRelation: "households"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'trip_bookings_page_id_fkey'
-            columns: ['page_id']
+            foreignKeyName: "trip_bookings_page_id_fkey"
+            columns: ["page_id"]
             isOneToOne: false
-            referencedRelation: 'pages'
-            referencedColumns: ['id']
+            referencedRelation: "pages"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -664,18 +725,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'trip_checklist_items_household_id_fkey'
-            columns: ['household_id']
+            foreignKeyName: "trip_checklist_items_household_id_fkey"
+            columns: ["household_id"]
             isOneToOne: false
-            referencedRelation: 'households'
-            referencedColumns: ['id']
+            referencedRelation: "households"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'trip_checklist_items_page_id_fkey'
-            columns: ['page_id']
+            foreignKeyName: "trip_checklist_items_page_id_fkey"
+            columns: ["page_id"]
             isOneToOne: false
-            referencedRelation: 'pages'
-            referencedColumns: ['id']
+            referencedRelation: "pages"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -727,18 +788,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'trip_itinerary_items_household_id_fkey'
-            columns: ['household_id']
+            foreignKeyName: "trip_itinerary_items_household_id_fkey"
+            columns: ["household_id"]
             isOneToOne: false
-            referencedRelation: 'households'
-            referencedColumns: ['id']
+            referencedRelation: "households"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'trip_itinerary_items_page_id_fkey'
-            columns: ['page_id']
+            foreignKeyName: "trip_itinerary_items_page_id_fkey"
+            columns: ["page_id"]
             isOneToOne: false
-            referencedRelation: 'pages'
-            referencedColumns: ['id']
+            referencedRelation: "pages"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -753,10 +814,16 @@ export type Database = {
       }
     }
     Enums: {
-      booking_type: 'flight' | 'hotel' | 'car' | 'other'
-      page_section: 'budget' | 'trip' | 'grocery' | 'notes'
-      page_template: 'blank' | 'budget' | 'trip' | 'grocery'
-      savings_transaction_type: 'deposit' | 'withdrawal'
+      booking_type: "flight" | "hotel" | "car" | "other"
+      calendar_recurrence_freq:
+        | "none"
+        | "daily"
+        | "weekly"
+        | "monthly"
+        | "yearly"
+      page_section: "budget" | "trip" | "grocery" | "notes"
+      page_template: "blank" | "budget" | "trip" | "grocery"
+      savings_transaction_type: "deposit" | "withdrawal"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -764,33 +831,33 @@ export type Database = {
   }
 }
 
-type DatabaseWithoutInternals = Omit<Database, '__InternalSupabase'>
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, 'public'>]
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema['Tables'] & DefaultSchema['Views'])
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])
-    : never) = never,
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])[TableName] extends {
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema['Tables'] &
-        DefaultSchema['Views'])
-    ? (DefaultSchema['Tables'] &
-        DefaultSchema['Views'])[DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R
       }
       ? R
@@ -799,22 +866,23 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema['Tables'] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
-    : never) = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
-    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
         Insert: infer I
       }
       ? I
@@ -823,22 +891,23 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema['Tables'] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
-    : never) = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
-    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
         Update: infer U
       }
       ? U
@@ -847,35 +916,36 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    keyof DefaultSchema['Enums'] | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums']
-    : never) = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums'][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema['Enums']
-    ? DefaultSchema['Enums'][DefaultSchemaEnumNameOrOptions]
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema['CompositeTypes']
+    | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes']
-    : never) = never,
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes'][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema['CompositeTypes']
-    ? DefaultSchema['CompositeTypes'][PublicCompositeTypeNameOrOptions]
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
 
 export const Constants = {
@@ -884,10 +954,17 @@ export const Constants = {
   },
   public: {
     Enums: {
-      booking_type: ['flight', 'hotel', 'car', 'other'],
-      page_section: ['budget', 'trip', 'grocery', 'notes'],
-      page_template: ['blank', 'budget', 'trip', 'grocery'],
-      savings_transaction_type: ['deposit', 'withdrawal'],
+      booking_type: ["flight", "hotel", "car", "other"],
+      calendar_recurrence_freq: [
+        "none",
+        "daily",
+        "weekly",
+        "monthly",
+        "yearly",
+      ],
+      page_section: ["budget", "trip", "grocery", "notes"],
+      page_template: ["blank", "budget", "trip", "grocery"],
+      savings_transaction_type: ["deposit", "withdrawal"],
     },
   },
 } as const
