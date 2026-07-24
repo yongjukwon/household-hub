@@ -1,9 +1,12 @@
-import { ChevronRight, PiggyBank, Settings } from 'lucide-react'
+import { CalendarDays, ChevronRight, PiggyBank, Settings } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { NAV_ITEMS } from '@/components/layout/nav-items'
 
-// Savings lives outside NAV_ITEMS (flat household list, like /settings).
-const EXTRA_TILES = [{ path: '/savings', label: 'Savings', icon: PiggyBank }]
+// Calendar and Savings live outside NAV_ITEMS (flat household lists).
+const EXTRA_TILES = [
+  { path: '/calendar', label: 'Calendar', icon: CalendarDays },
+  { path: '/savings', label: 'Savings', icon: PiggyBank },
+]
 
 export default function HomePage() {
   return (

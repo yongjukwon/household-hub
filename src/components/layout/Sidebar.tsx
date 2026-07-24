@@ -1,11 +1,14 @@
 import { Link, NavLink } from 'react-router-dom'
-import { PiggyBank, Settings } from 'lucide-react'
+import { CalendarDays, PiggyBank, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NAV_ITEMS } from './nav-items'
 
-// Savings lives outside NAV_ITEMS (no page_section of its own — a flat
-// household list, like /settings), so it's appended manually here.
-const EXTRA_LINKS = [{ path: '/savings', label: 'Savings', icon: PiggyBank }]
+// Calendar and Savings live outside NAV_ITEMS (no page_section of their own —
+// flat household lists, like /settings), so they're appended manually here.
+const EXTRA_LINKS = [
+  { path: '/calendar', label: 'Calendar', icon: CalendarDays },
+  { path: '/savings', label: 'Savings', icon: PiggyBank },
+]
 
 export function Sidebar() {
   return (

@@ -8,7 +8,7 @@ import Dexie, { type Table } from 'dexie'
 export interface OutboxEntry {
   id?: number
   clientId: string
-  table: 'grocery_items' | 'trip_checklist_items'
+  table: 'grocery_items' | 'trip_checklist_items' | 'calendar_events'
   op: 'upsert' | 'update' | 'delete'
   /** Row for upsert; changed columns for update; unused for delete. */
   payload: Record<string, unknown>
