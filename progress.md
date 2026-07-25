@@ -7,9 +7,9 @@
 **Implementation branch:** `codex/household-hub-mobile-first`
 
 **Implementation worktree:** `/Users/conlegs/dev/household-hub/.worktrees/household-hub-mobile-first`
-**Current HEAD:** `24a5b39 feat: add deployment configuration for the mobile-first rebuild`
+**Current HEAD:** `f86f4c0 test: cover two-device ordering through the queue`
 **Last review-clean baseline:** `d1f3e30` (Tasks 1–2, independent review).
-Task 3 is complete (3A–3D, self-reviewed); Task 4 is next.
+Tasks 3 and 4 are complete (self-reviewed); Task 5 is next.
 
 This file is the source of truth for continuing the approved web-first
 Household Hub rebuild. Current Git state and fresh verification results take
@@ -46,8 +46,8 @@ precedence if this file ever becomes stale.
    - `docs/mobile-implementation-handoff.md`
    - the still-untracked files under `mobile/`
 
-5. Resume at **Task 4 (durable web operation queue)**. Tasks 1, 2, and 3
-   (3A–3D) are complete, committed, and verified — do not redo them.
+5. Resume at **Task 5 (responsive web shell and visual system)**. Tasks 1–4
+   are complete, committed, and verified — do not redo them.
 
 6. **User directive (2026-07-25):** work straight through **3C → 3D** to finish
    Task 3, then **proceed into Task 4** — the user has pre-approved starting
@@ -79,7 +79,7 @@ precedence if this file ever becomes stale.
 | 1. Shared foundation and domain contracts | Complete | Review-clean at `ffc3c01` |
 | 2. Supabase schema and operation RPC | Complete | Review-clean at `d1f3e30` |
 | 3. Identity, notifications, jobs, deployment config | Complete | Verified at `24a5b39` (self-review; no independent review agent) |
-| 4. Durable web operation queue | In progress | Started on top of `24a5b39` |
+| 4. Durable web operation queue | Complete | Verified at `f86f4c0`; its UI surface lands with Task 5 |
 | 5. Responsive web shell and visual system | Pending | Not started |
 | 6. Web feature flows | Pending | Not started |
 | 7. Expo foundation and offline data layer | Pending | Not started |
@@ -730,10 +730,78 @@ functions booted):
 4. **Expo push not exercised against Expo's servers** — batching and ticket
    handling are unit-tested; real delivery needs the Task 7 development build.
 
+## Task 4 — Durable web operation queue (complete)
+
+### Done: queue core (`dba54b5`)
+
+`src/lib/operations/` — the rebuilt clients' only write path.
+
+- **`types.ts`** — `QueuedOperation` (command, device id, local FIFO sequence,
+  optimistic state, attempts, last error) and `DiscardedOperation` (the losing
+  command, the winner, code/reason/details, acknowledgement).
+- **`device.ts`** — device id persisted in IndexedDB (a new id every session would
+  restart the server's per-device ordering mid-stream); local sequence
+  allocated inside a transaction so concurrent enqueues cannot collide.
+- **`queue.ts`** — durable-first enqueue (stored before any network attempt),
+  then a FIFO replay against `apply_household_operation`:
+  - `applied` / `duplicate` → leave the queue;
+  - `conflict` / `rejected` → leave the queue as a permanent discard record;
+  - transport failure → **stop the pass**, do not skip ahead (order is part of
+    the contract and a later command may depend on an earlier one);
+  - an unrecognized response is treated as a transport failure, never as a
+    verdict, so a write is never silently dropped;
+  - single in-flight guard, and identifiers validated (not cast) at the
+    boundary through the domain's `isUuid`/`isRevision`.
+- **`overlay.ts`** — optimistic overlays derived from the queue itself, so a
+  Realtime refetch cannot erase an unsent local edit, and the overlay survives
+  a reload exactly as the commands do. Per-entity queued commands apply in
+  local sequence order.
+- **`src/lib/db.ts`** — Dexie v2 adds `operations` and `discardedOperations`.
+  The legacy `outbox` stays until Task 6 retires the legacy screens with it.
+- **`AppShell`** — registers the query client and starts the sync loop
+  (online, visibility, 30s fallback) beside the legacy one.
+
+### Done: explanations and status (`098f643`)
+
+`explainDiscard` turns a discard record into the account the design requires —
+the action that failed, the one that won, the server's wording, and the stable
+code — because a losing command is never retried or edited.
+`useOperationQueueStatus` / `useDiscardedOperations` are live Dexie queries for
+the Task 5 shell.
+
+### Done: Realtime reconciliation (`336a89d`)
+
+`useHouseholdRealtime` subscribes once per household to
+`household_change_log` (written by every applied operation) instead of one
+channel per table; an event invalidates the household's queries and nudges the
+queue, and the refetch goes back through the overlay.
+
+### Task 4 verification (at `f86f4c0`)
+
+| Verification | Result |
+| --- | --- |
+| `npx vitest run` | 40 files, **267/267 passed** (34 new) |
+| `npm run lint` | Passed |
+| `npm run build` | Passed |
+| `npm run test:functions` | 73/73 passed |
+| `supabase test db --local` | 5 files, 301/301 passed |
+
+New coverage: offline CRUD, reconnect replay in FIFO order, recovery after a
+reload, duplicate verdicts, transport-failure stop-and-resume, unrecognized
+responses, conflict and rejection discard, acknowledgement, two-device
+ordering (one entity lost to the partner while the rest of the queue still
+applied in order), overlay behavior for create/edit/delete, and Realtime
+reconciliation.
+
+### Remaining for Task 4
+
+- Nothing functional is outstanding for the queue itself. The remaining plan
+  items for Task 4 (a visible pending/conflict surface) land with the shell in
+  Task 5, which owns every UI state.
+
 ## Original Task 3 scope (unchanged reference)
 
-Task 4 start is **pre-approved** by the user (see "User directive" above): after
-Task 3D completes and verifies, continue straight into Task 4.
+Task 4 start was **pre-approved** by the user (see "User directive" above).
 
 ### Task 3 scope
 
