@@ -7,10 +7,9 @@
 **Implementation branch:** `codex/household-hub-mobile-first`
 
 **Implementation worktree:** `/Users/conlegs/dev/household-hub/.worktrees/household-hub-mobile-first`
-**Current HEAD:** `df02de6 feat: add household admin and scheduled job Edge Functions`
-**Last review-clean baseline:** `d1f3e30` (Tasks 1–2). Task 3 in progress on top
-(3A + 3B complete, 3C complete — database layer and Edge Functions; 3D
-config/deploy remaining).
+**Current HEAD:** `24a5b39 feat: add deployment configuration for the mobile-first rebuild`
+**Last review-clean baseline:** `d1f3e30` (Tasks 1–2, independent review).
+Task 3 is complete (3A–3D, self-reviewed); Task 4 is next.
 
 This file is the source of truth for continuing the approved web-first
 Household Hub rebuild. Current Git state and fresh verification results take
@@ -47,9 +46,8 @@ precedence if this file ever becomes stale.
    - `docs/mobile-implementation-handoff.md`
    - the still-untracked files under `mobile/`
 
-5. Resume at **Task 3D config/deploy**. Do not redo Tasks 1, 2, 3A, 3B, or
-   3C (database layer and Edge Functions) — all committed and verified (see
-   the Task 3 progress section below).
+5. Resume at **Task 4 (durable web operation queue)**. Tasks 1, 2, and 3
+   (3A–3D) are complete, committed, and verified — do not redo them.
 
 6. **User directive (2026-07-25):** work straight through **3C → 3D** to finish
    Task 3, then **proceed into Task 4** — the user has pre-approved starting
@@ -80,8 +78,8 @@ precedence if this file ever becomes stale.
 | --- | --- | --- |
 | 1. Shared foundation and domain contracts | Complete | Review-clean at `ffc3c01` |
 | 2. Supabase schema and operation RPC | Complete | Review-clean at `d1f3e30` |
-| 3. Identity, notifications, jobs, deployment config | In progress | 3A + 3B + 3C done; 3D config/deploy remains |
-| 4. Durable web operation queue | Pending | Not started |
+| 3. Identity, notifications, jobs, deployment config | Complete | Verified at `24a5b39` (self-review; no independent review agent) |
+| 4. Durable web operation queue | In progress | Started on top of `24a5b39` |
 | 5. Responsive web shell and visual system | Pending | Not started |
 | 6. Web feature flows | Pending | Not started |
 | 7. Expo foundation and offline data layer | Pending | Not started |
@@ -644,16 +642,93 @@ Verified: `deno test supabase/functions/` **73 passed**; `npx vitest run` 37
 files / **233 passed**; `npm run lint` clean; `npm run build` clean;
 `deno check` clean.
 
-### Remaining Task 3 sub-checkpoints
+### Done: 3D config and deployment (`24a5b39`)
 
-- **3D config/deploy** — `config.toml` `[functions]`, `.env.example`, seed
-  fixtures, regenerated `src/types/database.ts`, `vercel.json`, Expo
-  `app.json` (`householdhub://`, `com.conlegs.householdhub`, portrait-only),
-  `eas.json`, deployment docs — no secrets.
+- **`supabase/config.toml`** — `[functions.*]` for all five functions with
+  `verify_jwt = true`; `[auth.external.google]` beside Apple (both disabled
+  locally unless the client id/secret are exported); web `/auth/callback` and
+  native `householdhub://auth/callback` redirect URLs; `site_url` corrected to
+  the Vite dev port.
+- **Env templates** — `.env.example` and `mobile/.env.example` name every
+  variable (web, Expo, seed script, local provider secrets, function secrets)
+  with none of their values.
+- **Seed fixtures** — `scripts/seed-household.ts` now provisions through the
+  real path (`onboard_household` → `create_household_invite` →
+  `redeem_household_invite`) instead of writing `households`/
+  `household_members` directly, so seeded rows carry owner role, profiles, and
+  invite redemption state. Still idempotent (membership check is scoped to the
+  partner's own row — a member can read both).
+- **`src/types/database.ts`** — regenerated from the local stack. This
+  surfaced that the pre-rebuild Calendar screen assumed non-null
+  `start_at`/`end_at`, which Task 2 widened; it now goes through
+  `toLegacyCalendarEvent` (all-day rows are filtered out of that screen) until
+  Task 6 replaces it.
+- **`vercel.json`** — SPA rewrite plus cache headers: hashed `/assets`
+  immutable for a year; `index.html`, `sw.js`, and the web manifest must
+  revalidate.
+- **Expo** — `mobile/app.json` carries the release identity (`householdhub`
+  scheme, `com.conlegs.householdhub`, portrait, `supportsTablet: false`,
+  `POST_NOTIFICATIONS`); `mobile/eas.json` defines development/preview/
+  production profiles. `app.json`, `.gitignore`, and `assets/` were previously
+  untracked and are now committed (the remaining Task 1 review gap).
+  `expo-notifications` and its config plugin arrive in Task 7, so no plugin
+  block is declared yet.
+- **`docs/deployment/mobile-first-rollout.md`** — env matrix, migration
+  preflight, OAuth setup, function deploy + cron cadences, Vercel, EAS, and
+  seeding. No provider secrets.
 
-Then run the full baseline (db reset + pgTAP + lint/build/test + deno tests),
-self-review for Critical/Important issues, update this file, and deliver the
-Task 3 checkpoint report before starting Task 4.
+#### Defect found by end-to-end verification (fixed)
+
+Running the real functions against the local stack showed a partner could
+**never delete their account**: `admin_prepare_account_deletion` accepted, then
+removing the `auth.users` row failed because
+`household_invites.redeemed_by` used `ON DELETE SET NULL` while the table
+requires `redeemed_at`/`redeemed_by` to be null or non-null together.
+`supabase/migrations/20260725015000_invite_redeemer_deletion.sql` cascades the
+spent invite with its redeemer;
+`supabase/tests/20260725_invite_redeemer_deletion.test.sql` (9 assertions)
+fails against the old constraint and passes with the new one.
+
+## Task 3 — complete
+
+### Task 3 verification baseline (at `24a5b39`)
+
+| Verification | Result |
+| --- | --- |
+| `supabase db reset --local` | Passed |
+| `supabase test db --local` | 5 files, **301/301 passed** |
+| `supabase db lint --local --schema public --level warning --fail-on error` | No errors |
+| `npm run test:functions` (Deno) | **73/73 passed** |
+| `npx vitest run` | 37 files, **233/233 passed** |
+| `npm run lint` | Passed |
+| `npm run build` | Passed |
+| `supabase gen types typescript --local` | Matches the committed file |
+
+Live end-to-end against the local stack (`supabase functions serve`, all five
+functions booted):
+
+- job functions reject an anon key (`forbidden`) and accept the service role;
+- `notification-cleanup` rejects `ttlDays: 0`, runs with the default 90;
+- `household-admin` rejects unauthenticated calls, unknown actions, non-POST
+  verbs, and a mistyped household name (reporting the expected name);
+- a seeded partner deleted their own account (authorship reassigned to the
+  owner, household intact), the owner then created an invite, and finally
+  deleted their own account, taking the household with it.
+
+### Known Task 3 risks carried forward
+
+1. **Permanently failing push batch** — a batch Expo never accepts records no
+   delivery row (so it retries), which means a message Expo rejects at the
+   transport level retries on every run. Bounded by the 100-notification page,
+   but worth an attempt cap if it is ever observed.
+2. **No independent review agent was run** for Task 3. The session directive
+   is not to dispatch subagents, so this was a self-review plus the live
+   end-to-end run above. `/code-review` on this branch remains available and
+   is the recommended follow-up.
+3. **Nothing deployed remotely.** All verification is local; no hosted
+   Supabase project, Vercel deployment, or EAS build was touched.
+4. **Expo push not exercised against Expo's servers** — batching and ticket
+   handling are unit-tested; real delivery needs the Task 7 development build.
 
 ## Original Task 3 scope (unchanged reference)
 
