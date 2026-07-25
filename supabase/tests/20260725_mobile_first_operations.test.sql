@@ -1426,6 +1426,163 @@ select is(
 
 select is(
   (
+    select checked_at
+    from public.household_grocery_items
+    where id = '30000000-0000-4000-8000-00000000000f'
+  ),
+  null::timestamptz,
+  'a new unchecked Grocery item has no purchase timestamp'
+);
+
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000050',
+        '10000000-0000-4000-8000-000000000001',
+        'grocery.item.upsert',
+        'grocery_item',
+        '30000000-0000-4000-8000-00000000000f',
+        1,
+        jsonb_build_object(
+          'listId', '30000000-0000-4000-8000-00000000000e',
+          'name', 'Milk',
+          'quantity', '2',
+          'checked', true,
+          'unitPriceCents', 499,
+          'sortOrder', 0
+        ),
+        50
+      )
+    )->>'status'
+  ),
+  'applied',
+  'checking a Grocery item applies'
+);
+
+create temporary table grocery_check_times (
+  first_checked_at timestamptz not null
+) on commit drop;
+
+insert into grocery_check_times (first_checked_at)
+select checked_at
+from public.household_grocery_items
+where id = '30000000-0000-4000-8000-00000000000f';
+
+select ok(
+  (select first_checked_at is not null from grocery_check_times),
+  'checking an item assigns its purchase timestamp'
+);
+
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000051',
+        '10000000-0000-4000-8000-000000000001',
+        'grocery.item.upsert',
+        'grocery_item',
+        '30000000-0000-4000-8000-00000000000f',
+        2,
+        jsonb_build_object(
+          'listId', '30000000-0000-4000-8000-00000000000e',
+          'name', 'Whole milk',
+          'quantity', '1',
+          'checked', true,
+          'unitPriceCents', 529,
+          'sortOrder', 0
+        ),
+        51
+      )
+    )->>'status'
+  ),
+  'applied',
+  'editing a checked Grocery item applies'
+);
+
+select is(
+  (
+    select checked_at
+    from public.household_grocery_items
+    where id = '30000000-0000-4000-8000-00000000000f'
+  ),
+  (select first_checked_at from grocery_check_times),
+  'editing a checked item preserves its purchase timestamp'
+);
+
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000052',
+        '10000000-0000-4000-8000-000000000001',
+        'grocery.item.upsert',
+        'grocery_item',
+        '30000000-0000-4000-8000-00000000000f',
+        3,
+        jsonb_build_object(
+          'listId', '30000000-0000-4000-8000-00000000000e',
+          'name', 'Whole milk',
+          'quantity', '1',
+          'checked', false,
+          'unitPriceCents', 529,
+          'sortOrder', 0
+        ),
+        52
+      )
+    )->>'status'
+  ),
+  'applied',
+  'unchecking a Grocery item applies'
+);
+
+select is(
+  (
+    select checked_at
+    from public.household_grocery_items
+    where id = '30000000-0000-4000-8000-00000000000f'
+  ),
+  null::timestamptz,
+  'unchecking an item clears its purchase timestamp'
+);
+
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000053',
+        '10000000-0000-4000-8000-000000000001',
+        'grocery.item.upsert',
+        'grocery_item',
+        '30000000-0000-4000-8000-00000000000f',
+        4,
+        jsonb_build_object(
+          'listId', '30000000-0000-4000-8000-00000000000e',
+          'name', 'Whole milk',
+          'quantity', '1',
+          'checked', true,
+          'unitPriceCents', 529,
+          'sortOrder', 0
+        ),
+        53
+      )
+    )->>'status'
+  ),
+  'applied',
+  'rechecking a Grocery item applies'
+);
+
+select ok(
+  (
+    select checked_at > (select first_checked_at from grocery_check_times)
+    from public.household_grocery_items
+    where id = '30000000-0000-4000-8000-00000000000f'
+  ),
+  'rechecking assigns a newer purchase timestamp'
+);
+
+select is(
+  (
     public.apply_household_operation(
       pg_temp.operation_command(
         '40000000-0000-4000-8000-000000000033',

@@ -4,12 +4,17 @@ import { ChevronLeftIcon } from '@heroicons/react/24/outline'
 import { formatMoney } from '@household-hub/domain'
 import { Screen } from '@/shell/Screen'
 import { ConfirmDialog } from '@/shell/ui/ConfirmDialog'
+import { EditableTitle } from '@/shell/ui/EditableTitle'
 import { EmptyState, ErrorState, LoadingState } from '@/shell/ui/states'
 import { useActiveHousehold } from '@/features/household'
-import { parseDollarsToCents } from '@/features/moneyInput'
+import { centsToInputValue, parseDollarsToCents } from '@/features/moneyInput'
+import { operationOutcomeError } from '@/lib/operations/outcome'
 import {
+  cheapestPriceHistory,
+  groceryNameSuggestions,
   latestPriceByName,
   normalizeItemName,
+  sortGroceryItems,
   useGroceryList,
   useGroceryLists,
   type GroceryItem,
@@ -17,6 +22,7 @@ import {
 import {
   clearCheckedItems,
   deleteGroceryList,
+  saveGroceryList,
   saveGroceryItem,
   toggleGroceryItem,
 } from './mutations'
@@ -35,22 +41,57 @@ export function GroceryListScreen() {
   const [newName, setNewName] = useState('')
   const [newPrice, setNewPrice] = useState('')
   const [editing, setEditing] = useState<GroceryItem | null>(null)
+  const [historyItem, setHistoryItem] = useState<GroceryItem | null>(null)
   const [confirmClear, setConfirmClear] = useState(false)
   const [confirmDeleteList, setConfirmDeleteList] = useState(false)
   const [busy, setBusy] = useState(false)
 
-  const items = query.data?.items ?? []
+  const items = useMemo(() => query.data?.items ?? [], [query.data?.items])
   const latest = useMemo(
     () => latestPriceByName(query.data?.history ?? []),
     [query.data],
   )
-  const unchecked = items.filter((i) => !i.checked)
-  const checked = items.filter((i) => i.checked)
+  const { unchecked, checked } = useMemo(
+    () => sortGroceryItems(items),
+    [items],
+  )
+  const knownNames = useMemo(
+    () =>
+      groceryNameSuggestions(
+        query.data?.knowledgeItems ?? items,
+        query.data?.history ?? [],
+      ),
+    [items, query.data],
+  )
+  const matchingNames = newName.trim()
+    ? knownNames
+        .filter((name) =>
+          normalizeItemName(name).includes(normalizeItemName(newName)),
+        )
+        .filter((name) => normalizeItemName(name) !== normalizeItemName(newName))
+        .slice(0, 6)
+    : []
 
   // Price recall: if the typed name matches a known item, surface its last price.
   const suggestion = newName.trim()
     ? latest.get(normalizeItemName(newName))
     : undefined
+  const selectedHistory = historyItem
+    ? cheapestPriceHistory(
+        query.data?.history ?? [],
+        normalizeItemName(historyItem.name),
+      )
+    : []
+
+  async function renameList(next: string): Promise<string | null> {
+    if (!householdId || !list) return 'The list is not available.'
+    const outcome = await saveGroceryList(
+      householdId,
+      { ...list, name: next },
+      list.revision,
+    )
+    return operationOutcomeError(outcome)
+  }
 
   async function addItem() {
     if (!householdId || !listId || newName.trim().length === 0) return
@@ -120,7 +161,20 @@ export function GroceryListScreen() {
   )
 
   return (
-    <Screen title={list?.name ?? 'List'} action={backAndMenu}>
+    <Screen
+      title={
+        list ? (
+          <EditableTitle
+            value={list.name}
+            ariaLabel="Grocery list name"
+            onSave={renameList}
+          />
+        ) : (
+          'List'
+        )
+      }
+      action={backAndMenu}
+    >
       <Link
         to="/groceries"
         className="mb-3 inline-flex items-center gap-1 text-sm text-[var(--hh-muted)]"
@@ -140,6 +194,9 @@ export function GroceryListScreen() {
             onKeyDown={(e) => {
               if (e.key === 'Enter') void addItem()
             }}
+            role="combobox"
+            aria-expanded={matchingNames.length > 0}
+            aria-controls="grocery-name-suggestions"
           />
           <input
             className="w-24 rounded-[var(--hh-radius-control)] border border-[var(--hh-line)] bg-[var(--hh-surface)] px-3 py-2 text-[var(--hh-ink)] outline-none focus:border-[var(--hh-accent)]"
@@ -153,6 +210,32 @@ export function GroceryListScreen() {
             }}
           />
         </div>
+        {matchingNames.length > 0 && (
+          <ul
+            id="grocery-name-suggestions"
+            role="listbox"
+            aria-label="Known grocery items"
+            className="mt-2 overflow-hidden rounded-[var(--hh-radius-control)] border border-[var(--hh-line)] bg-[var(--hh-surface)]"
+          >
+            {matchingNames.map((name) => (
+              <li key={normalizeItemName(name)}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={false}
+                  className="w-full px-3 py-2 text-left text-sm text-[var(--hh-ink)] hover:bg-[var(--hh-surface-2)]"
+                  onClick={() => {
+                    setNewName(name)
+                    const known = latest.get(normalizeItemName(name))
+                    if (known) setNewPrice(centsToInputValue(known.priceCents))
+                  }}
+                >
+                  {name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         {suggestion && (
           <p className="mt-2 text-xs text-[var(--hh-muted)]">
             Last time: {formatMoney(suggestion.priceCents, 'CAD')}
@@ -175,6 +258,7 @@ export function GroceryListScreen() {
                 item={item}
                 householdId={householdId!}
                 onEdit={() => setEditing(item)}
+                onHistory={() => setHistoryItem(item)}
               />
             ))}
           </ul>
@@ -191,10 +275,52 @@ export function GroceryListScreen() {
                     item={item}
                     householdId={householdId!}
                     onEdit={() => setEditing(item)}
+                    onHistory={() => setHistoryItem(item)}
                   />
                 ))}
               </ul>
             </div>
+          )}
+
+          {historyItem && (
+            <section
+              aria-label={`Price history for ${historyItem.name}`}
+              className="rounded-[var(--hh-radius-card)] bg-[var(--hh-surface)] p-4 shadow-[var(--hh-shadow-card)]"
+            >
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--hh-muted)]">
+                  Five cheapest · {historyItem.name}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setHistoryItem(null)}
+                  className="text-sm text-[var(--hh-muted)]"
+                >
+                  Close
+                </button>
+              </div>
+              {selectedHistory.length === 0 ? (
+                <p className="text-sm text-[var(--hh-muted)]">
+                  No purchase prices recorded yet.
+                </p>
+              ) : (
+                <ol className="space-y-2">
+                  {selectedHistory.map((entry) => (
+                    <li
+                      key={entry.id}
+                      className="flex items-baseline justify-between gap-3 text-sm"
+                    >
+                      <span className="font-semibold tabular-nums text-[var(--hh-ink)]">
+                        {formatMoney(entry.priceCents, 'CAD')}
+                      </span>
+                      <span className="text-right text-[var(--hh-muted)]">
+                        {entry.listName} · {formatPurchaseDate(entry.recordedAt)}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </section>
           )}
         </div>
       )}
@@ -238,10 +364,12 @@ function ItemRow({
   item,
   householdId,
   onEdit,
+  onHistory,
 }: {
   item: GroceryItem
   householdId: string
   onEdit: () => void
+  onHistory: () => void
 }) {
   return (
     <li className="flex items-center gap-3 rounded-[var(--hh-radius-card)] bg-[var(--hh-surface)] p-3 shadow-[var(--hh-shadow-card)]">
@@ -254,7 +382,7 @@ function ItemRow({
       />
       <button
         type="button"
-        onClick={onEdit}
+        onClick={onHistory}
         className="flex flex-1 items-center justify-between gap-2 text-left"
       >
         <span
@@ -265,10 +393,19 @@ function ItemRow({
               : 'text-[var(--hh-ink)]')
           }
         >
-          {item.name}
-          {item.quantity && (
-            <span className="ml-2 text-sm text-[var(--hh-muted)]">×{item.quantity}</span>
-          )}
+          <span>
+            {item.name}
+            {item.quantity && (
+              <span className="ml-2 text-sm text-[var(--hh-muted)]">
+                ×{item.quantity}
+              </span>
+            )}
+            {item.checkedAt && (
+              <span className="mt-0.5 block text-xs font-normal text-[var(--hh-muted)]">
+                Purchased {formatPurchaseDate(item.checkedAt)}
+              </span>
+            )}
+          </span>
         </span>
         {item.unitPriceCents !== null && (
           <span className="text-sm tabular-nums text-[var(--hh-muted)]">
@@ -276,6 +413,22 @@ function ItemRow({
           </span>
         )}
       </button>
+      <button
+        type="button"
+        onClick={onEdit}
+        aria-label={`Edit ${item.name}`}
+        className="rounded-full px-2 py-1 text-xs font-medium text-[var(--hh-muted)]"
+      >
+        Edit
+      </button>
     </li>
   )
+}
+
+function formatPurchaseDate(value: string): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  }).format(new Date(value))
 }

@@ -499,7 +499,7 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
   `onSave(next: string): Promise<string | null>`; `null` means success, a string
   keeps edit mode open as an error.
 
-- [ ] **Step 1: Write SQL regression tests for purchase timestamps**
+- [x] **Step 1: Write SQL regression tests for purchase timestamps**
 
   Extend the existing Grocery operation section in
   `supabase/tests/20260725_mobile_first_operations.test.sql`:
@@ -510,7 +510,7 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
   - uncheck clears it;
   - recheck assigns a later value.
 
-- [ ] **Step 2: Run SQL tests and verify RED**
+- [x] **Step 2: Run SQL tests and verify RED**
 
   Run:
 
@@ -520,7 +520,7 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
 
   Expected: SQL test fails because `checked_at` does not exist.
 
-- [ ] **Step 3: Add the schema field and server-derived trigger**
+- [x] **Step 3: Add the schema field and server-derived trigger**
 
   Migration:
 
@@ -552,7 +552,7 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
   Make the trigger idempotent within the migration and do not accept
   client-supplied timestamps.
 
-- [ ] **Step 4: Reset locally, rerun SQL tests, regenerate types**
+- [x] **Step 4: Reset locally, rerun SQL tests, regenerate types**
 
   Run:
 
@@ -566,7 +566,7 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
   command output, not by hand. Reseed the two local test accounts afterward
   using the exact command documented in `progress.md`.
 
-- [ ] **Step 5: Write pure-data tests and verify RED**
+- [x] **Step 5: Write pure-data tests and verify RED**
 
   Create `src/test/groceryData.test.ts` with:
 
@@ -587,7 +587,7 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
 
   Add household-wide suggestion dedupe/casing tests.
 
-- [ ] **Step 6: Implement Grocery data queries/helpers**
+- [x] **Step 6: Implement Grocery data queries/helpers**
 
   Query items with `checked_at`. Query household-wide price history joined to
   `household_grocery_lists(name)`, not restricted to active `list_id`, and
@@ -596,18 +596,18 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
   separate `useGroceryKnowledge` hook so opening one list can suggest names
   known in another.
 
-- [ ] **Step 7: Write EditableTitle tests and verify RED**
+- [x] **Step 7: Write EditableTitle tests and verify RED**
 
   Cover activation, Enter/blur save, Escape cancel, blank rejection, pending
   disabling, and an `onSave` error that remains visible.
 
-- [ ] **Step 8: Implement EditableTitle**
+- [x] **Step 8: Implement EditableTitle**
 
   Use a real heading plus button in read state and a same-size input in edit
   state. Ensure blur caused by clicking Cancel does not save first. Expose
   status/errors accessibly.
 
-- [ ] **Step 9: Extend Grocery screen tests and verify RED**
+- [x] **Step 9: Extend Grocery screen tests and verify RED**
 
   Cover:
 
@@ -618,20 +618,20 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
   - list/store names and dates in history; and
   - clear checked retaining the history display contract.
 
-- [ ] **Step 10: Implement Grocery UI**
+- [x] **Step 10: Implement Grocery UI**
 
   Replace the static title with `EditableTitle`. Restore a keyboard-accessible
   combobox using the approved legacy interaction pattern without importing
   legacy hooks/tables. Add purchase-date metadata and an item-scoped
   cheapest-five history card styled to the reference.
 
-- [ ] **Step 11: Run focused and full verification**
+- [x] **Step 11: Run focused and full verification**
 
   Run SQL reset/tests, focused Grocery tests, full Vitest, lint, build, and
   `git diff --check`. Live verify with more than five price records and two
   lists.
 
-- [ ] **Step 12: Update handoff, commit, and stop**
+- [x] **Step 12: Update handoff, commit, and stop**
 
   Commit migration, generated types, Grocery/shared UI/tests, and
   `progress.md`:

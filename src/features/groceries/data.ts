@@ -16,6 +16,7 @@ export interface GroceryItem {
   name: string
   quantity: string | null
   checked: boolean
+  checkedAt: string | null
   unitPriceCents: number | null
   sortOrder: number
   revision: number
@@ -27,6 +28,11 @@ export interface PriceHistoryEntry {
   itemName: string
   priceCents: number
   recordedAt: string
+  listName: string
+}
+
+export interface GroceryKnowledgeItem {
+  name: string
 }
 
 function toList(row: Tables<'household_grocery_lists'>): GroceryList {
@@ -45,6 +51,7 @@ function toItem(row: Tables<'household_grocery_items'>): GroceryItem {
     name: row.name,
     quantity: row.quantity,
     checked: row.checked,
+    checkedAt: row.checked_at,
     unitPriceCents: row.unit_price_cents,
     sortOrder: row.sort_order,
     revision: row.revision,
@@ -69,7 +76,11 @@ export function useGroceryLists(householdId: string | undefined) {
   })
 }
 
-/** Items in a list, plus its price history, for the detail screen. */
+type PriceHistoryWithList = Tables<'household_grocery_price_history'> & {
+  household_grocery_lists: { name: string } | null
+}
+
+/** Items in a list, plus household-wide Grocery knowledge for the detail screen. */
 export function useGroceryList(
   householdId: string | undefined,
   listId: string | undefined,
@@ -83,8 +94,9 @@ export function useGroceryList(
     queryFn: async (): Promise<{
       items: GroceryItem[]
       history: PriceHistoryEntry[]
+      knowledgeItems: GroceryKnowledgeItem[]
     }> => {
-      const [items, history] = await Promise.all([
+      const [items, history, knowledge] = await Promise.all([
         supabase
           .from('household_grocery_items')
           .select('*')
@@ -95,13 +107,19 @@ export function useGroceryList(
           .returns<Tables<'household_grocery_items'>[]>(),
         supabase
           .from('household_grocery_price_history')
-          .select('*')
-          .eq('list_id', listId!)
+          .select('*, household_grocery_lists(name)')
+          .eq('household_id', householdId!)
           .order('recorded_at', { ascending: false })
-          .returns<Tables<'household_grocery_price_history'>[]>(),
+          .returns<PriceHistoryWithList[]>(),
+        supabase
+          .from('household_grocery_items')
+          .select('name')
+          .eq('household_id', householdId!)
+          .returns<GroceryKnowledgeItem[]>(),
       ])
       if (items.error) throw items.error
       if (history.error) throw history.error
+      if (knowledge.error) throw knowledge.error
       return {
         items: (items.data ?? []).map(toItem),
         history: (history.data ?? []).map((r) => ({
@@ -110,7 +128,9 @@ export function useGroceryList(
           itemName: r.item_name,
           priceCents: r.price_cents,
           recordedAt: r.recorded_at,
+          listName: r.household_grocery_lists?.name ?? 'Unknown list',
         })),
+        knowledgeItems: knowledge.data ?? [],
       }
     },
   })
@@ -133,4 +153,59 @@ export function latestPriceByName(
 /** Normalizes an item name the same way the server records price history. */
 export function normalizeItemName(name: string): string {
   return name.trim().toLowerCase()
+}
+
+/** Keeps active items in list order and purchases newest first. */
+export function sortGroceryItems(items: GroceryItem[]): {
+  unchecked: GroceryItem[]
+  checked: GroceryItem[]
+} {
+  const unchecked = items
+    .filter((item) => !item.checked)
+    .sort(
+      (left, right) =>
+        left.sortOrder - right.sortOrder || left.name.localeCompare(right.name),
+    )
+  const checked = items
+    .filter((item) => item.checked)
+    .sort((left, right) => {
+      const byDate = (right.checkedAt ?? '').localeCompare(left.checkedAt ?? '')
+      return byDate || left.sortOrder - right.sortOrder
+    })
+  return { unchecked, checked }
+}
+
+/** Item-scoped five-cheapest purchase history, without currency conversion. */
+export function cheapestPriceHistory(
+  history: PriceHistoryEntry[],
+  normalizedName: string,
+  limit = 5,
+): PriceHistoryEntry[] {
+  return history
+    .filter((entry) => entry.itemNameNormalized === normalizedName)
+    .sort(
+      (left, right) =>
+        left.priceCents - right.priceCents ||
+        right.recordedAt.localeCompare(left.recordedAt),
+    )
+    .slice(0, limit)
+}
+
+/** Household-wide autocomplete names, deduped case-insensitively. */
+export function groceryNameSuggestions(
+  items: GroceryKnowledgeItem[],
+  history: PriceHistoryEntry[],
+): string[] {
+  const names = new Map<string, string>()
+  for (const candidate of [
+    ...items.map((item) => item.name),
+    ...history.map((entry) => entry.itemName),
+  ]) {
+    const display = candidate.trim()
+    const normalized = normalizeItemName(display)
+    if (normalized && !names.has(normalized)) names.set(normalized, display)
+  }
+  return [...names.values()].sort((left, right) =>
+    left.localeCompare(right, undefined, { sensitivity: 'base' }),
+  )
 }

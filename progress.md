@@ -103,7 +103,8 @@ precedence if this file ever becomes stale.
 | 6. Web feature flows | Complete | 6A–6F done; verified at `eafdce8` (self-review) |
 | Pre-7. Authenticated local test setup | Complete | Verified at `c5dc6d3`; real two-member Supabase household |
 | Web correction 1. Calendar contract | Complete | Timed/all-day payloads, reminder adapter, final outcome handling |
-| Web correction 2. Groceries | Pending | Next checkpoint; not started |
+| Web correction 2. Groceries | Complete | Purchase dates, autocomplete, rename, five cheapest history |
+| Web correction 3. Ledger | In progress | Next active correction |
 | 7. Expo foundation and offline data layer | Pending | Not started |
 | 8. Expo feature parity and visual implementation | Pending | Not started |
 | 9. Reset procedure, E2E verification, release handoff | Pending | Not started |
@@ -188,8 +189,29 @@ flowchart LR
 - ESLint: clean.
 - Production TypeScript/Vite/PWA build: clean. Vite retains the existing
   non-blocking large-chunk warning.
-- Next resume point: **Correction Task 2 — Groceries**. Do not begin it without
-  the user's next go sign.
+- Correction Task 2 continued immediately after the user removed the
+  stop-after-each-task checkpoint.
+
+### Correction Task 2 — Grocery parity workflows (complete)
+
+- Added migration `20260725016000_grocery_purchase_dates.sql`. The database,
+  not the client, assigns `checked_at` on first check, preserves it during
+  checked-item edits, clears it on uncheck, and replaces it on recheck.
+- Checked items sort by newest purchase first and display the local purchase
+  date.
+- List titles use the shared accessible `EditableTitle` component and inspect
+  final operation outcomes.
+- Autocomplete combines current item names and immutable price history across
+  the whole household, deduped case-insensitively.
+- Activating an item displays its five cheapest recorded prices, ascending,
+  with the Grocery list/store and date for every entry.
+- Local Supabase was reset through the new migration; all database tests passed
+  (**5 files, 310 tests**) and generated database types were refreshed. The
+  Yongju/Claire test household was recreated through onboarding and invite
+  redemption.
+- Web verification: **65 files, 376 tests passed**; ESLint, TypeScript, Vite/PWA
+  build, and `git diff --check` passed. The full multi-feature live matrix
+  remains scheduled for Correction Task 6.
 
 
 ## Task 6 — web feature flows (complete)

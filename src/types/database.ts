@@ -616,6 +616,7 @@ export type Database = {
       household_grocery_items: {
         Row: {
           checked: boolean
+          checked_at: string | null
           created_at: string
           created_by: string
           household_id: string
@@ -631,6 +632,7 @@ export type Database = {
         }
         Insert: {
           checked?: boolean
+          checked_at?: string | null
           created_at?: string
           created_by: string
           household_id: string
@@ -646,6 +648,7 @@ export type Database = {
         }
         Update: {
           checked?: boolean
+          checked_at?: string | null
           created_at?: string
           created_by?: string
           household_id?: string

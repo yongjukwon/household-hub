@@ -1,95 +1,116 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { EditableTitle } from '@/components/pages/EditableTitle'
-import type { PageRow } from '@/hooks/usePages'
-import { mockFrom, mockFromResult, resetSupabaseMocks } from './mocks/supabase'
+import { describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/lib/supabase', async () => {
-  const mod = await import('./mocks/supabase')
-  return { supabase: mod.supabase }
-})
-
-const page: PageRow = {
-  id: 'page-1',
-  household_id: 'household-1',
-  section: 'notes',
-  template: 'blank',
-  title: 'Groceries',
-  content: { type: 'doc', content: [] },
-  created_by: 'user-1',
-  archived: false,
-  start_date: null,
-  end_date: null,
-  created_at: '2026-07-01T00:00:00.000Z',
-  updated_at: '2026-07-10T00:00:00.000Z',
-}
-
-function renderTitle() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  })
-  render(
-    <QueryClientProvider client={queryClient}>
-      <EditableTitle page={page} />
-    </QueryClientProvider>,
-  )
-}
+import { EditableTitle } from '@/shell/ui/EditableTitle'
 
 describe('EditableTitle', () => {
-  beforeEach(resetSupabaseMocks)
-
-  it('renders the title as a heading', () => {
-    renderTitle()
-    expect(
-      screen.getByRole('heading', { name: 'Groceries' }),
-    ).toBeInTheDocument()
-  })
-
-  it('edits and saves the title on Enter', async () => {
-    const builder = mockFromResult({ ...page, title: 'Costco' })
-    const user = userEvent.setup()
-    renderTitle()
-
-    await user.click(screen.getByRole('button', { name: 'Groceries' }))
-    const input = screen.getByRole('textbox', { name: 'Page title' })
-    await user.clear(input)
-    await user.type(input, 'Costco{Enter}')
-
-    await waitFor(() =>
-      expect(builder.update).toHaveBeenCalledWith({ title: 'Costco' }),
+  it('activates editing and saves a trimmed title with Enter', async () => {
+    const onSave = vi.fn().mockResolvedValue(null)
+    render(
+      <EditableTitle value="Costco" ariaLabel="List name" onSave={onSave} />,
     )
-    expect(builder.eq).toHaveBeenCalledWith('id', 'page-1')
+
+    await userEvent.click(screen.getByRole('button', { name: 'List name' }))
+    const input = screen.getByRole('textbox', { name: 'List name' })
+    await userEvent.clear(input)
+    await userEvent.type(input, '  Market  {enter}')
+
+    expect(onSave).toHaveBeenCalledWith('Market')
+    expect(
+      await screen.findByRole('button', { name: 'List name' }),
+    ).toBeInTheDocument()
   })
 
-  it('cancels on Escape without saving', async () => {
-    const user = userEvent.setup()
-    renderTitle()
+  it('saves on blur', async () => {
+    const onSave = vi.fn().mockResolvedValue(null)
+    render(
+      <div>
+        <EditableTitle value="Costco" ariaLabel="List name" onSave={onSave} />
+        <button type="button">Outside</button>
+      </div>,
+    )
 
-    await user.click(screen.getByRole('button', { name: 'Groceries' }))
-    const input = screen.getByRole('textbox', { name: 'Page title' })
-    await user.clear(input)
-    await user.type(input, 'Discarded{Escape}')
+    await userEvent.click(screen.getByRole('button', { name: 'List name' }))
+    const input = screen.getByRole('textbox', { name: 'List name' })
+    await userEvent.clear(input)
+    await userEvent.type(input, 'Market')
+    await userEvent.click(screen.getByRole('button', { name: 'Outside' }))
 
-    expect(
-      screen.getByRole('heading', { name: 'Groceries' }),
-    ).toBeInTheDocument()
-    expect(mockFrom).not.toHaveBeenCalled()
+    expect(onSave).toHaveBeenCalledWith('Market')
   })
 
-  it('does not save a blank or unchanged title', async () => {
-    const user = userEvent.setup()
-    renderTitle()
+  it('cancels with Escape without saving', async () => {
+    const onSave = vi.fn().mockResolvedValue(null)
+    render(
+      <EditableTitle value="Costco" ariaLabel="List name" onSave={onSave} />,
+    )
 
-    await user.click(screen.getByRole('button', { name: 'Groceries' }))
-    const input = screen.getByRole('textbox', { name: 'Page title' })
-    await user.clear(input)
-    await user.type(input, '   {Enter}')
+    await userEvent.click(screen.getByRole('button', { name: 'List name' }))
+    await userEvent.type(
+      screen.getByRole('textbox', { name: 'List name' }),
+      ' changed{escape}',
+    )
 
-    expect(mockFrom).not.toHaveBeenCalled()
-    expect(
-      screen.getByRole('heading', { name: 'Groceries' }),
-    ).toBeInTheDocument()
+    expect(onSave).not.toHaveBeenCalled()
+    expect(screen.getByText('Costco')).toBeInTheDocument()
+  })
+
+  it('rejects a blank title without calling save', async () => {
+    const onSave = vi.fn().mockResolvedValue(null)
+    render(
+      <EditableTitle value="Costco" ariaLabel="List name" onSave={onSave} />,
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: 'List name' }))
+    const input = screen.getByRole('textbox', { name: 'List name' })
+    await userEvent.clear(input)
+    await userEvent.keyboard('{Enter}')
+
+    expect(onSave).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('Title cannot be blank')
+  })
+
+  it('disables controls while save is pending', async () => {
+    let resolveSave!: (value: string | null) => void
+    const onSave = vi.fn(
+      () =>
+        new Promise<string | null>((resolve) => {
+          resolveSave = resolve
+        }),
+    )
+    render(
+      <EditableTitle value="Costco" ariaLabel="List name" onSave={onSave} />,
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: 'List name' }))
+    await userEvent.type(
+      screen.getByRole('textbox', { name: 'List name' }),
+      ' Market',
+    )
+    await userEvent.keyboard('{Enter}')
+
+    expect(screen.getByRole('textbox', { name: 'List name' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Cancel title edit' })).toBeDisabled()
+    resolveSave(null)
+  })
+
+  it('keeps editing and displays an onSave error', async () => {
+    const onSave = vi.fn().mockResolvedValue('That name is already in use')
+    render(
+      <EditableTitle value="Costco" ariaLabel="List name" onSave={onSave} />,
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: 'List name' }))
+    await userEvent.type(
+      screen.getByRole('textbox', { name: 'List name' }),
+      ' Market',
+    )
+    await userEvent.keyboard('{Enter}')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'That name is already in use',
+    )
+    expect(screen.getByRole('textbox', { name: 'List name' })).toBeInTheDocument()
   })
 })
