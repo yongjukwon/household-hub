@@ -45,11 +45,17 @@ precedence if this file ever becomes stale.
    - `docs/mobile-implementation-handoff.md`
    - the still-untracked files under `mobile/`
 
-5. Resume at **Task 3**. Do not redo Tasks 1 or 2.
+5. Resume at **Task 3C** (Edge Functions). Do not redo Tasks 1, 2, 3A, or 3B —
+   all committed and verified (see the Task 3 progress section below).
 
-6. The user requested a checkpoint after every task. Finish implementation,
-   tests, and independent review for one task, then stop and provide a detailed
-   report before starting the next task.
+6. **User directive (2026-07-25):** work straight through **3C → 3D** to finish
+   Task 3, then **proceed into Task 4** — the user has pre-approved starting
+   Task 4, so do NOT stop for the inter-task approval gate between Task 3 and
+   Task 4. Still commit + verify each sub-checkpoint, and still provide a
+   detailed written report at the Task 3 completion boundary and again at the
+   Task 4 completion boundary. (The original "checkpoint after every task /
+   don't start Task 4 without approval" rule is superseded only for this Task
+   3 → Task 4 hand-off.)
 
 ## Approved product direction
 
@@ -560,7 +566,8 @@ Task 3 checkpoint report before starting Task 4.
 
 ## Original Task 3 scope (unchanged reference)
 
-Do not start Task 4 without the user’s approval.
+Task 4 start is **pre-approved** by the user (see "User directive" above): after
+Task 3D completes and verifies, continue straight into Task 4.
 
 ### Task 3 scope
 
