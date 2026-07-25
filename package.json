@@ -19,6 +19,7 @@
     "test:functions": "deno test supabase/functions/"
   },
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
     "@household-hub/domain": "file:packages/domain",
     "@supabase/supabase-js": "^2.110.2",
     "@tanstack/query-persist-client-core": "^5.101.2",

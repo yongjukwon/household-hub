@@ -1,17 +1,16 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import {
+  Navigate,
+  createBrowserRouter,
+  RouterProvider,
+} from 'react-router-dom'
 import { AuthProvider } from '@/components/auth/AuthProvider'
 import { RequireAuth } from '@/components/auth/RequireAuth'
-import { AppShell } from '@/components/layout/AppShell'
-import { NAV_ITEMS } from '@/components/layout/nav-items'
+import { AppShell } from '@/shell/AppShell'
+import { PlaceholderScreen } from '@/shell/PlaceholderScreen'
+import { SettingsScreen } from '@/screens/SettingsScreen'
 import { setupQueryPersistence } from '@/lib/offline/queryPersister'
 import LoginPage from '@/routes/LoginPage'
-import HomePage from '@/routes/HomePage'
-import SectionListPage from '@/routes/SectionListPage'
-import PageView from '@/routes/PageView'
-import SavingsPage from '@/routes/SavingsPage'
-import CalendarPage from '@/routes/CalendarPage'
-import SettingsPage from '@/routes/SettingsPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,6 +25,9 @@ const queryClient = new QueryClient({
 
 setupQueryPersistence(queryClient)
 
+// Mobile-first shell (Task 5). Calendar is the default destination; there is no
+// Home. Feature screens are placeholders until Task 6 fills them; the legacy
+// page-based screens remain in the tree, unrouted, until Task 6 retires them.
 const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   {
@@ -35,22 +37,18 @@ const router = createBrowserRouter([
       </RequireAuth>
     ),
     children: [
-      { path: '/', element: <HomePage /> },
-      // Keyed by section: all four section routes render the same
-      // SectionListPage at the same Outlet position, so without a distinct key
-      // React reuses the instance (and its children's state) across
-      // navigation — which leaked the previous section's template into new
-      // pages. A per-section key forces a clean remount on section change.
-      ...NAV_ITEMS.map((navItem) => ({
-        path: navItem.path,
-        element: <SectionListPage key={navItem.section} navItem={navItem} />,
-      })),
-      // Savings and Calendar sit outside the section/page system (flat
-      // household lists).
-      { path: '/savings', element: <SavingsPage /> },
-      { path: '/calendar', element: <CalendarPage /> },
-      { path: '/:section/:pageId', element: <PageView /> },
-      { path: '/settings', element: <SettingsPage /> },
+      { index: true, element: <Navigate to="/calendar" replace /> },
+      { path: '/calendar', element: <PlaceholderScreen title="Calendar" /> },
+      { path: '/groceries', element: <PlaceholderScreen title="Groceries" /> },
+      { path: '/ledger', element: <PlaceholderScreen title="Ledger" /> },
+      { path: '/notes', element: <PlaceholderScreen title="Notes" /> },
+      { path: '/trips', element: <PlaceholderScreen title="Trips" /> },
+      {
+        path: '/notifications',
+        element: <PlaceholderScreen title="Notifications" />,
+      },
+      { path: '/settings', element: <SettingsScreen /> },
+      { path: '*', element: <Navigate to="/calendar" replace /> },
     ],
   },
 ])
