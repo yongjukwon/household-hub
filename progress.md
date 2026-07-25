@@ -7,7 +7,7 @@
 **Implementation branch:** `codex/household-hub-mobile-first`
 
 **Implementation worktree:** `/Users/conlegs/dev/household-hub/.worktrees/household-hub-mobile-first`
-**Current HEAD:** `<pending 6E commit>` feat: Trips feature flow (Task 6E)
+**Current HEAD:** `981f968 feat: Trips feature flow (Task 6E)`
 **Last review-clean baseline:** `d1f3e30` (Tasks 1–2, independent review).
 Tasks 3, 4, and 5 are complete (self-reviewed). Task 6 is **in progress**:
 6A/6B done; 6C-1/6C-2 (Ledger) done; 6D (Notes) done; 6E (Trips) done;
