@@ -863,3 +863,339 @@ Task 3 should stop after:
 - a detailed checkpoint report is provided to the user
 
 Do not start Task 4 until the user approves continuing.
+
+---
+
+## Task 5 — responsive web shell + visual system (complete)
+
+Built beside the legacy Swiss theme; legacy page screens stayed **unrouted** in
+the tree until Task 6 retired them. Sub-checkpoints (each committed + verified):
+
+- **d452fa3** — `src/styles/theme.css` semantic `--hh-*` tokens (design
+  reference: canvas `#EFEFF2`, ink `#14151A`, accent `#FF7A45`, data palette,
+  card radii/shadows) + light/system-dark/forced-dark; `src/lib/appearance.ts`
+  Light/Dark/System (`data-appearance` on `<html>`, persisted, applied on boot).
+- **37b60dc** — `src/shell/AppShell.tsx`: persistent header (rabbit/penguin
+  mark + Notifications/Settings header icons), phone floating 5-tab bar,
+  desktop left pane; Heroicons. Routes `/calendar` (default; `/` and unknown →
+  redirect), `/groceries`, `/ledger`, `/notes`, `/trips`, `/notifications`,
+  `/settings`. Placeholder screens; Settings is real (appearance/account/sign
+  out).
+- **626c681** — `src/shell/ui/`: `Card`, `SegmentedControl`, `BottomSheet`,
+  destructive `ConfirmDialog` (Radix), `Loading/Empty/Error` states, and
+  `SyncStatus` (surfaces the Task 4 queue: pending pill + per-discard conflict
+  cards via `explainDiscard`).
+
+**Verification at `626c681`** (arm64 node): `npx vitest run` 44 files /
+**279 passed**; `npm run lint` clean; `npm run build` clean. Responsive is via
+Tailwind `md:` breakpoints; visual/responsive **screenshot** tests are deferred
+to Task 9's Playwright setup (per the plan). Not independently reviewed
+(session directive: no subagents); `/code-review` remains the pre-merge
+follow-up.
+
+## Task 6 — web feature flows (complete)
+
+Fills the placeholder routes with real, tested flows on top of the durable
+operation queue (Task 4) and shell (Task 5). Sub-checkpoints (each TDD →
+implement → affected suite → commit → this file):
+
+- **6A — Calendar (done).** `src/features/calendar/`: pure `monthGrid.ts`
+  (6×7 Sunday-first grid, span/shift helpers) and `events.ts` (recurrence +
+  multiday expansion, device-timezone placement via the domain's
+  `calendarDateInTimeZone`); `datetime.ts` wall-clock↔UTC for the event
+  timezone; `useCalendarEvents` (household-scoped read, reminders joined);
+  `mutations.ts` (`calendar.event.upsert`/`delete` payload builder + enqueue);
+  `EventSheet` (timed/all-day/multiday, recurrence, reminder presets, owner,
+  delete-confirm) and `CalendarScreen` (month grid with event dots,
+  selected-day list, `?event=<id>` notification deep link). Route wired in
+  `src/App.tsx`. `src/features/household.ts` shared household accessor.
+  **Verification:** `npx vitest run` **308 passed** (48 files; +29 vs Task 5),
+  lint clean, build clean.
+- **6B — Groceries (done).** `src/features/groceries/`: `data.ts` (list index
+  + list detail reads with price history joined; `latestPriceByName`,
+  `normalizeItemName`); `mutations.ts` (list/item upsert+delete, toggle-checked,
+  clear-checked = one delete command per checked item); `GroceriesScreen`
+  (list index + create-list sheet), `GroceryListScreen` (add-item row with CAD
+  price, unchecked/checked split, per-item edit `ItemSheet`, price recall from
+  history, clear-checked + delete-list confirms), routes `/groceries` and
+  `/groceries/:listId`. Shared `src/features/moneyInput.ts`
+  (`parseDollarsToCents`/`centsToInputValue`, integer-cents boundary, reused by
+  Ledger/Trips). **Verification:** `npx vitest run` **324 passed** (51 files;
+  +16), lint clean, build clean.
+- **6C-1 — Ledger Assets segment (done).** `src/features/ledger/`: `assets.ts`
+  (reads from the `ledger_asset_balances` view; transfers + schedules reads;
+  `totalsByCurrency`/`householdTotalCents` — CAD is the household total, foreign
+  currencies shown separately and never converted); `assetMutations.ts`
+  (asset/transfer/schedule upsert+delete, `toggleSchedule`, balance is the
+  *desired* balance the server reconciles); `AssetSheet` (name/kind/currency/
+  balance; currency locked once the asset exists), `TransferSheet` +
+  `ScheduleSheet` (weekly/biweekly/semi_monthly/monthly), `AssetsTab` (total
+  header + foreign subtotals, asset cards, transfers, recurring with
+  active-toggle + delete confirms). `LedgerScreen` shell with Statements/Assets
+  `SegmentedControl`; route `/ledger`. `StatementsTab` is a temporary
+  placeholder until 6C-2. **Verification:** `npx vitest run` **330 passed**
+  (53 files; +6), lint clean, build clean.
+- **6C-2 — Ledger Statements segment (done, committed `2ebd49b`).**
+  `src/features/ledger/statements.ts` (`useLedgerYears`/`useLedgerYearData`
+  reads across months/month-categories/limits/transactions; `monthSummaries`
+  income/spending/net per month; `categoryProgress` spend-vs-limit ratio per
+  category; `hasSpendingFromMonth` deletion-guard helper); `statementMutations.ts`
+  (`createYear`/`clearYear`/`saveCategory`/`deleteCategory`/`saveLimit`/
+  `saveTransaction`/`deleteTransaction`, matching the RPC's `ledger.year.*`/
+  `ledger.category.*`/`ledger.limit.*`/`ledger.transaction.*` command types in
+  `supabase/migrations/20260725011000_household_operation_rpc.sql`);
+  `TransactionSheet`, `CategorySheet` (name/kind/limit, fromMonth→December
+  propagation), `ClearYearSheet` (typed-year confirmation); `StatementsTab`
+  replaces the 6C-1 placeholder with year picker + create-year, 4×3 month
+  picker with per-month net, category list with limit progress bars, and
+  clear-year. **Verification:** `npx vitest run` **334 passed** (54 files;
+  +4), lint clean, build clean. Not independently reviewed (session
+  directive: no subagents).
+- **6D — Notes (done, committed `787eca3`).** `src/features/notes/`:
+  `data.ts` (`useNotes` list, `useNote` detail reads against
+  `household_notes`; `emptyNoteDocument`); `mutations.ts` (`saveNote`/
+  `deleteNote` via `note.upsert`/`note.delete`, matching the RPC's
+  `mobile_note_node_valid` payload shape); `RestrictedEditor.tsx` — Tiptap
+  restricted to StarterKit with bold/italic/strike/code/codeBlock/blockquote/
+  horizontalRule/link/underline/dropcursor/gapcursor disabled, heading levels
+  capped to 1-3, plus `TaskList`/`TaskItem`, so every producible document
+  satisfies the shared `isRichNoteJson` validator (`packages/domain/src/
+  notes.ts`) that native TenTap must also satisfy; own `editor.css` using
+  `--hh-*` tokens (kept separate from the legacy `src/components/notes/
+  editor.css`, which still styles the unrestricted legacy Tiptap editor).
+  `NotesScreen` (list + create), `NoteScreen` (title input saved on blur,
+  document saved via the editor's debounced `onChange`, delete-confirm) at
+  routes `/notes` and `/notes/:noteId`, replacing the Task 5 placeholder.
+  Title and document edits share one locally-tracked revision (advanced by
+  one per successful save, matching the RPC's `current_revision + 1`) so a
+  title edit and a document edit moments apart each get a fresh base
+  revision without waiting on a refetch. **Verification:** `npx vitest run`
+  **342 passed** (57 files; +8), lint clean, build clean. Not independently
+  reviewed (session directive: no subagents). The sessionless bypass used at
+  that historical checkpoint has since been removed; authenticated local
+  feature testing is now available through the test household.
+- **6E — Trips (done).** `src/features/trips/`: `data.ts` (`useTrips` list,
+  `useTrip` detail with expenses; `expenseBuckets` delegates to the domain's
+  `aggregateTripCurrencyBuckets` — CAD and destination-currency totals stay
+  separate and are never converted); `mutations.ts` (`saveTrip`/`deleteTrip`
+  via `trip.upsert`/`trip.delete`; `saveExpense`/`deleteExpense` via
+  `trip.expense.upsert`/`trip.expense.delete` — a CAD expense is server-linked
+  into the Ledger + debits the asset, a foreign expense debits only);
+  `TripSheet` (name/destination/dates/timezone/currency), `ExpenseSheet`
+  (amount/currency choice of destination or CAD/asset/date), `TripsScreen`
+  (list + create) and `TripScreen` (header + Itinerary/Bookings/Checklist/
+  Expenses tab bar; **Expenses fully functional** with per-currency buckets).
+  Routes `/trips` and `/trips/:tripId`. **Scope note:** the mobile-first schema
+  (Task 2) only defines `household_trips` + `trip_expenses` and the RPC only
+  supports `trip.*`/`trip.expense.*` — the Itinerary/Bookings/Checklist tables
+  are legacy page-based (`page_id`, no mobile-first operations), so those three
+  tabs render an honest "coming soon" state. Wiring them needs new mobile-first
+  content tables + operations (a schema follow-up, not part of the current
+  durable-queue contract). **Verification:** `npx vitest run` **348 passed**
+  (59 files; +6), lint clean, build clean. Not independently reviewed (session
+  directive: no subagents).
+- **6F — Settings + legacy retirement (done).** `src/features/settings/`:
+  `profile.ts` (`useProfile` reads the signed-in user's `profiles` row;
+  `saveProfileSettings` persists displayName/appearance/notificationsEnabled via
+  the `settings.update` durable operation, entityId = user id per the RPC's
+  `entity_id = actor_id` rule); `household.ts` (`useHouseholdMembers` with roles
+  + `owner_user_id`, `useHouseholdInvites` pending list; admin RPC wrappers
+  `createInvite`/`revokeInvite`/`transferOwnership`/`removeMember`/
+  `deleteHousehold`/`prepareAccountDeletion`, each normalized to the domain's
+  `HouseholdAdminResult`); `DangerConfirm` (typed-phrase destructive gate);
+  `SettingsScreen` replaces the Task-5 `src/screens/SettingsScreen.tsx`
+  (removed) with Profile (name + notifications), Appearance (local + synced via
+  settings.update), Household (members/roles, invite create+revoke shown only
+  when there's no partner, transfer-ownership + remove-member shown to the owner
+  with a partner), Account (email + sign out), and a Danger zone (delete
+  household / delete account, both typed-confirmed). Route rewired in
+  `src/App.tsx`. **Legacy retirement:** the rebuilt route graph (App → features/
+  shell/ components/auth) is verified free of legacy `pages`/`budget_*`/
+  `savings_*`/page-template hook imports; the dead legacy code physically
+  remains in-tree (unrouted, unreferenced) with deletion deferred as a safe
+  standalone cleanup. **Verification:** `npx vitest run` **353 passed**
+  (60 files; +5), lint clean, build clean. Not independently reviewed (session
+  directive: no subagents).
+
+## Web parity correction pass (complete)
+
+Canonical design and execution documents:
+
+- `docs/superpowers/specs/2026-07-25-web-parity-corrections-design.md`
+- `docs/superpowers/plans/2026-07-25-web-parity-corrections.md`
+
+### Correction Task 1 — Calendar operation contract (complete)
+
+**User-visible result**
+
+- Timed and all-day events now save through the real operation RPC.
+- The **At time** reminder now persists and reloads correctly.
+- A final server rejection no longer dismisses the event form. The form stays
+  open and shows the server explanation, so the entered values are not hidden.
+- Offline/durably queued saves still close normally because the queue has
+  accepted responsibility for replay.
+- Event deletion uses the same final-outcome rule.
+
+**Root causes and corrections**
+
+1. `buildEventPayload` sent the inactive temporal fields as explicit `null`
+   values. The server validator requires one discriminated branch:
+   timed events have only `startAt`/`endAt`; all-day events have only
+   `startDate`/`endDate`. Payload construction now omits the inactive keys.
+2. The shared UI model calls the immediate reminder `at-time`, while Supabase
+   stores `at_time`. `src/features/calendar/reminders.ts` now owns the explicit
+   two-way adapter; `none` is never persisted.
+3. `enqueueOperation` reports a rejected/conflicted command as a resolved
+   `discarded` outcome. `EventSheet` previously treated every resolved promise
+   as success and closed. `src/lib/operations/outcome.ts` now turns only the
+   final discarded result into a form error.
+
+**Regression coverage**
+
+- `src/test/calendarMutations.test.ts`: disjoint temporal payload branches and
+  reminder serialization.
+- `src/test/calendarReminders.test.ts`: complete supported reminder mapping,
+  `none`, and unknown stored values.
+- `src/test/operationOutcome.test.ts`: queued, settled, and discarded outcomes.
+- `src/test/CalendarScreen.test.tsx`: discarded save stays visible; queued save
+  closes.
+- `src/test/calendarDatetime.test.ts`: older assertions updated from the invalid
+  null-key contract to the required omitted-key contract.
+
+**Authenticated local Supabase evidence**
+
+- Signed in as `yongju@test.local`. Created a timed event, an all-day event, and
+  a timed event with **At time** plus **10 min** reminders; edited the first
+  event. All four RPC results were `applied`, at server sequences 24–27. Stored
+  rows had the correct mutually exclusive temporal columns and reminder rows
+  (`at_time`, `10m`). The three temporary events were removed through three
+  successful `calendar.event.delete` operations (sequences 28–30).
+
+**Verification at this checkpoint:** Full Vitest **64 files, 366 tests passed**;
+ESLint clean; production TypeScript/Vite/PWA build clean (existing non-blocking
+large-chunk warning retained).
+
+### Correction Task 2 — Grocery parity workflows (complete)
+
+- Added migration `20260725016000_grocery_purchase_dates.sql`. The database,
+  not the client, assigns `checked_at` on first check, preserves it during
+  checked-item edits, clears it on uncheck, and replaces it on recheck.
+- Checked items sort by newest purchase first and display the local purchase
+  date. List titles use the shared accessible `EditableTitle` component and
+  inspect final operation outcomes.
+- Autocomplete combines current item names and immutable price history across
+  the whole household, deduped case-insensitively. Activating an item displays
+  its five cheapest recorded prices, ascending, with the Grocery list/store and
+  date for every entry.
+- Local Supabase was reset through the new migration; all database tests passed
+  (**5 files, 310 tests**) and generated database types were refreshed.
+- Web verification: **65 files, 376 tests passed**; ESLint, TypeScript, Vite/PWA
+  build, and `git diff --check` passed.
+
+### Correction Task 3 — Ledger annual/monthly workflows (complete)
+
+**User-visible result**
+
+- `/ledger` is list-first again: each Statement year has its own expandable
+  annual chart control and a separate chevron into the 12-month detail route.
+- `+ Year` opens a four-digit year form, rejects a duplicate locally, and uses
+  a new entity UUID for a valid year.
+- `/ledger/:yearId` now contains the reference-style 4×3 month picker, actual
+  income/spending donut and legend, monthly budget utilization, Spent/Limit/Left
+  cards, category progress, and visible Income and Spending histories.
+- Income and spending have separate add buttons and fixed-category-kind forms.
+  Existing transactions can be edited or deleted; deletion reverses the linked
+  Asset posting. New years receive Salary, Bonus, RRSP, TFSA, ESPP, and
+  Government benefit income categories in every month.
+
+**Database design**
+
+- Migration `20260725017000_ledger_default_income_categories.sql` adds one
+  idempotent security-definer helper and insert triggers on years/months.
+  Existing years are backfilled with missing defaults only; custom categories
+  remain untouched. Database coverage verifies six category rows, 72
+  month-category rows, and six entity-revision rows for each new year.
+
+**Authenticated operation evidence**
+
+- Signed in as `yongju@test.local` against local Supabase using the real
+  `apply_household_operation` RPC. Created a CAD Asset, a 2026 year, one income
+  and one spending transaction (Asset `$100.00`→`$1,800.00`); edited spending
+  `$300.00`→`$250.00` (Asset `$1,850.00`); deleted both (Asset back to
+  `$100.00`). The year had exactly six default income categories.
+
+**Verification at this checkpoint:** Supabase **5 files, 313 tests passed**; Web
+**67 files, 384 tests passed**; ESLint, TypeScript, Vite/PWA build, generated
+types, and `git diff --check` passed.
+
+### Correction Task 4 — Notes read mode and explicit editing (complete)
+
+- Notes now open as semantic plain content. The read renderer supports body
+  paragraphs, H1–H3, bullet lists, numbered lists, nested list content,
+  checked/unchecked checklist items, hard breaks, empty documents, and safely
+  ignores unsupported nodes.
+- Edit and title activation enter one local draft containing both title and
+  document. The editor updates that draft immediately but performs no network
+  autosave. Save sends exactly one `note.upsert`; Cancel discards every local
+  change. A final discarded/conflicted Save remains open with its explanation.
+  A queued Save returns to read mode using a local accepted snapshot.
+- Authenticated local verification created the complete heading/bullet/
+  numbered/checklist document as Yongju, read the same document as Claire, and
+  then deleted it through the real operation RPC.
+- Web verification: **68 files, 390 tests passed**; ESLint, TypeScript,
+  Vite/PWA build, and `git diff --check` passed.
+
+### Correction Task 5 — Trip currency and Asset workflow (complete)
+
+- Destination setup is grouped and previewed as
+  `destination · IANA timezone · ISO currency`. Currency remains fully manual,
+  normalizes to uppercase while typing, and must be a real three-letter ISO
+  code.
+- Trip names now use the same inline editor as Grocery lists; rename commands
+  preserve destination, timezone, dates, currency, and revision.
+- Expense currency choices are exactly CAD plus destination currency
+  (deduped). The Paid from control contains only Assets whose stored currency
+  matches the selected expense currency and resets safely when currency
+  changes. When no matching Asset exists, Save is disabled and the sheet links
+  directly to `/ledger?segment=assets`; Ledger now honors that deep link.
+- Authenticated local verification for a GBP Trip recorded separate totals of
+  CAD `$20.00` and GBP `£70.00`. The CAD Asset moved to `$80.00`, GBP cash to
+  `£430.00`, and only the CAD expense produced a linked Travel Ledger row.
+- Web verification: **70 files, 398 tests passed**; ESLint, TypeScript,
+  Vite/PWA build, and `git diff --check` passed.
+
+### Correction Task 6 — Cross-feature verification and handoff (complete)
+
+- Confirmed `.env.local` points to loopback Supabase at `http://127.0.0.1:55321`
+  before resetting. Replayed every migration and ran the complete database test
+  suite: **5 files, 313 tests passed**; Supabase schema lint clean.
+- Recreated the two-member `🐰 & 🐧 Test` household through the real onboarding
+  and invitation path. Seeded 26 real `apply_household_operation` commands
+  (Calendar event; two Grocery lists with items, purchase dates, and six price
+  records; CAD and GBP Assets; 2026 income/spending/limits/charts and the
+  auto-linked 2027 Travel statement; a semantic checklist Note; a London Trip
+  with separate CAD `$5,309.00` and GBP `£2,409.00` totals).
+- Exercised authenticated routes in Chrome at **402×874** phone and
+  **1440×1000** desktop sizes; header actions, five-tab phone navigation,
+  desktop left pane, cards, segmented controls, charts, scrolling, and
+  fixed-bottom spacing matched the approved visual system. Browser
+  instrumentation reported **zero page errors and zero console errors**.
+  Disabled Recharts animation for the statement donut so the complete chart is
+  deterministic in first paint and screenshots.
+- Final web verification: **70 files, 398 tests passed**; ESLint, TypeScript,
+  Vite/PWA production build, and `git diff --check` passed. Final backend
+  verification: **5 database files, 313 tests passed**; `supabase db lint
+  --local` clean; Edge Function tests **73 passed**.
+- Itinerary, Bookings, and Checklist remain explicit future Trip schema work;
+  Expenses is the fully implemented fourth Trip tab in this correction scope.
+
+**Correction commits**
+
+| Task | Commit |
+| --- | --- |
+| Calendar contract | `b7a33b7 fix: align Calendar operation contract` |
+| Groceries parity | `876d532 feat: restore Grocery parity workflows` |
+| Ledger workflows | `9523b77 feat: complete Ledger statement workflows` |
+| Notes read/edit modes | `bfd8d5d feat: add Notes read and explicit edit modes` |
+| Trip currency workflow | `2b18d9e feat: clarify Trip currency expense flow` |
+| Final handoff | `071b43b docs: complete web parity correction handoff` |
