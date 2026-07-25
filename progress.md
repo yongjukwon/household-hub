@@ -7,8 +7,8 @@
 **Implementation branch:** `codex/household-hub-mobile-first`
 
 **Implementation worktree:** `/Users/conlegs/dev/household-hub/.worktrees/household-hub-mobile-first`
-**Current HEAD:** `f283ad3 feat: add household administration operations`
-**Last review-clean baseline:** `d1f3e30` (Tasks 1–2). Task 3 in progress on top (3A complete).
+**Current HEAD:** `e173e07 feat: add auth policy and OAuth/test-password entry points`
+**Last review-clean baseline:** `d1f3e30` (Tasks 1–2). Task 3 in progress on top (3A + 3B code complete).
 
 This file is the source of truth for continuing the approved web-first
 Household Hub rebuild. Current Git state and fresh verification results take
@@ -71,7 +71,7 @@ precedence if this file ever becomes stale.
 | --- | --- | --- |
 | 1. Shared foundation and domain contracts | Complete | Review-clean at `ffc3c01` |
 | 2. Supabase schema and operation RPC | Complete | Review-clean at `d1f3e30` |
-| 3. Identity, notifications, jobs, deployment config | In progress | 3A done (domain `47f1763` + DB `f283ad3`); 3B auth / 3C functions / 3D config remain |
+| 3. Identity, notifications, jobs, deployment config | In progress | 3A + 3B done; 3C Edge Functions + 3D config/deploy remain |
 | 4. Durable web operation queue | Pending | Not started |
 | 5. Responsive web shell and visual system | Pending | Not started |
 | 6. Web feature flows | Pending | Not started |
@@ -532,11 +532,19 @@ Function.** Tests: `supabase/tests/20260725_household_admin.test.sql` (33
 pgTAP assertions). Verified: `supabase db reset --local` clean; `supabase test
 db --local` 3 files / **203 tests pass**; `supabase db lint` no errors.
 
+### Done: 3B auth code (`e173e07`)
+
+Shared auth policy in `@household-hub/domain` (`auth.ts`): `oauthProviders`
+(`google`, `apple`) + guard, and `isPasswordAuthAllowed` requiring BOTH
+non-production AND the test-auth flag (production is OAuth-only, cannot expose
+the password path). Web helpers (`src/lib/auth.ts`): `signInWithOAuth`
+(redirect `/auth/callback`) and a guarded `signInWithTestPassword`. Verified:
+`npx vitest run` 36 files / **228 tests pass**; lint + build clean.
+**Deferred to 3D:** `config.toml` external-provider wiring + `.env` templates
+(kept with the other config changes so local `db reset`/`start` stays stable).
+
 ### Remaining Task 3 sub-checkpoints (not started)
 
-- **3B auth** — Google/Apple `signInWithOAuth` (web) + native callback
-  contract; email/password behind a dev + `test-auth` guard (unit-tested);
-  `config.toml` external providers wired to env.
 - **3C Edge Functions** — invite-admin (incl. redemption + account deletion),
   push-dispatch, calendar-reminder-scheduler (all-day → 09:00 event tz),
   recurring-transfer-executor, notification-cleanup (90-day); partner-only
