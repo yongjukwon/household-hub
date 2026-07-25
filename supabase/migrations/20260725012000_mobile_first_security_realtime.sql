@@ -147,7 +147,7 @@ revoke insert, update, delete, truncate on table
   public.household_change_log
 from authenticated, anon;
 
-revoke truncate on table
+revoke insert, update, delete, truncate on table
   public.households,
   public.household_members
 from authenticated, anon;
@@ -212,6 +212,9 @@ revoke execute on function public.mobile_add_posting(
 revoke execute on function public.mobile_record_cascade_deletion(
   uuid, text, uuid, bigint, uuid, text, text, uuid, timestamptz
 ) from public, anon, authenticated;
+revoke execute on function public.mobile_record_cascade_update(
+  uuid, text, uuid, bigint, uuid, text, text, uuid, timestamptz
+) from public, anon, authenticated;
 revoke execute on function public.mobile_ensure_ledger_year(
   uuid, integer, uuid, uuid, text, text, uuid, timestamptz
 ) from public, anon, authenticated;
@@ -225,6 +228,8 @@ revoke execute on function public.mobile_operation_payload_valid(text, jsonb)
 revoke execute on function public.mobile_is_iso_currency_code(text)
   from public, anon, authenticated;
 revoke execute on function public.mobile_is_iana_timezone(text)
+  from public, anon, authenticated;
+revoke execute on function public.mobile_register_calendar_event_revision()
   from public, anon, authenticated;
 
 alter publication supabase_realtime add table

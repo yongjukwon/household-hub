@@ -50,7 +50,8 @@ alter table public.household_members
   add column member_role text not null default 'member'
     check (member_role in ('owner', 'member')),
   add column revision bigint not null default 1 check (revision >= 1),
-  add column updated_at timestamptz not null default now();
+  add column updated_at timestamptz not null default now(),
+  add constraint household_members_user_id_key unique (user_id);
 
 create table public.profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
@@ -539,6 +540,73 @@ create table public.household_entity_revisions (
   applied_at timestamptz not null,
   primary key (household_id, entity_type, entity_id)
 );
+
+create or replace function public.mobile_register_calendar_event_revision()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+begin
+  insert into public.household_entity_revisions (
+    household_id,
+    entity_type,
+    entity_id,
+    revision,
+    deleted,
+    last_operation_id,
+    winner_type,
+    winner_entity_type,
+    winner_entity_id,
+    applied_at
+  )
+  values (
+    new.household_id,
+    'calendar_event',
+    new.id,
+    new.revision,
+    false,
+    gen_random_uuid(),
+    'calendar.event.upsert',
+    'calendar_event',
+    new.id,
+    new.updated_at
+  )
+  on conflict on constraint household_entity_revisions_pkey do nothing;
+
+  return new;
+end;
+$$;
+
+insert into public.household_entity_revisions (
+  household_id,
+  entity_type,
+  entity_id,
+  revision,
+  deleted,
+  last_operation_id,
+  winner_type,
+  winner_entity_type,
+  winner_entity_id,
+  applied_at
+)
+select
+  ce.household_id,
+  'calendar_event',
+  ce.id,
+  ce.revision,
+  false,
+  gen_random_uuid(),
+  'calendar.event.upsert',
+  'calendar_event',
+  ce.id,
+  ce.updated_at
+from public.calendar_events ce
+on conflict on constraint household_entity_revisions_pkey do nothing;
+
+create trigger trg_calendar_events_mobile_revision
+  after insert on public.calendar_events
+  for each row execute function public.mobile_register_calendar_event_revision();
 
 create table public.household_tombstones (
   id uuid primary key default gen_random_uuid(),

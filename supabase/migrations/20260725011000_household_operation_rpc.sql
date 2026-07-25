@@ -511,6 +511,69 @@ begin
 end;
 $$;
 
+create or replace function public.mobile_record_cascade_update(
+  target_household_id uuid,
+  target_entity_type text,
+  target_entity_id uuid,
+  source_revision bigint,
+  target_operation_id uuid,
+  winning_operation_type text,
+  winning_entity_type text,
+  winning_entity_id uuid,
+  target_applied_at timestamptz
+)
+returns bigint
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  updated_revision bigint;
+begin
+  insert into public.household_entity_revisions (
+    household_id,
+    entity_type,
+    entity_id,
+    revision,
+    deleted,
+    last_operation_id,
+    winner_type,
+    winner_entity_type,
+    winner_entity_id,
+    applied_at
+  )
+  values (
+    target_household_id,
+    target_entity_type,
+    target_entity_id,
+    source_revision + 1,
+    false,
+    target_operation_id,
+    winning_operation_type,
+    winning_entity_type,
+    winning_entity_id,
+    target_applied_at
+  )
+  on conflict on constraint household_entity_revisions_pkey do update
+  set
+    revision = household_entity_revisions.revision + 1,
+    deleted = false,
+    last_operation_id = excluded.last_operation_id,
+    winner_type = excluded.winner_type,
+    winner_entity_type = excluded.winner_entity_type,
+    winner_entity_id = excluded.winner_entity_id,
+    applied_at = excluded.applied_at
+  returning revision into updated_revision;
+
+  delete from public.household_tombstones ht
+  where ht.household_id = target_household_id
+    and ht.entity_type = target_entity_type
+    and ht.entity_id = target_entity_id;
+
+  return updated_revision;
+end;
+$$;
+
 create or replace function public.mobile_ensure_ledger_year(
   target_household_id uuid,
   target_year integer,
@@ -609,12 +672,19 @@ set search_path = pg_catalog, public
 as $$
 declare
   target_category_id uuid;
+  target_limit_entity_id uuid;
+  target_category_revision bigint := 1;
+  target_limit_revision bigint := 1;
+  category_existed boolean := false;
+  configuration_missing boolean := false;
 begin
   select id
   into target_category_id
   from public.ledger_categories
   where year_id = target_year_id
     and system_key = 'travel';
+
+  category_existed := target_category_id is not null;
 
   if target_category_id is null then
     target_category_id := gen_random_uuid();
@@ -637,68 +707,154 @@ begin
       actor_user_id,
       1
     );
-
-    insert into public.ledger_month_categories (
-      household_id,
-      month_id,
-      category_id,
-      name,
-      sort_order,
-      revision
+  else
+    select exists (
+      select 1
+      from public.ledger_months lm
+      left join public.ledger_month_categories lmc
+        on lmc.month_id = lm.id
+       and lmc.category_id = target_category_id
+      left join public.ledger_month_limits lml
+        on lml.month_id = lm.id
+       and lml.category_id = target_category_id
+      where lm.year_id = target_year_id
+        and (lmc.id is null or lml.id is null)
     )
-    select
-      target_household_id,
-      lm.id,
-      target_category_id,
-      'Travel',
-      2147483647,
-      1
-    from public.ledger_months lm
-    where lm.year_id = target_year_id;
+    into configuration_missing;
+  end if;
 
-    insert into public.ledger_month_limits (
-      household_id,
-      month_id,
-      category_id,
-      limit_entity_id,
-      amount_cents,
-      revision
-    )
-    select
-      target_household_id,
-      lm.id,
-      target_category_id,
-      target_category_id,
-      null,
-      1
-    from public.ledger_months lm
-    where lm.year_id = target_year_id;
+  select lml.limit_entity_id
+  into target_limit_entity_id
+  from public.ledger_month_limits lml
+  where lml.category_id = target_category_id
+  order by (lml.limit_entity_id = target_category_id), lml.id
+  limit 1;
+  target_limit_entity_id := coalesce(
+    target_limit_entity_id,
+    target_category_id
+  );
 
-    insert into public.household_entity_revisions (
-      household_id,
-      entity_type,
-      entity_id,
-      revision,
-      deleted,
-      last_operation_id,
-      winner_type,
-      winner_entity_type,
-      winner_entity_id,
-      applied_at
-    )
-    values (
+  if category_existed and configuration_missing then
+    select coalesce(er.revision, lc.revision)
+    into target_category_revision
+    from public.ledger_categories lc
+    left join public.household_entity_revisions er
+      on er.household_id = lc.household_id
+     and er.entity_type = 'ledger_category'
+     and er.entity_id = lc.id
+    where lc.id = target_category_id;
+
+    target_category_revision := public.mobile_record_cascade_update(
       target_household_id,
       'ledger_category',
       target_category_id,
-      1,
-      false,
+      target_category_revision,
       source_operation_id,
       source_operation_type,
       source_entity_type,
       source_entity_id,
       source_applied_at
     );
+
+    update public.ledger_categories
+    set
+      revision = target_category_revision,
+      updated_at = source_applied_at
+    where id = target_category_id;
+
+    select er.revision
+    into target_limit_revision
+    from public.household_entity_revisions er
+    where er.household_id = target_household_id
+      and er.entity_type = 'ledger_limit'
+      and er.entity_id = target_limit_entity_id;
+
+    if found then
+      target_limit_revision := public.mobile_record_cascade_update(
+        target_household_id,
+        'ledger_limit',
+        target_limit_entity_id,
+        target_limit_revision,
+        source_operation_id,
+        source_operation_type,
+        source_entity_type,
+        source_entity_id,
+        source_applied_at
+      );
+    else
+      select coalesce(max(lml.revision), 1)
+      into target_limit_revision
+      from public.ledger_month_limits lml
+      where lml.category_id = target_category_id;
+    end if;
   end if;
+
+  insert into public.ledger_month_categories (
+    household_id,
+    month_id,
+    category_id,
+    name,
+    sort_order,
+    revision
+  )
+  select
+    target_household_id,
+    lm.id,
+    target_category_id,
+    'Travel',
+    2147483647,
+    target_category_revision
+  from public.ledger_months lm
+  where lm.year_id = target_year_id
+  on conflict (month_id, category_id) do nothing;
+
+  insert into public.ledger_month_limits (
+    household_id,
+    month_id,
+    category_id,
+    limit_entity_id,
+    amount_cents,
+    revision
+  )
+  select
+    target_household_id,
+    lm.id,
+    target_category_id,
+    target_limit_entity_id,
+    null,
+    target_limit_revision
+  from public.ledger_months lm
+  join public.ledger_month_categories lmc
+    on lmc.month_id = lm.id
+   and lmc.category_id = target_category_id
+  where lm.year_id = target_year_id
+  on conflict (month_id, category_id) do nothing;
+
+  insert into public.household_entity_revisions (
+    household_id,
+    entity_type,
+    entity_id,
+    revision,
+    deleted,
+    last_operation_id,
+    winner_type,
+    winner_entity_type,
+    winner_entity_id,
+    applied_at
+  )
+  values (
+    target_household_id,
+    'ledger_category',
+    target_category_id,
+    1,
+    false,
+    source_operation_id,
+    source_operation_type,
+    source_entity_type,
+    source_entity_id,
+    source_applied_at
+  )
+  on conflict on constraint household_entity_revisions_pkey do nothing;
 
   return target_category_id;
 end;
@@ -1187,7 +1343,10 @@ declare
   target_category_id uuid;
   target_asset_id uuid;
   target_trip_id uuid;
+  previous_destination_id uuid;
   generated_transaction_id uuid;
+  existing_limit_entity_id uuid;
+  related_revision bigint;
   prior_limit bigint;
   blocking_months jsonb;
   detached_trip_ids jsonb;
@@ -1788,16 +1947,40 @@ begin
 
       if found then
         if old_row.currency_code <> payload->>'currency'
-           and exists (
-             select 1
-             from public.asset_postings ap
-             where ap.asset_id = entity_id
+           and (
+             exists (
+               select 1
+               from public.asset_postings ap
+               where ap.asset_id = entity_id
+             )
+             or exists (
+               select 1
+               from public.ledger_transfers lt
+               where lt.from_asset_id = entity_id
+                  or lt.to_asset_id = entity_id
+             )
+             or exists (
+               select 1
+               from public.ledger_transfer_schedules lts
+               where lts.from_asset_id = entity_id
+                  or lts.to_asset_id = entity_id
+             )
+             or exists (
+               select 1
+               from public.ledger_transactions lt
+               where lt.asset_id = entity_id
+             )
+             or exists (
+               select 1
+               from public.trip_expenses te
+               where te.asset_id = entity_id
+             )
            )
         then
           return public.mobile_store_rejection(
             household_id, actor_id, device_id, local_sequence, operation_id,
             command_hash, 'asset_currency_locked',
-            'Asset currency cannot change after it has postings'
+            'Asset currency cannot change after it is referenced'
           );
         end if;
 
@@ -2093,6 +2276,47 @@ begin
         );
       end if;
 
+      if payload->>'kind' = 'spending' then
+        select lml.limit_entity_id
+        into existing_limit_entity_id
+        from public.ledger_month_limits lml
+        where lml.category_id = entity_id
+        order by (lml.limit_entity_id = entity_id), lml.id
+        limit 1;
+
+        select er.revision
+        into related_revision
+        from public.household_entity_revisions er
+        where er.household_id = household_id
+          and er.entity_type = 'ledger_limit'
+          and er.entity_id = existing_limit_entity_id;
+
+        if related_revision is not null
+           and exists (
+             select 1
+             from public.ledger_months lm
+             left join public.ledger_month_limits lml
+               on lml.month_id = lm.id
+              and lml.category_id = entity_id
+             where lm.year_id = target_year_id
+               and lm.month >= from_month
+               and lml.id is null
+           )
+        then
+          related_revision := public.mobile_record_cascade_update(
+            household_id,
+            'ledger_limit',
+            existing_limit_entity_id,
+            related_revision,
+            operation_id,
+            operation_type,
+            entity_type,
+            entity_id,
+            applied_at
+          );
+        end if;
+      end if;
+
       insert into public.ledger_month_categories (
         household_id,
         month_id,
@@ -2119,6 +2343,17 @@ begin
         updated_at = applied_at;
 
       if payload->>'kind' = 'spending' then
+        select lml.limit_entity_id
+        into existing_limit_entity_id
+        from public.ledger_month_limits lml
+        where lml.category_id = entity_id
+        order by (lml.limit_entity_id = entity_id), lml.id
+        limit 1;
+        existing_limit_entity_id := coalesce(
+          existing_limit_entity_id,
+          entity_id
+        );
+
         insert into public.ledger_month_limits (
           household_id,
           month_id,
@@ -2131,9 +2366,9 @@ begin
           household_id,
           lm.id,
           entity_id,
-          entity_id,
+          existing_limit_entity_id,
           null,
-          next_revision
+          coalesce(related_revision, next_revision)
         from public.ledger_months lm
         where lm.year_id = target_year_id
           and lm.month >= from_month
@@ -2176,6 +2411,20 @@ begin
         );
       end if;
 
+      select lml.limit_entity_id
+      into existing_limit_entity_id
+      from public.ledger_month_limits lml
+      where lml.category_id = entity_id
+      order by (lml.limit_entity_id = entity_id), lml.id
+      limit 1;
+
+      select er.revision
+      into related_revision
+      from public.household_entity_revisions er
+      where er.household_id = household_id
+        and er.entity_type = 'ledger_limit'
+        and er.entity_id = existing_limit_entity_id;
+
       delete from public.ledger_month_categories lmc
       using public.ledger_months lm
       where lmc.month_id = lm.id
@@ -2188,8 +2437,48 @@ begin
         from public.ledger_month_categories lmc
         where lmc.category_id = entity_id
       ) then
+        if related_revision is not null then
+          perform public.mobile_record_cascade_deletion(
+            household_id,
+            'ledger_limit',
+            existing_limit_entity_id,
+            related_revision,
+            operation_id,
+            operation_type,
+            entity_type,
+            entity_id,
+            applied_at
+          );
+        end if;
         delete from public.ledger_categories where id = entity_id;
         deleted_entity := true;
+      else
+        update public.ledger_categories
+        set
+          revision = next_revision,
+          updated_at = applied_at
+        where id = entity_id;
+
+        if related_revision is not null then
+          related_revision := public.mobile_record_cascade_update(
+            household_id,
+            'ledger_limit',
+            existing_limit_entity_id,
+            related_revision,
+            operation_id,
+            operation_type,
+            entity_type,
+            entity_id,
+            applied_at
+          );
+
+          update public.ledger_month_limits
+          set
+            revision = related_revision,
+            updated_at = applied_at
+          where category_id = entity_id
+            and limit_entity_id = existing_limit_entity_id;
+        end if;
       end if;
       change_kind := 'delete';
 
@@ -2209,6 +2498,36 @@ begin
         );
       end if;
 
+      select lml.limit_entity_id
+      into existing_limit_entity_id
+      from public.ledger_month_limits lml
+      where lml.category_id = target_category_id
+      order by (lml.limit_entity_id = target_category_id), lml.id
+      limit 1;
+
+      if found
+         and existing_limit_entity_id <> entity_id
+         and (
+           existing_limit_entity_id <> target_category_id
+           or exists (
+             select 1
+             from public.household_entity_revisions er
+             where er.household_id = household_id
+               and er.entity_type = 'ledger_limit'
+               and er.entity_id = existing_limit_entity_id
+           )
+         )
+      then
+        return public.mobile_store_rejection(
+          household_id, actor_id, device_id, local_sequence, operation_id,
+          command_hash, 'limit_identity_conflict',
+          'Category limits already use a different entity identity',
+          jsonb_build_object(
+            'existingLimitEntityId', existing_limit_entity_id
+          )
+        );
+      end if;
+
       if has_current and exists (
         select 1
         from public.ledger_month_limits lml
@@ -2220,6 +2539,16 @@ begin
           command_hash, 'limit_category_immutable',
           'Limit entity cannot move to another category'
         );
+      end if;
+
+      if existing_limit_entity_id = target_category_id
+         and existing_limit_entity_id <> entity_id
+      then
+        update public.ledger_month_limits
+        set
+          limit_entity_id = entity_id,
+          updated_at = applied_at
+        where category_id = target_category_id;
       end if;
 
       insert into public.ledger_month_limits (
@@ -2267,6 +2596,46 @@ begin
           command_hash, 'invalid_spending_category',
           'Limits apply only to a household spending category'
         );
+      end if;
+
+      select lml.limit_entity_id
+      into existing_limit_entity_id
+      from public.ledger_month_limits lml
+      where lml.category_id = target_category_id
+      order by (lml.limit_entity_id = target_category_id), lml.id
+      limit 1;
+
+      if found
+         and existing_limit_entity_id <> entity_id
+         and (
+           existing_limit_entity_id <> target_category_id
+           or exists (
+             select 1
+             from public.household_entity_revisions er
+             where er.household_id = household_id
+               and er.entity_type = 'ledger_limit'
+               and er.entity_id = existing_limit_entity_id
+           )
+         )
+      then
+        return public.mobile_store_rejection(
+          household_id, actor_id, device_id, local_sequence, operation_id,
+          command_hash, 'limit_identity_conflict',
+          'Category limits already use a different entity identity',
+          jsonb_build_object(
+            'existingLimitEntityId', existing_limit_entity_id
+          )
+        );
+      end if;
+
+      if existing_limit_entity_id = target_category_id
+         and existing_limit_entity_id <> entity_id
+      then
+        update public.ledger_month_limits
+        set
+          limit_entity_id = entity_id,
+          updated_at = applied_at
+        where category_id = target_category_id;
       end if;
 
       select lml.amount_cents
@@ -2520,6 +2889,7 @@ begin
       where lt.id = entity_id
         and lt.household_id = household_id;
       if found then
+        previous_destination_id := old_row.to_asset_id;
         perform public.mobile_add_posting(
           household_id, old_row.from_asset_id, operation_id,
           'ledger_transfer', entity_id, 'previous_source_reversal',
@@ -2592,15 +2962,27 @@ begin
         (payload->>'occurredAt')::timestamptz
       );
 
-      current_balance := public.mobile_asset_balance(
-        (payload->>'fromAssetId')::uuid
-      );
-      if current_balance < 0 then
+      if previous_destination_id is not null then
+        current_balance := public.mobile_asset_balance(previous_destination_id);
+      end if;
+      if previous_destination_id is not null and current_balance < 0 then
         warning := jsonb_build_object(
           'code', 'negative_asset_balance',
-          'assetId', (payload->>'fromAssetId')::uuid,
+          'assetId', previous_destination_id,
           'balanceCents', current_balance
         );
+      end if;
+      if warning is null then
+        current_balance := public.mobile_asset_balance(
+          (payload->>'fromAssetId')::uuid
+        );
+        if current_balance < 0 then
+          warning := jsonb_build_object(
+            'code', 'negative_asset_balance',
+            'assetId', (payload->>'fromAssetId')::uuid,
+            'balanceCents', current_balance
+          );
+        end if;
       end if;
 
     when 'ledger.transfer.delete' then
@@ -2625,6 +3007,14 @@ begin
         'ledger_transfer', entity_id, 'delete_destination_reversal',
         -old_row.amount_cents, applied_at
       );
+      current_balance := public.mobile_asset_balance(old_row.to_asset_id);
+      if current_balance < 0 then
+        warning := jsonb_build_object(
+          'code', 'negative_asset_balance',
+          'assetId', old_row.to_asset_id,
+          'balanceCents', current_balance
+        );
+      end if;
       delete from public.ledger_transfers where id = entity_id;
       deleted_entity := true;
       change_kind := 'delete';
@@ -2741,6 +3131,22 @@ begin
 
     when 'trip.upsert' then
       if has_current and not current_entity.deleted then
+        if exists (
+          select 1
+          from public.household_trips ht
+          join public.trip_expenses te on te.trip_id = ht.id
+          where ht.id = entity_id
+            and ht.household_id = household_id
+            and ht.destination_currency <> payload->>'destinationCurrency'
+            and te.currency_code <> 'CAD'
+        ) then
+          return public.mobile_store_rejection(
+            household_id, actor_id, device_id, local_sequence, operation_id,
+            command_hash, 'trip_currency_locked',
+            'Trip destination currency cannot change after foreign expenses'
+          );
+        end if;
+
         update public.household_trips
         set
           name = payload->>'name',
@@ -2895,6 +3301,26 @@ begin
           applied_at
         );
         if old_row.ledger_transaction_id is not null then
+          select *
+          into related_row
+          from public.ledger_transactions lt
+          where lt.id = old_row.ledger_transaction_id
+            and lt.household_id = household_id;
+
+          if found then
+            perform public.mobile_record_cascade_deletion(
+              household_id,
+              'ledger_transaction',
+              related_row.id,
+              related_row.revision,
+              operation_id,
+              operation_type,
+              entity_type,
+              entity_id,
+              applied_at
+            );
+          end if;
+
           update public.trip_expenses
           set ledger_transaction_id = null
           where id = entity_id;
@@ -3077,6 +3503,26 @@ begin
         applied_at
       );
       if old_row.ledger_transaction_id is not null then
+        select *
+        into related_row
+        from public.ledger_transactions lt
+        where lt.id = old_row.ledger_transaction_id
+          and lt.household_id = household_id;
+
+        if found then
+          perform public.mobile_record_cascade_deletion(
+            household_id,
+            'ledger_transaction',
+            related_row.id,
+            related_row.revision,
+            operation_id,
+            operation_type,
+            entity_type,
+            entity_id,
+            applied_at
+          );
+        end if;
+
         update public.trip_expenses
         set ledger_transaction_id = null
         where id = entity_id;
