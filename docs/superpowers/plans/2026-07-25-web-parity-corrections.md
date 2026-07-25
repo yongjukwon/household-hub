@@ -830,18 +830,18 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
   `onChange(document)` to update local draft state; it performs no network
   save.
 
-- [ ] **Step 1: Write read-renderer tests and verify RED**
+- [x] **Step 1: Write read-renderer tests and verify RED**
 
   Test paragraphs, heading levels 1–3, bullet/ordered lists, task-list checked
   states, empty documents, and rejection-safe rendering of an unknown node.
 
-- [ ] **Step 2: Implement RestrictedNoteView**
+- [x] **Step 2: Implement RestrictedNoteView**
 
   Prefer a recursive, exhaustively typed renderer over instantiating a second
   editor. Apply the existing `hh-note-content` styles to read output and use
   disabled semantic checkboxes for task items.
 
-- [ ] **Step 3: Rewrite NoteScreen tests for read/edit/save/cancel**
+- [x] **Step 3: Rewrite NoteScreen tests for read/edit/save/cancel**
 
   Assert:
 
@@ -854,23 +854,23 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
   - queued Save returns to read mode; and
   - delete behavior remains confirmed.
 
-- [ ] **Step 4: Run tests and verify RED**
+- [x] **Step 4: Run tests and verify RED**
 
   Expected: current always-editor behavior fails the read-mode assertions.
 
-- [ ] **Step 5: Implement explicit draft state**
+- [x] **Step 5: Implement explicit draft state**
 
   Keep `saved` from the query and local `{ title, document }` draft only while
   editing. Remove title-on-blur and debounced network saves. Save once using the
   loaded revision, inspect outcome, and return to read mode only for queued or
   settled outcomes.
 
-- [ ] **Step 6: Verify formatting and persistence live**
+- [x] **Step 6: Verify formatting and persistence live**
 
   Exercise body, H1–H3, bullet, numbered, checklist, undo, redo, Save, Cancel,
   reload, and partner read visibility.
 
-- [ ] **Step 7: Run full checks, update handoff, commit, and stop**
+- [x] **Step 7: Run full checks, update handoff, commit, and stop**
 
   Commit:
 

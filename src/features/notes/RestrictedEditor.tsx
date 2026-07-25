@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { EditorContent, useEditor, useEditorState } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import TaskList from '@tiptap/extension-task-list'
@@ -10,17 +10,14 @@ import {
   ListBulletIcon,
 } from '@heroicons/react/24/outline'
 import type { RichNoteDocument } from '@household-hub/domain'
-import { useDebouncedCallback } from 'use-debounce'
 import './editor.css'
-
-const ONCHANGE_DEBOUNCE_MS = 800
 
 interface RestrictedEditorProps {
   /** Restricted TenTap-compatible doc. Initial value; later prop changes
    * (e.g. a realtime refetch) are re-synced while idle, matching the
    * legacy editor's conflict-safe behavior. */
   content: RichNoteDocument
-  /** Called with the full doc, debounced; not fired per keystroke. */
+  /** Called immediately with the full local draft; no network save occurs here. */
   onChange: (document: RichNoteDocument) => void
   placeholder?: string
 }
@@ -35,9 +32,10 @@ export function RestrictedEditor({
   onChange,
   placeholder = 'Start writing…',
 }: RestrictedEditorProps) {
-  const debouncedOnChange = useDebouncedCallback((doc: RichNoteDocument) => {
-    onChange(doc)
-  }, ONCHANGE_DEBOUNCE_MS)
+  const onChangeRef = useRef(onChange)
+  useEffect(() => {
+    onChangeRef.current = onChange
+  }, [onChange])
 
   const editor = useEditor({
     enableInputRules: false,
@@ -62,7 +60,7 @@ export function RestrictedEditor({
     ],
     content,
     onUpdate: ({ editor }) => {
-      debouncedOnChange(editor.getJSON() as RichNoteDocument)
+      onChangeRef.current(editor.getJSON() as RichNoteDocument)
     },
   })
 
@@ -80,20 +78,13 @@ export function RestrictedEditor({
     }),
   })
 
-  // Flush any pending debounced onChange on unmount so the last edit isn't lost.
+  // External-update re-sync: while focused, parent content is the same local
+  // draft emitted above; a Realtime refresh cannot clobber active typing.
   useEffect(() => {
-    return () => {
-      debouncedOnChange.flush()
-    }
-  }, [debouncedOnChange])
-
-  // External-update re-sync: skipped while focused or an edit is unsaved, so
-  // a realtime refetch can never clobber in-progress typing.
-  useEffect(() => {
-    if (!editor || editor.isFocused || debouncedOnChange.isPending()) return
+    if (!editor || editor.isFocused) return
     if (JSON.stringify(content) === JSON.stringify(editor.getJSON())) return
     editor.commands.setContent(content, { emitUpdate: false })
-  }, [content, editor, debouncedOnChange])
+  }, [content, editor])
 
   if (!editor) return null
 

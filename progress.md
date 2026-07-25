@@ -105,7 +105,8 @@ precedence if this file ever becomes stale.
 | Web correction 1. Calendar contract | Complete | Timed/all-day payloads, reminder adapter, final outcome handling |
 | Web correction 2. Groceries | Complete | Purchase dates, autocomplete, rename, five cheapest history |
 | Web correction 3. Ledger | Complete | Annual/month charts, default income categories, separate transaction workflows |
-| Web correction 4. Notes | In progress | Next active correction |
+| Web correction 4. Notes | Complete | Plain read view plus explicit draft Save/Cancel |
+| Web correction 5. Trips | In progress | Next active correction |
 | 7. Expo foundation and offline data layer | Pending | Not started |
 | 8. Expo feature parity and visual implementation | Pending | Not started |
 | 9. Reset procedure, E2E verification, release handoff | Pending | Not started |
@@ -274,6 +275,25 @@ flowchart LR
 - ESLint, TypeScript, Vite/PWA build, generated database types, and
   `git diff --check` passed. The existing large-chunk warning remains
   non-blocking.
+
+### Correction Task 4 — Notes read mode and explicit editing (complete)
+
+- Notes now open as semantic plain content. The read renderer supports body
+  paragraphs, H1–H3, bullet lists, numbered lists, nested list content,
+  checked/unchecked checklist items, hard breaks, empty documents, and safely
+  ignores unsupported nodes.
+- Edit and title activation enter one local draft containing both title and
+  document. The editor updates that draft immediately but performs no network
+  autosave.
+- Save sends exactly one `note.upsert`; Cancel discards every local change.
+  A final discarded/conflicted Save remains open with its explanation.
+- A queued Save returns to read mode using a local accepted snapshot, so offline
+  users immediately see the content they just accepted into the durable queue.
+- Authenticated local verification created the complete heading/bullet/
+  numbered/checklist document as Yongju, read the same document as Claire, and
+  then deleted it through the real operation RPC.
+- Web verification: **68 files, 390 tests passed**; ESLint, TypeScript,
+  Vite/PWA build, and `git diff --check` passed.
 
 
 ## Task 6 — web feature flows (complete)
