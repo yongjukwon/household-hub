@@ -7,7 +7,7 @@
 **Implementation branch:** `codex/household-hub-mobile-first`
 
 **Implementation worktree:** `/Users/conlegs/dev/household-hub/.worktrees/household-hub-mobile-first`
-**Current HEAD:** `<pending 6B commit>` feat: Groceries feature flow (Task 6B)
+**Current HEAD:** `95f0b7f feat: Groceries feature flow (Task 6B)`
 **Last review-clean baseline:** `d1f3e30` (Tasks 1–2, independent review).
 Tasks 3, 4, and 5 are complete (self-reviewed). Task 6 is **in progress**:
 6A (Calendar) and 6B (Groceries) done; 6C–6F pending.
