@@ -7,6 +7,7 @@ import { BottomSheet } from '@/shell/ui/BottomSheet'
 import { ConfirmDialog } from '@/shell/ui/ConfirmDialog'
 import type { HouseholdMember } from '@/hooks/useHousehold'
 import { deviceTimeZone } from '@/features/household'
+import { operationOutcomeError } from '@/lib/operations/outcome'
 import type { CalendarEventItem, RecurrenceFrequency } from './events'
 import { utcToZonedWall, zonedWallToUtc } from './datetime'
 import { saveCalendarEvent, deleteCalendarEvent, type CalendarEventForm } from './mutations'
@@ -106,7 +107,16 @@ export function EventSheet({
           form.recurrenceFrequency === 'none' ? null : form.recurrenceUntil || null,
         reminders: form.reminders,
       }
-      await saveCalendarEvent(householdId, payloadForm, event?.revision ?? null)
+      const outcome = await saveCalendarEvent(
+        householdId,
+        payloadForm,
+        event?.revision ?? null,
+      )
+      const outcomeError = operationOutcomeError(outcome)
+      if (outcomeError) {
+        setError(outcomeError)
+        return
+      }
       onOpenChange(false)
     } catch {
       setError('Could not save the event. It will retry when you reconnect.')
@@ -118,10 +128,24 @@ export function EventSheet({
   async function handleDelete() {
     if (!event) return
     setSaving(true)
+    setError(null)
     try {
-      await deleteCalendarEvent(householdId, event.id, event.revision)
+      const outcome = await deleteCalendarEvent(
+        householdId,
+        event.id,
+        event.revision,
+      )
+      const outcomeError = operationOutcomeError(outcome)
+      if (outcomeError) {
+        setConfirmDelete(false)
+        setError(outcomeError)
+        return
+      }
       setConfirmDelete(false)
       onOpenChange(false)
+    } catch {
+      setConfirmDelete(false)
+      setError('Could not delete the event. It will retry when you reconnect.')
     } finally {
       setSaving(false)
     }

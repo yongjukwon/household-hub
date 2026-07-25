@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import {
-  isReminderPreset,
   queryKeys,
   type ReminderPreset,
 } from '@household-hub/domain'
 import { supabase } from '@/lib/supabase'
 import type { Tables } from '@/types/database'
 import type { CalendarEventItem, RecurrenceFrequency } from './events'
+import { reminderFromDatabase } from './reminders'
 
 type EventRow = Tables<'calendar_events'>
 type ReminderRow = Pick<Tables<'calendar_event_reminders'>, 'event_id' | 'preset'>
@@ -60,9 +60,10 @@ export function useCalendarEvents(householdId: string | undefined) {
 
       const byEvent = new Map<string, ReminderPreset[]>()
       for (const r of reminders.data ?? []) {
-        if (!isReminderPreset(r.preset)) continue
+        const preset = reminderFromDatabase(r.preset)
+        if (!preset) continue
         const list = byEvent.get(r.event_id) ?? []
-        list.push(r.preset)
+        list.push(preset)
         byEvent.set(r.event_id, list)
       }
 

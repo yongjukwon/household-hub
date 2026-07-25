@@ -174,7 +174,7 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
 - `buildEventPayload` returns a discriminated payload shape: inactive date/time
   keys are absent, not `null`.
 
-- [ ] **Step 1: Write failing payload-shape tests**
+- [x] **Step 1: Write failing payload-shape tests**
 
   Create `src/test/calendarMutations.test.ts`:
 
@@ -227,7 +227,7 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
   })
   ```
 
-- [ ] **Step 2: Run the payload tests and verify RED**
+- [x] **Step 2: Run the payload tests and verify RED**
 
   Run:
 
@@ -239,7 +239,7 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
   Expected: both tests fail because inactive keys currently exist with `null`
   values.
 
-- [ ] **Step 3: Implement discriminated event payload construction**
+- [x] **Step 3: Implement discriminated event payload construction**
 
   In `src/features/calendar/mutations.ts`, build common fields once and spread
   exactly one temporal branch:
@@ -259,7 +259,7 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
   Keep `CalendarEventForm` unchanged so the form model remains explicit; only
   the command boundary becomes contract-shaped.
 
-- [ ] **Step 4: Write failing reminder-adapter tests**
+- [x] **Step 4: Write failing reminder-adapter tests**
 
   Create `src/test/calendarReminders.test.ts`:
 
@@ -283,7 +283,7 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
   })
   ```
 
-- [ ] **Step 5: Run reminder tests and verify RED**
+- [x] **Step 5: Run reminder tests and verify RED**
 
   Run:
 
@@ -294,7 +294,7 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
 
   Expected: module-not-found failure because the adapter does not exist.
 
-- [ ] **Step 6: Implement reminder adapters and wire reads/writes**
+- [x] **Step 6: Implement reminder adapters and wire reads/writes**
 
   Create `src/features/calendar/reminders.ts` with an exhaustive mapping:
 
@@ -313,7 +313,7 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
   `isReminderPreset(r.preset)` in `useCalendarEvents.ts` with
   `reminderFromDatabase(r.preset)`.
 
-- [ ] **Step 7: Write failing operation-outcome tests**
+- [x] **Step 7: Write failing operation-outcome tests**
 
   Create `src/test/operationOutcome.test.ts` covering:
 
@@ -355,7 +355,7 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
 
   Do not weaken production types for the test.
 
-- [ ] **Step 8: Run outcome tests and verify RED**
+- [x] **Step 8: Run outcome tests and verify RED**
 
   Run:
 
@@ -366,7 +366,7 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
 
   Expected: module-not-found failure.
 
-- [ ] **Step 9: Implement outcome handling and keep Calendar form open**
+- [x] **Step 9: Implement outcome handling and keep Calendar form open**
 
   Create `src/lib/operations/outcome.ts`. In `EventSheet.handleSave`:
 
@@ -382,7 +382,7 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
 
   Use the same rule for delete. Preserve the existing transport-error fallback.
 
-- [ ] **Step 10: Add component regression coverage**
+- [x] **Step 10: Add component regression coverage**
 
   Extend `src/test/CalendarScreen.test.tsx` or extract an
   `EventSheet.test.tsx` if setup becomes clearer. Mock
@@ -393,7 +393,7 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
 
   Assert on user-visible behavior, not only mock arguments.
 
-- [ ] **Step 11: Run focused Calendar tests**
+- [x] **Step 11: Run focused Calendar tests**
 
   Run:
 
@@ -407,7 +407,7 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
 
   Expected: all pass.
 
-- [ ] **Step 12: Perform live Calendar verification**
+- [x] **Step 12: Perform live Calendar verification**
 
   With local Supabase running and signed in as `yongju@test.local`:
 
@@ -424,7 +424,7 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
     -c "select status, result from public.operation_receipts order by created_at desc limit 5"
   ```
 
-- [ ] **Step 13: Verify, update handoff, commit, and stop**
+- [x] **Step 13: Verify, update handoff, commit, and stop**
 
   Run:
 

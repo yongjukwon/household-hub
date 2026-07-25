@@ -28,7 +28,7 @@ describe('zonedWallToUtc', () => {
 })
 
 describe('buildEventPayload', () => {
-  it('keeps timed fields and nulls all-day fields for a timed event', () => {
+  it('keeps timed fields and omits all-day fields for a timed event', () => {
     const payload = buildEventPayload({
       id: 'e1',
       ownerId: null,
@@ -50,15 +50,15 @@ describe('buildEventPayload', () => {
       allDay: false,
       startAt: '2026-07-11T18:30:00.000Z',
       endAt: '2026-07-11T19:30:00.000Z',
-      startDate: null,
-      endDate: null,
       // recurrenceUntil is dropped when frequency is none
       recurrenceUntil: null,
       reminders: ['1h'],
     })
+    expect(payload).not.toHaveProperty('startDate')
+    expect(payload).not.toHaveProperty('endDate')
   })
 
-  it('keeps all-day fields and nulls timed fields for an all-day event', () => {
+  it('keeps all-day fields and omits timed fields for an all-day event', () => {
     const payload = buildEventPayload({
       id: 'e2',
       ownerId: null,
@@ -76,12 +76,12 @@ describe('buildEventPayload', () => {
     })
     expect(payload).toMatchObject({
       allDay: true,
-      startAt: null,
-      endAt: null,
       startDate: '2026-07-11',
       endDate: '2026-07-13',
       recurrenceUntil: '2026-09-01',
       note: null,
     })
+    expect(payload).not.toHaveProperty('startAt')
+    expect(payload).not.toHaveProperty('endAt')
   })
 })

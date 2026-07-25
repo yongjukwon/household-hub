@@ -2,10 +2,13 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { isUuid, type UUID } from '@household-hub/domain'
 import { CalendarScreen } from '@/features/calendar/CalendarScreen'
 import { useActiveHousehold } from '@/features/household'
 import { useCalendarEvents } from '@/features/calendar/useCalendarEvents'
 import type { CalendarEventItem } from '@/features/calendar/events'
+import { saveCalendarEvent } from '@/features/calendar/mutations'
+import type { EnqueueOutcome } from '@/lib/operations'
 
 vi.mock('@/features/household', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/features/household')>()
@@ -19,9 +22,25 @@ vi.mock('@/features/household', async (importOriginal) => {
 vi.mock('@/features/calendar/useCalendarEvents', () => ({
   useCalendarEvents: vi.fn(),
 }))
+vi.mock('@/features/calendar/mutations', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/features/calendar/mutations')>()
+  return {
+    ...actual,
+    saveCalendarEvent: vi.fn(),
+  }
+})
 
 const mockHousehold = vi.mocked(useActiveHousehold)
 const mockEvents = vi.mocked(useCalendarEvents)
+const mockSaveEvent = vi.mocked(saveCalendarEvent)
+
+function uuid(value: string): UUID {
+  if (!isUuid(value)) throw new Error(`not a UUID: ${value}`)
+  return value
+}
+
+const OPERATION_ID = uuid('55555555-5555-4555-8555-555555555555')
 
 function timedEvent(over: Partial<CalendarEventItem>): CalendarEventItem {
   return {
@@ -45,6 +64,10 @@ function timedEvent(over: Partial<CalendarEventItem>): CalendarEventItem {
 
 beforeEach(() => {
   vi.setSystemTime(new Date('2026-07-10T15:00:00Z'))
+  mockSaveEvent.mockResolvedValue({
+    status: 'queued',
+    operationId: OPERATION_ID,
+  })
   mockHousehold.mockReturnValue({
     data: { id: '11111111-1111-1111-1111-111111111111', name: 'Home', members: [] },
     isError: false,
@@ -100,5 +123,60 @@ describe('CalendarScreen', () => {
     await userEvent.click(screen.getByLabelText('New event'))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText('New event')).toBeInTheDocument()
+  })
+
+  it('keeps the event sheet open when the server discards the save', async () => {
+    const discarded: EnqueueOutcome = {
+      status: 'discarded',
+      operationId: OPERATION_ID,
+      discarded: {
+        operationId: OPERATION_ID,
+        reason: 'rejected',
+        command: {
+          schemaVersion: 1,
+          operationId: OPERATION_ID,
+          deviceId: uuid('66666666-6666-4666-8666-666666666666'),
+          localSequence: 1,
+          householdId: uuid('11111111-1111-4111-8111-111111111111'),
+          type: 'calendar.event.upsert',
+          entityType: 'calendar_event',
+          entityId: uuid('77777777-7777-4777-8777-777777777777'),
+          baseRevision: null,
+          enqueuedAt: '2026-07-25T12:00:00.000Z',
+          payload: {},
+        },
+        discardedAt: '2026-07-25T12:00:01.000Z',
+        winner: null,
+        code: 'invalid_payload',
+        explanation: 'Operation payload is invalid for its type',
+        details: {},
+        warnings: [],
+        acknowledgedAt: null,
+      },
+    }
+    mockSaveEvent.mockResolvedValueOnce(discarded)
+
+    renderScreen()
+    await userEvent.click(screen.getByLabelText('New event'))
+    const dialog = await screen.findByRole('dialog')
+    await userEvent.type(within(dialog).getByLabelText('Title'), 'Dinner')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    expect(
+      await within(dialog).findByText(
+        'Operation payload is invalid for its type',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('closes the event sheet after the save is durably queued', async () => {
+    renderScreen()
+    await userEvent.click(screen.getByLabelText('New event'))
+    const dialog = await screen.findByRole('dialog')
+    await userEvent.type(within(dialog).getByLabelText('Title'), 'Dinner')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })

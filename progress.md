@@ -7,12 +7,15 @@
 **Implementation branch:** `codex/household-hub-mobile-first`
 
 **Implementation worktree:** `/Users/conlegs/dev/household-hub/.worktrees/household-hub-mobile-first`
-**Latest implementation checkpoint:** `c5dc6d3 fix: restore authenticated local testing`
+**Latest implementation checkpoint:** Web parity correction Task 1, Calendar
+operation contract (`fix: align Calendar operation contract`; this checkpoint
+commit)
 **Last review-clean baseline:** `d1f3e30` (Tasks 1–2, independent review).
 Tasks 3, 4, and 5 are complete (self-reviewed). **Task 6 is complete**
-(6A–6F done). The authenticated local test household is ready. **The web
-UI-fidelity correction pass is next; Task 7 (Expo foundation) must not start
-until that pass is reviewed.**
+(6A–6F done). The authenticated local test household is ready. The web
+UI-fidelity correction pass is in progress: **Calendar correction Task 1 is
+complete; Groceries correction Task 2 is next.** Task 7 (Expo foundation) must
+not start until that pass is reviewed.
 
 This file is the source of truth for continuing the approved web-first
 Household Hub rebuild. Current Git state and fresh verification results take
@@ -51,11 +54,10 @@ precedence if this file ever becomes stale.
    - `docs/mobile-implementation-handoff.md`
    - the still-untracked files under `mobile/`
 
-5. Resume with the **web UI-fidelity correction pass** against the supplied
-   phone references. Tasks 1–6 are complete and the real local sign-in flow is
-   restored; do not redo them. Use the seeded test household below to exercise
-   the actual data-backed screens while correcting layout, spacing, typography,
-   and feature visibility.
+5. Resume with **Task 2 — Groceries** in
+   `docs/superpowers/plans/2026-07-25-web-parity-corrections.md`. Calendar
+   correction Task 1 is complete; do not redo it. Use the seeded test household
+   below to exercise the actual data-backed screens.
 
 6. **Do not start Task 7 yet.** It remains the first Expo/mobile task, but the
    user explicitly requested the web UI correction first. Once that correction
@@ -100,9 +102,94 @@ precedence if this file ever becomes stale.
 | 5. Responsive web shell and visual system | Complete | Verified at `626c681` (self-review) |
 | 6. Web feature flows | Complete | 6A–6F done; verified at `eafdce8` (self-review) |
 | Pre-7. Authenticated local test setup | Complete | Verified at `c5dc6d3`; real two-member Supabase household |
+| Web correction 1. Calendar contract | Complete | Timed/all-day payloads, reminder adapter, final outcome handling |
+| Web correction 2. Groceries | Pending | Next checkpoint; not started |
 | 7. Expo foundation and offline data layer | Pending | Not started |
 | 8. Expo feature parity and visual implementation | Pending | Not started |
 | 9. Reset procedure, E2E verification, release handoff | Pending | Not started |
+
+## Web parity correction pass
+
+Canonical design and execution documents:
+
+- `docs/superpowers/specs/2026-07-25-web-parity-corrections-design.md`
+- `docs/superpowers/plans/2026-07-25-web-parity-corrections.md`
+
+### Correction Task 1 — Calendar operation contract (complete)
+
+**User-visible result**
+
+- Timed and all-day events now save through the real operation RPC.
+- The **At time** reminder now persists and reloads correctly.
+- A final server rejection no longer dismisses the event form. The form stays
+  open and shows the server explanation, so the entered values are not hidden.
+- Offline/durably queued saves still close normally because the queue has
+  accepted responsibility for replay.
+- Event deletion uses the same final-outcome rule.
+
+**Root causes and corrections**
+
+1. `buildEventPayload` sent the inactive temporal fields as explicit `null`
+   values. The server validator requires one discriminated branch:
+   timed events have only `startAt`/`endAt`; all-day events have only
+   `startDate`/`endDate`. Payload construction now omits the inactive keys.
+2. The shared UI model calls the immediate reminder `at-time`, while Supabase
+   stores `at_time`. `src/features/calendar/reminders.ts` now owns the explicit
+   two-way adapter; `none` is never persisted.
+3. `enqueueOperation` reports a rejected/conflicted command as a resolved
+   `discarded` outcome. `EventSheet` previously treated every resolved promise
+   as success and closed. `src/lib/operations/outcome.ts` now turns only the
+   final discarded result into a form error.
+
+```mermaid
+flowchart LR
+    A["Event form (domain values)"] --> B["buildEventPayload"]
+    B --> C{"Timed or all-day?"}
+    C -->|Timed| D["startAt + endAt only"]
+    C -->|All-day| E["startDate + endDate only"]
+    D --> F["Reminder adapter: at-time to at_time"]
+    E --> F
+    F --> G["Durable operation queue"]
+    G --> H{"Outcome"}
+    H -->|Queued or applied| I["Close form"]
+    H -->|Discarded| J["Keep form open and show reason"]
+```
+
+**Regression coverage**
+
+- `src/test/calendarMutations.test.ts`: disjoint temporal payload branches and
+  reminder serialization.
+- `src/test/calendarReminders.test.ts`: complete supported reminder mapping,
+  `none`, and unknown stored values.
+- `src/test/operationOutcome.test.ts`: queued, settled, and discarded outcomes.
+- `src/test/CalendarScreen.test.tsx`: discarded save stays visible; queued save
+  closes.
+- `src/test/calendarDatetime.test.ts`: older assertions updated from the invalid
+  null-key contract to the required omitted-key contract.
+
+**Authenticated local Supabase evidence**
+
+- Signed in as `yongju@test.local`.
+- Created a timed event, an all-day event, and a timed event with **At time**
+  plus **10 min** reminders; edited the first event.
+- All four RPC results were `applied`, at server sequences 24–27.
+- Stored rows had the correct mutually exclusive temporal columns.
+- Stored reminder rows were `at_time` and `10m`.
+- Existing `invalid_payload` receipt count remained **8** and its latest
+  timestamp remained `2026-07-25 22:40:01.28124+00`; this verification created
+  no new invalid-payload receipt.
+- The three temporary events were removed through three successful
+  `calendar.event.delete` operations (server sequences 28–30), and a final
+  database query returned zero matching live event rows.
+
+**Verification at this checkpoint**
+
+- Full Vitest: **64 files, 366 tests passed**.
+- ESLint: clean.
+- Production TypeScript/Vite/PWA build: clean. Vite retains the existing
+  non-blocking large-chunk warning.
+- Next resume point: **Correction Task 2 — Groceries**. Do not begin it without
+  the user's next go sign.
 
 
 ## Task 6 — web feature flows (complete)
