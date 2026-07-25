@@ -53,6 +53,7 @@ export function StatementCharts({
                     innerRadius={34}
                     outerRadius={55}
                     strokeWidth={0}
+                    isAnimationActive={false}
                   >
                     {categories.map((category, index) => (
                       <Cell

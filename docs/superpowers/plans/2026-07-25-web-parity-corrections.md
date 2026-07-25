@@ -985,25 +985,25 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
 - Produces the final web-correction acceptance record and exact pre-Expo resume
   point.
 
-- [ ] **Step 1: Reset/reseed a disposable local verification database**
+- [x] **Step 1: Reset/reseed a disposable local verification database**
 
   Verify the Supabase URL is loopback before reset. Run migrations/tests, then
   seed Yongju and Claire through the documented onboarding/invite path.
 
-- [ ] **Step 2: Execute the complete behavioral matrix**
+- [x] **Step 2: Execute the complete behavioral matrix**
 
   Verify every end-to-end scenario listed in the approved design using both
   accounts and network offline/reconnect simulation. Confirm rejected commands
   are explained and permanently discarded.
 
-- [ ] **Step 3: Capture phone and desktop reference comparisons**
+- [x] **Step 3: Capture phone and desktop reference comparisons**
 
   Check all supplied screen states at reference-sized phone width and desktop
   sidebar width. Compare typography, spacing, cards, segment controls, chart
   composition, bottom navigation, header actions, fixed-bottom overlap, empty
   states, and long-content scrolling.
 
-- [ ] **Step 4: Run complete automated verification**
+- [x] **Step 4: Run complete automated verification**
 
   ```bash
   PATH="/opt/homebrew/bin:$PATH" npx vitest run
@@ -1015,7 +1015,7 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
   git diff --check
   ```
 
-- [ ] **Step 5: Update canonical documentation**
+- [x] **Step 5: Update canonical documentation**
 
   Record:
 
@@ -1028,7 +1028,7 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
   - web-correction acceptance state; and
   - Task 7 as the next step only after user approval.
 
-- [ ] **Step 6: Commit and stop**
+- [x] **Step 6: Commit and stop**
 
   ```bash
   git commit -m "docs: complete web parity correction handoff"

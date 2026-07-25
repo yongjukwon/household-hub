@@ -6,6 +6,101 @@ lives in `progress.md`; this file is the deep record, not required to continue.
 
 ---
 
+## 2026-07-25 web parity correction acceptance
+
+The correction pass is complete across Calendar, Groceries, Ledger, Notes, and
+Trips. It closes the user-reported workflow gaps without changing the shared
+server-authoritative architecture.
+
+```mermaid
+flowchart LR
+    UI["Reference-aligned web UI<br/>phone tabs + desktop pane"]
+    Queue["Durable command queue<br/>optimistic local overlay"]
+    RPC["apply_household_operation<br/>validation + household serialization"]
+    DB["Supabase domain tables<br/>revisions + receipts + change log"]
+    Partner["Partner browser<br/>Realtime invalidation"]
+
+    UI --> Queue
+    Queue --> RPC
+    RPC --> DB
+    DB --> Partner
+    DB --> UI
+```
+
+### Accepted feature behavior
+
+| Area | Accepted result |
+| --- | --- |
+| Calendar | Timed/all-day payload branches, reminder adapter, and final rejection handling work through the real RPC |
+| Groceries | Inline list rename, household autocomplete, purchase dates, checked-newest-first ordering, and five cheapest historical prices |
+| Ledger | List-first years, annual and monthly charts, 12-month details, default income categories, separate income/spending flows, and atomic Asset postings |
+| Notes | Semantic read mode; one explicit title-and-document draft with Save/Cancel; restricted shared JSON |
+| Trips | Manual ISO destination currency, matching-Asset selection, separate CAD/foreign totals, and CAD-only Travel Ledger linkage |
+
+The correction commits are:
+
+- `b7a33b7 fix: align Calendar operation contract`
+- `876d532 feat: restore Grocery parity workflows`
+- `9523b77 feat: complete Ledger statement workflows`
+- `bfd8d5d feat: add Notes read and explicit edit modes`
+- `2b18d9e feat: clarify Trip currency expense flow`
+- `docs: complete web parity correction handoff` (final acceptance commit)
+
+### Database changes and live evidence
+
+- `20260725016000_grocery_purchase_dates.sql` adds server-owned Grocery
+  `checked_at` lifecycle behavior.
+- `20260725017000_ledger_default_income_categories.sql` creates and backfills
+  Salary, Bonus, RRSP, TFSA, ESPP, and Government benefit for all 12 months.
+- A loopback-only reset replayed the full migration chain. Database verification
+  passed **313 tests across 5 files**, and Supabase lint reported no schema
+  errors.
+- The two-member `🐰 & 🐧 Test` household was recreated through onboarding and
+  invite redemption, then populated with **26 real operation RPC commands**.
+- The retained dataset exposes every corrected screen: Calendar event, two
+  Grocery lists and price history, CAD/GBP Assets, 2026 Ledger activity,
+  auto-linked 2027 Travel spending, a checklist Note, and London Trip totals of
+  CAD `$5,309.00` plus GBP `£2,409.00`.
+
+Local test credentials:
+
+| Member | Email | Password | Role |
+| --- | --- | --- | --- |
+| Yongju | `yongju@test.local` | `household123` | Owner |
+| Claire | `claire@test.local` | `household123` | Member |
+
+### Browser and regression evidence
+
+- Authenticated system-Chrome review at **402×874** and **1440×1000** covered
+  Calendar, Grocery list/detail, Ledger annual/month detail, Notes read view,
+  and Trip detail.
+- 24 screenshots are retained outside Git under
+  `/tmp/household-hub-web-parity/`; no generated artifact was added to the
+  repository.
+- The review found zero page errors and zero console errors.
+- Recharts animation was disabled for statement donuts to make initial paint
+  complete and deterministic.
+- Final web suite: **70 files, 398 tests passed**; ESLint, TypeScript,
+  production Vite/PWA build, and `git diff --check` passed.
+- Edge Function tests: **73 passed**.
+- Queue tests cover offline and reconnect replay, duplicates, stale conflicts,
+  permanent discard explanations, two-device ordering, local overlays, and
+  Realtime reconciliation.
+
+### Explicit residuals and resume gate
+
+- The existing production-build large-chunk warning is accepted and
+  non-blocking.
+- Trip Itinerary, Bookings, and Checklist require new mobile-first tables and
+  operation types. Those tabs retain an explicit coming-soon state; Expenses is
+  complete.
+- No hosted environment was changed, no production reset was run, and no
+  native/physical-device verification is claimed.
+- Task 7 (Expo foundation) is the next task, but must not begin until the user
+  accepts this web checkpoint.
+
+---
+
 ## Architecture after Tasks 1 and 2
 
 ```mermaid

@@ -7,15 +7,16 @@
 **Implementation branch:** `codex/household-hub-mobile-first`
 
 **Implementation worktree:** `/Users/conlegs/dev/household-hub/.worktrees/household-hub-mobile-first`
-**Latest implementation checkpoint:** Web parity correction Task 1, Calendar
-operation contract (`fix: align Calendar operation contract`; this checkpoint
-commit)
+**Latest implementation checkpoint:** Web parity correction pass, Tasks 1–6
+complete. Final acceptance commit is the current HEAD after
+`docs: complete web parity correction handoff`.
 **Last review-clean baseline:** `d1f3e30` (Tasks 1–2, independent review).
 Tasks 3, 4, and 5 are complete (self-reviewed). **Task 6 is complete**
 (6A–6F done). The authenticated local test household is ready. The web
-UI-fidelity correction pass is in progress: **Calendar correction Task 1 is
-complete; Groceries correction Task 2 is next.** Task 7 (Expo foundation) must
-not start until that pass is reviewed.
+UI-fidelity correction pass is also complete: Calendar, Groceries, Ledger,
+Notes, Trips, and cross-feature verification all passed. Task 7 (Expo
+foundation) is the next implementation task, but must not start until the user
+accepts this web checkpoint.
 
 This file is the source of truth for continuing the approved web-first
 Household Hub rebuild. Current Git state and fresh verification results take
@@ -54,10 +55,9 @@ precedence if this file ever becomes stale.
    - `docs/mobile-implementation-handoff.md`
    - the still-untracked files under `mobile/`
 
-5. Resume with **Task 2 — Groceries** in
-   `docs/superpowers/plans/2026-07-25-web-parity-corrections.md`. Calendar
-   correction Task 1 is complete; do not redo it. Use the seeded test household
-   below to exercise the actual data-backed screens.
+5. The web parity correction plan in
+   `docs/superpowers/plans/2026-07-25-web-parity-corrections.md` is complete.
+   Use the seeded test household below to review the actual data-backed screens.
 
 6. **Do not start Task 7 yet.** It remains the first Expo/mobile task, but the
    user explicitly requested the web UI correction first. Once that correction
@@ -107,7 +107,7 @@ precedence if this file ever becomes stale.
 | Web correction 3. Ledger | Complete | Annual/month charts, default income categories, separate transaction workflows |
 | Web correction 4. Notes | Complete | Plain read view plus explicit draft Save/Cancel |
 | Web correction 5. Trips | Complete | Manual destination currency and matching-Asset expense flow |
-| Web correction 6. Final verification | In progress | Next active correction |
+| Web correction 6. Final verification | Complete | Local reset, seeded reference data, browser comparison, and full automated verification |
 | 7. Expo foundation and offline data layer | Pending | Not started |
 | 8. Expo feature parity and visual implementation | Pending | Not started |
 | 9. Reset procedure, E2E verification, release handoff | Pending | Not started |
@@ -319,6 +319,76 @@ flowchart LR
   balances and the CAD Ledger effect.
 - Web verification: **70 files, 398 tests passed**; ESLint, TypeScript,
   Vite/PWA build, and `git diff --check` passed.
+
+### Correction Task 6 — Cross-feature verification and handoff (complete)
+
+**Disposable local acceptance environment**
+
+- Confirmed `.env.local` points to loopback Supabase at
+  `http://127.0.0.1:55321` before resetting.
+- Replayed every migration and ran the complete database test suite:
+  **5 files, 313 tests passed**. Supabase schema lint reported no errors.
+- Recreated the two-member `🐰 & 🐧 Test` household through the real onboarding
+  and invitation path. The credentials in the Environment section below remain
+  valid.
+- Seeded 26 real `apply_household_operation` commands rather than inserting
+  feature rows directly. The retained reference dataset covers:
+  - a Calendar event;
+  - two Grocery lists, current and checked items, purchase dates, and six price
+    records for the five-cheapest-history UI;
+  - CAD and GBP Assets;
+  - 2026 income, spending, category limits, annual/month charts, and the
+    automatically linked 2027 Travel statement;
+  - a semantic checklist Note; and
+  - a London Trip with separate CAD `$5,309.00` and GBP `£2,409.00` totals.
+
+**Browser/reference review**
+
+- Exercised authenticated routes with local system Chrome at **402×874** phone
+  size and **1440×1000** desktop size.
+- Captured 15 broad route screenshots and 9 light-mode focused comparisons in
+  `/tmp/household-hub-web-parity/`. They are local evidence only; repository
+  policy does not track generated screenshots.
+- Reviewed Calendar, Grocery list/detail, Ledger year/month detail, Notes
+  read view, and Trip detail. Header actions, five-tab phone navigation,
+  desktop left pane, cards, segmented controls, charts, scrolling, and
+  fixed-bottom spacing match the approved visual system.
+- Browser instrumentation reported **zero page errors and zero console errors**.
+- Disabled Recharts animation for the statement donut so the complete chart is
+  present immediately and deterministic in both screenshots and first paint.
+
+**Behavioral and automated acceptance**
+
+- Tasks 1–5 each used the real versioned operation RPC for their authenticated
+  mutation matrix. That evidence includes Calendar temporal/reminder storage,
+  Grocery purchase/history behavior, atomic Ledger/Asset reversal, partner
+  Notes visibility, and CAD-versus-foreign Trip posting rules.
+- The durable queue suite covers offline create/edit/delete, persistent FIFO
+  replay, reconnect, duplicate receipts, stale-revision conflicts, permanent
+  discard explanations, two-device ordering, optimistic overlays, and Realtime
+  reconciliation.
+- Final web verification: **70 files, 398 tests passed**; ESLint, TypeScript,
+  Vite/PWA production build, and `git diff --check` passed.
+- Final backend verification: **5 database files, 313 tests passed**;
+  `supabase db lint --local` clean. Edge Function tests remain **73 passed**.
+- The existing Vite large-chunk warning is non-blocking. No hosted deployment,
+  production reset, native build, or physical-device action was performed.
+- Itinerary, Bookings, and Checklist remain explicit future Trip schema work;
+  Expenses is the fully implemented fourth Trip tab in this correction scope.
+
+**Correction commits**
+
+| Task | Commit |
+| --- | --- |
+| Calendar contract | `b7a33b7 fix: align Calendar operation contract` |
+| Groceries parity | `876d532 feat: restore Grocery parity workflows` |
+| Ledger workflows | `9523b77 feat: complete Ledger statement workflows` |
+| Notes read/edit modes | `bfd8d5d feat: add Notes read and explicit edit modes` |
+| Trip currency workflow | `2b18d9e feat: clarify Trip currency expense flow` |
+| Final handoff | `docs: complete web parity correction handoff` (current HEAD) |
+
+**Next gate:** review the seeded web app, then explicitly approve Task 7 before
+any Expo implementation begins.
 
 
 ## Task 6 — web feature flows (complete)
