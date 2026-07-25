@@ -7,7 +7,7 @@
 **Implementation branch:** `codex/household-hub-mobile-first`
 
 **Implementation worktree:** `/Users/conlegs/dev/household-hub/.worktrees/household-hub-mobile-first`
-**Current HEAD:** `<pending 6F commit>` feat: Settings + legacy retirement (Task 6F)
+**Current HEAD:** `eafdce8 feat: Settings + legacy-free rebuilt routes (Task 6F)`
 **Last review-clean baseline:** `d1f3e30` (Tasks 1–2, independent review).
 Tasks 3, 4, and 5 are complete (self-reviewed). **Task 6 is complete**
 (6A–6F done). **Task 7 (Expo foundation) is next** — a new phase; see
@@ -96,7 +96,7 @@ precedence if this file ever becomes stale.
 | 3. Identity, notifications, jobs, deployment config | Complete | Verified at `24a5b39` (self-review; no independent review agent) |
 | 4. Durable web operation queue | Complete | Verified at `f86f4c0`; its UI surface lands with Task 5 |
 | 5. Responsive web shell and visual system | Complete | Verified at `626c681` (self-review) |
-| 6. Web feature flows | Complete | 6A–6F done; verified at `<pending 6F>` (self-review) |
+| 6. Web feature flows | Complete | 6A–6F done; verified at `eafdce8` (self-review) |
 | 7. Expo foundation and offline data layer | Pending | Not started |
 | 8. Expo feature parity and visual implementation | Pending | Not started |
 | 9. Reset procedure, E2E verification, release handoff | Pending | Not started |
