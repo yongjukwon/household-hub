@@ -7,8 +7,8 @@
 **Implementation branch:** `codex/household-hub-mobile-first`
 
 **Implementation worktree:** `/Users/conlegs/dev/household-hub/.worktrees/household-hub-mobile-first`
-**Current HEAD:** `47f1763 feat: add household admin domain contracts and reminder presets`
-**Last review-clean baseline:** `d1f3e30` (Tasks 1–2). Task 3 in progress on top.
+**Current HEAD:** `f283ad3 feat: add household administration operations`
+**Last review-clean baseline:** `d1f3e30` (Tasks 1–2). Task 3 in progress on top (3A complete).
 
 This file is the source of truth for continuing the approved web-first
 Household Hub rebuild. Current Git state and fresh verification results take
@@ -71,7 +71,7 @@ precedence if this file ever becomes stale.
 | --- | --- | --- |
 | 1. Shared foundation and domain contracts | Complete | Review-clean at `ffc3c01` |
 | 2. Supabase schema and operation RPC | Complete | Review-clean at `d1f3e30` |
-| 3. Identity, notifications, jobs, deployment config | In progress | Domain contracts done (`47f1763`); DB/auth/functions/config remain |
+| 3. Identity, notifications, jobs, deployment config | In progress | 3A done (domain `47f1763` + DB `f283ad3`); 3B auth / 3C functions / 3D config remain |
 | 4. Durable web operation queue | Pending | Not started |
 | 5. Responsive web shell and visual system | Pending | Not started |
 | 6. Web feature flows | Pending | Not started |
@@ -514,15 +514,26 @@ Added the household-administration domain layer in `@household-hub/domain`:
 Verified under arm64 node: `npx vitest run` 35 files / 226 passed;
 `npm run lint` clean; `npm run build` clean.
 
+### Done: 3A DB (`f283ad3`)
+
+`supabase/migrations/20260725013000_household_admin_operations.sql` — seven
+security-definer RPCs: `onboard_household`, `create_household_invite`,
+`revoke_household_invite`, `redeem_household_invite`,
+`transfer_household_ownership`, `remove_household_member`, `delete_household`.
+Each takes the actor from `auth.uid()`, derives the household from the actor's
+own membership (no household_id parameter → no IDOR), serializes under the
+household `FOR UPDATE` lock, enforces the two-member cap, and returns the
+shared HouseholdAdminResult shape via a private `mobile_admin_rejected` helper.
+Invites store only a sha256 hash of a 32-byte url-safe token; creating a new
+invite supersedes the prior active one. Direct client DML stays revoked; only
+these seven functions are granted to `authenticated`. **Account deletion
+(auth.users removal + created_by reconciliation) is deferred to the 3C Edge
+Function.** Tests: `supabase/tests/20260725_household_admin.test.sql` (33
+pgTAP assertions). Verified: `supabase db reset --local` clean; `supabase test
+db --local` 3 files / **203 tests pass**; `supabase db lint` no errors.
+
 ### Remaining Task 3 sub-checkpoints (not started)
 
-- **3A DB** — security-definer `onboard_household` RPC + admin RPCs for
-  ownership transfer / member removal / household deletion (household-scoped),
-  with the two-member cap and RLS/grants consistent with Task 2. Invite
-  redemption and account deletion (needs `auth.users` access) belong to the
-  service-role Edge Function in 3C. pgTAP tests first (TDD), then
-  `supabase db reset --local` + suites. New ordered migration beside the three
-  Task 2 files.
 - **3B auth** — Google/Apple `signInWithOAuth` (web) + native callback
   contract; email/password behind a dev + `test-auth` guard (unit-tested);
   `config.toml` external providers wired to env.
