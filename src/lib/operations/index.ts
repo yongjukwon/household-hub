@@ -1,3 +1,9 @@
+export { explainDiscard, type DiscardExplanation } from './explain'
+export {
+  useDiscardedOperations,
+  useOperationQueueStatus,
+  type OperationQueueStatus,
+} from './useOperationQueue'
 export { getDeviceId, nextLocalSequence, resetDeviceIdentity } from './device'
 export {
   applyOptimisticOverlay,
