@@ -7,7 +7,7 @@
 **Implementation branch:** `codex/household-hub-mobile-first`
 
 **Implementation worktree:** `/Users/conlegs/dev/household-hub/.worktrees/household-hub-mobile-first`
-**Current HEAD:** `626c681 feat: shared shell components and queue-backed state surfaces`
+**Current HEAD:** `2cf1d88 feat: dev-only flag to skip the login gate for local testing`
 **Last review-clean baseline:** `d1f3e30` (Tasks 1–2, independent review).
 Tasks 3, 4, and 5 are complete (self-reviewed); Task 6 is next.
 
@@ -116,6 +116,11 @@ follow-up.
 
 ## Environment, constraints & risks (condensed)
 
+- **Local sign-in is temporarily bypassed** (user request, re-enable later):
+  `VITE_DISABLE_AUTH=true` in `.env.local` makes `RequireAuth` skip the login
+  gate in dev (never in production or tests). This renders the shell with **no
+  Supabase session**, so household data won't load until sign-in is re-enabled
+  (remove the flag) or a dev auto-login is added. Committed at `2cf1d88`.
 - **Run from this worktree** (`codex/household-hub-mobile-first`), not the main
   checkout — different branch.
 - **Prefix Node commands with `PATH="/opt/homebrew/bin:$PATH"`** — the Rosetta
