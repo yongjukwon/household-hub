@@ -14,6 +14,8 @@ import { GroceryListScreen } from '@/features/groceries/GroceryListScreen'
 import { LedgerScreen } from '@/features/ledger/LedgerScreen'
 import { NotesScreen } from '@/features/notes/NotesScreen'
 import { NoteScreen } from '@/features/notes/NoteScreen'
+import { TripsScreen } from '@/features/trips/TripsScreen'
+import { TripScreen } from '@/features/trips/TripScreen'
 import { SettingsScreen } from '@/screens/SettingsScreen'
 import { setupQueryPersistence } from '@/lib/offline/queryPersister'
 import LoginPage from '@/routes/LoginPage'
@@ -50,7 +52,8 @@ const router = createBrowserRouter([
       { path: '/ledger', element: <LedgerScreen /> },
       { path: '/notes', element: <NotesScreen /> },
       { path: '/notes/:noteId', element: <NoteScreen /> },
-      { path: '/trips', element: <PlaceholderScreen title="Trips" /> },
+      { path: '/trips', element: <TripsScreen /> },
+      { path: '/trips/:tripId', element: <TripScreen /> },
       {
         path: '/notifications',
         element: <PlaceholderScreen title="Notifications" />,

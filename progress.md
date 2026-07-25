@@ -7,12 +7,11 @@
 **Implementation branch:** `codex/household-hub-mobile-first`
 
 **Implementation worktree:** `/Users/conlegs/dev/household-hub/.worktrees/household-hub-mobile-first`
-**Current HEAD:** `787eca3 feat: Notes feature flow (Task 6D)`
+**Current HEAD:** `<pending 6E commit>` feat: Trips feature flow (Task 6E)
 **Last review-clean baseline:** `d1f3e30` (Tasks 1–2, independent review).
 Tasks 3, 4, and 5 are complete (self-reviewed). Task 6 is **in progress**:
-6A/6B done; 6C-1 (Ledger Assets) done; 6C-2 (Ledger Statements) done
-(committed `2ebd49b`); 6D (Notes) done (committed `787eca3`); **6E (Trips) is
-next**; 6F pending.
+6A/6B done; 6C-1/6C-2 (Ledger) done; 6D (Notes) done; 6E (Trips) done;
+**6F (Settings + legacy retirement) is next** — the final Task 6 sub-checkpoint.
 
 This file is the source of truth for continuing the approved web-first
 Household Hub rebuild. Current Git state and fresh verification results take
@@ -56,11 +55,14 @@ precedence if this file ever becomes stale.
    screens (`src/shell/PlaceholderScreen.tsx` routes in `src/App.tsx`) with
    real feature flows and retires the unrouted legacy page screens.
 
-6. **Task 6E (Trips) is next** (web feature flows), also driven by
-   `docs/mobile-design-reference/`. 6A/6B/6C-1/6C-2/6D are done and committed
-   through `787eca3`. Update `progress.md` at **every sub-checkpoint** (HEAD,
-   commit, verification, resume point), not only at task boundaries — per
-   the user's directive.
+6. **Task 6F (Settings + legacy retirement) is next** — the final Task 6
+   sub-checkpoint. 6A–6E are done and committed. 6F expands Settings
+   (notification preferences, household/invite/ownership actions, destructive
+   account/household) and removes the rebuilt routes' remaining dependency on
+   legacy `pages`/`budget_*`/`savings_*` hooks (leaving the legacy tables in
+   place), then runs full verification. Update `progress.md` at **every
+   sub-checkpoint** (HEAD, commit, verification, resume point), not only at
+   task boundaries — per the user's directive.
 
 ## Approved product direction
 
@@ -85,7 +87,7 @@ precedence if this file ever becomes stale.
 | 3. Identity, notifications, jobs, deployment config | Complete | Verified at `24a5b39` (self-review; no independent review agent) |
 | 4. Durable web operation queue | Complete | Verified at `f86f4c0`; its UI surface lands with Task 5 |
 | 5. Responsive web shell and visual system | Complete | Verified at `626c681` (self-review) |
-| 6. Web feature flows | In progress | 6A/6B/6C-1/6C-2/6D done; 6E–6F pending |
+| 6. Web feature flows | In progress | 6A–6E done; 6F pending |
 | 7. Expo foundation and offline data layer | Pending | Not started |
 | 8. Expo feature parity and visual implementation | Pending | Not started |
 | 9. Reset procedure, E2E verification, release handoff | Pending | Not started |
@@ -173,7 +175,27 @@ implement → affected suite → commit → this file):
   confirming the route renders with no console/build errors — the worktree's
   `VITE_DISABLE_AUTH` bypass (see Environment section) means there is no
   Supabase session locally, so real household data CRUD wasn't exercised
-  end-to-end in a browser. Next: 6E (Trips).
+  end-to-end in a browser.
+- **6E — Trips (done).** `src/features/trips/`: `data.ts` (`useTrips` list,
+  `useTrip` detail with expenses; `expenseBuckets` delegates to the domain's
+  `aggregateTripCurrencyBuckets` — CAD and destination-currency totals stay
+  separate and are never converted); `mutations.ts` (`saveTrip`/`deleteTrip`
+  via `trip.upsert`/`trip.delete`; `saveExpense`/`deleteExpense` via
+  `trip.expense.upsert`/`trip.expense.delete` — a CAD expense is server-linked
+  into the Ledger + debits the asset, a foreign expense debits only);
+  `TripSheet` (name/destination/dates/timezone/currency), `ExpenseSheet`
+  (amount/currency choice of destination or CAD/asset/date), `TripsScreen`
+  (list + create) and `TripScreen` (header + Itinerary/Bookings/Checklist/
+  Expenses tab bar; **Expenses fully functional** with per-currency buckets).
+  Routes `/trips` and `/trips/:tripId`. **Scope note:** the mobile-first schema
+  (Task 2) only defines `household_trips` + `trip_expenses` and the RPC only
+  supports `trip.*`/`trip.expense.*` — the Itinerary/Bookings/Checklist tables
+  are legacy page-based (`page_id`, no mobile-first operations), so those three
+  tabs render an honest "coming soon" state. Wiring them needs new mobile-first
+  content tables + operations (a schema follow-up, not part of the current
+  durable-queue contract). **Verification:** `npx vitest run` **348 passed**
+  (59 files; +6), lint clean, build clean. Not independently reviewed (session
+  directive: no subagents). Next: 6F (Settings + legacy retirement).
 
 ## Task 5 — responsive web shell + visual system (complete)
 
