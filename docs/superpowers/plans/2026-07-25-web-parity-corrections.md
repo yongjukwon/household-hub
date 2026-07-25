@@ -701,18 +701,18 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
 - `TransactionSheet` receives fixed `kind` and never asks the user to switch
   kinds inside the form.
 
-- [ ] **Step 1: Add failing SQL tests for default income categories**
+- [x] **Step 1: Add failing SQL tests for default income categories**
 
   Assert a newly created year has 12 months and exactly these six system keys
   represented in every month: `salary`, `bonus`, `rrsp`, `tfsa`, `espp`,
   `government_benefit`. Assert an existing year backfill does not duplicate
   categories and preserves custom categories.
 
-- [ ] **Step 2: Run SQL tests and verify RED**
+- [x] **Step 2: Run SQL tests and verify RED**
 
   Reset local Supabase; expect missing default-category assertions.
 
-- [ ] **Step 3: Implement default-category creation/backfill**
+- [x] **Step 3: Implement default-category creation/backfill**
 
   Add a forward migration that:
 
@@ -730,13 +730,13 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
   verification requires reset equivalence; document both hashes in the task
   report.
 
-- [ ] **Step 4: Reset, test, regenerate types, and reseed**
+- [x] **Step 4: Reset, test, regenerate types, and reseed**
 
   Run local reset/SQL suite, regenerate `src/types/database.ts`, and recreate
   the two test accounts. Verify the current 2026 year receives only missing
   defaults.
 
-- [ ] **Step 5: Write pure calculation tests and verify RED**
+- [x] **Step 5: Write pure calculation tests and verify RED**
 
   Extend `src/test/ledgerStatements.test.ts` with:
 
@@ -747,12 +747,12 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
   - annual category totals; and
   - twelve monthly budget-limit bars.
 
-- [ ] **Step 6: Implement calculation helpers**
+- [x] **Step 6: Implement calculation helpers**
 
   Keep all chart numbers derived from `LedgerYearData`; chart components must
   receive already-calculated values and contain no business rules.
 
-- [ ] **Step 7: Write year-list/year-creation component tests**
+- [x] **Step 7: Write year-list/year-creation component tests**
 
   Cover:
 
@@ -763,32 +763,32 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
   - existing year prevented locally with `2026 already exists`; and
   - successful 2027 submission using a fresh entity UUID.
 
-- [ ] **Step 8: Build list-first Statements UI and NewYearSheet**
+- [x] **Step 8: Build list-first Statements UI and NewYearSheet**
 
   Follow the reference: each row has chart-toggle and detail-chevron controls.
   Move the add action into the active Statements segment rather than a global
   Ledger action.
 
-- [ ] **Step 9: Write monthly-detail tests**
+- [x] **Step 9: Write monthly-detail tests**
 
   Cover month navigation/picker, totals, chart labels/text equivalents,
   Spent/Limit/Left values, category progress, separate Income/Spending actions,
   filtered categories, transaction lists, edit, and delete.
 
-- [ ] **Step 10: Build monthly detail and charts**
+- [x] **Step 10: Build monthly detail and charts**
 
   Use Recharts `PieChart`/`Pie` for donuts and semantic CSS bars for monthly
   limits/category progress. Render textual totals alongside every chart. Add
   the `/ledger/:yearId` route.
 
-- [ ] **Step 11: Split transaction workflows**
+- [x] **Step 11: Split transaction workflows**
 
   Replace the generic `Add transaction` action with `+ Income` and
   `+ Spending`. Add transaction lists and reuse `saveTransaction` for create
   and edit with correct revisions. Inspect every `EnqueueOutcome`; keep a form
   open on discarded outcomes.
 
-- [ ] **Step 12: Verify posting behavior live**
+- [x] **Step 12: Verify posting behavior live**
 
   Create income and spending against a CAD Asset; verify:
 
@@ -799,7 +799,7 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
   - duplicate-year submission never enters the queue; and
   - server concurrent uniqueness remains tested.
 
-- [ ] **Step 13: Run full checks, update handoff, commit, and stop**
+- [x] **Step 13: Run full checks, update handoff, commit, and stop**
 
   Run SQL reset/tests, Vitest, lint, build, and diff check. Commit:
 

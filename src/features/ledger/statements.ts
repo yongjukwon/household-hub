@@ -262,3 +262,99 @@ export function hasSpendingFromMonth(
       (monthNumberById.get(t.monthId) ?? 0) >= fromMonth,
   )
 }
+
+export interface StatementTotals {
+  incomeCents: number
+  spendingCents: number
+  limitCents: number
+  leftCents: number
+  utilization: number | null
+}
+
+/** Actual transaction totals and spending-only budget totals for a scope. */
+export function statementTotals(
+  data: LedgerYearData,
+  monthId?: string,
+): StatementTotals {
+  const transactions = monthId
+    ? data.transactions.filter((transaction) => transaction.monthId === monthId)
+    : data.transactions
+  const incomeCents = transactions
+    .filter((transaction) => transaction.kind === 'income')
+    .reduce((sum, transaction) => sum + transaction.amountCents, 0)
+  const spendingCents = transactions
+    .filter((transaction) => transaction.kind === 'spending')
+    .reduce((sum, transaction) => sum + transaction.amountCents, 0)
+
+  const spendingCategoryKeys = new Set(
+    data.categories
+      .filter(
+        (category) =>
+          category.kind === 'spending' &&
+          (!monthId || category.monthId === monthId),
+      )
+      .map((category) => `${category.monthId}:${category.categoryId}`),
+  )
+  const limitCents = data.limits
+    .filter(
+      (limit) =>
+        (!monthId || limit.monthId === monthId) &&
+        spendingCategoryKeys.has(`${limit.monthId}:${limit.categoryId}`),
+    )
+    .reduce((sum, limit) => sum + (limit.amountCents ?? 0), 0)
+
+  return {
+    incomeCents,
+    spendingCents,
+    limitCents,
+    leftCents: limitCents - spendingCents,
+    utilization: limitCents > 0 ? spendingCents / limitCents : null,
+  }
+}
+
+/** Actual spending grouped by category for annual or monthly donuts. */
+export function spendingCategoryTotals(
+  data: LedgerYearData,
+  monthId?: string,
+): Array<{ categoryId: string; name: string; totalCents: number }> {
+  const totals = new Map<string, number>()
+  const names = new Map<string, string>()
+  for (const category of data.categories) {
+    if (
+      category.kind === 'spending' &&
+      (!monthId || category.monthId === monthId) &&
+      !names.has(category.categoryId)
+    ) {
+      names.set(category.categoryId, category.name)
+    }
+  }
+  for (const transaction of data.transactions) {
+    if (
+      transaction.kind !== 'spending' ||
+      (monthId && transaction.monthId !== monthId)
+    ) {
+      continue
+    }
+    totals.set(
+      transaction.categoryId,
+      (totals.get(transaction.categoryId) ?? 0) + transaction.amountCents,
+    )
+  }
+  return [...totals.entries()]
+    .map(([categoryId, totalCents]) => ({
+      categoryId,
+      name: names.get(categoryId) ?? 'Other',
+      totalCents,
+    }))
+    .sort((left, right) => left.name.localeCompare(right.name))
+}
+
+/** The reference's yearly activity bars: summed spending limits per month. */
+export function monthlyBudgetLimits(
+  data: LedgerYearData,
+): Array<{ month: number; limitCents: number }> {
+  return data.months.map((month) => ({
+    month: month.month,
+    limitCents: statementTotals(data, month.id).limitCents,
+  }))
+}

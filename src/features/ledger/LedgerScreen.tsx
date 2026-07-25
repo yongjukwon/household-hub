@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Screen } from '@/shell/Screen'
 import { SegmentedControl } from '@/shell/ui/SegmentedControl'
 import { ErrorState } from '@/shell/ui/states'
@@ -12,7 +12,15 @@ type LedgerSegment = 'statements' | 'assets'
 export function LedgerScreen() {
   const household = useActiveHousehold()
   const householdId = household.data?.id
-  const [segment, setSegment] = useState<LedgerSegment>('statements')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const segment: LedgerSegment =
+    searchParams.get('segment') === 'assets' ? 'assets' : 'statements'
+
+  function setSegment(next: LedgerSegment) {
+    setSearchParams(next === 'assets' ? { segment: 'assets' } : {}, {
+      replace: true,
+    })
+  }
 
   return (
     <Screen title="Ledger">

@@ -104,7 +104,8 @@ precedence if this file ever becomes stale.
 | Pre-7. Authenticated local test setup | Complete | Verified at `c5dc6d3`; real two-member Supabase household |
 | Web correction 1. Calendar contract | Complete | Timed/all-day payloads, reminder adapter, final outcome handling |
 | Web correction 2. Groceries | Complete | Purchase dates, autocomplete, rename, five cheapest history |
-| Web correction 3. Ledger | In progress | Next active correction |
+| Web correction 3. Ledger | Complete | Annual/month charts, default income categories, separate transaction workflows |
+| Web correction 4. Notes | In progress | Next active correction |
 | 7. Expo foundation and offline data layer | Pending | Not started |
 | 8. Expo feature parity and visual implementation | Pending | Not started |
 | 9. Reset procedure, E2E verification, release handoff | Pending | Not started |
@@ -212,6 +213,67 @@ flowchart LR
 - Web verification: **65 files, 376 tests passed**; ESLint, TypeScript, Vite/PWA
   build, and `git diff --check` passed. The full multi-feature live matrix
   remains scheduled for Correction Task 6.
+
+### Correction Task 3 — Ledger annual/monthly workflows (complete)
+
+**User-visible result**
+
+- `/ledger` is list-first again: each Statement year has its own expandable
+  annual chart control and a separate chevron into the 12-month detail route.
+- `+ Year` opens a four-digit year form, rejects a duplicate locally, and uses
+  a new entity UUID for a valid year.
+- `/ledger/:yearId` now contains the reference-style 4×3 month picker, actual
+  income/spending donut and legend, monthly budget utilization, Spent/Limit/Left
+  cards, category progress, and visible Income and Spending histories.
+- Income and spending have separate add buttons and fixed-category-kind forms.
+  Existing transactions can be edited or deleted; deletion reverses the linked
+  Asset posting.
+- New years receive Salary, Bonus, RRSP, TFSA, ESPP, and Government benefit
+  income categories in every month.
+
+```mermaid
+flowchart LR
+    A["Ledger Statements"] --> B["Year row"]
+    B --> C["Expand annual actuals and 12 monthly budget-limit bars"]
+    B --> D["Open /ledger/:yearId"]
+    D --> E["Select month"]
+    E --> F["+ Income"]
+    E --> G["+ Spending"]
+    F --> H["Ledger transaction plus Asset credit"]
+    G --> I["Ledger transaction plus Asset debit"]
+    H --> J["Annual and monthly charts recalculate"]
+    I --> J
+```
+
+**Database design**
+
+- Migration `20260725017000_ledger_default_income_categories.sql` adds one
+  idempotent security-definer helper and insert triggers on years/months.
+  This keeps default-category creation atomic without replacing the large
+  versioned operation RPC body. Existing years are backfilled with missing
+  defaults only; custom categories remain untouched.
+- Database coverage verifies six category rows, 72 month-category rows, and
+  six entity-revision rows for each new year.
+
+**Authenticated operation evidence**
+
+- Signed in as `yongju@test.local` against local Supabase and used the real
+  `apply_household_operation` RPC.
+- Created a CAD Asset, a 2026 year, one income transaction, and one spending
+  transaction. The Asset moved from `$100.00` to `$1,800.00`.
+- Edited spending from `$300.00` to `$250.00`; the Asset correctly became
+  `$1,850.00`.
+- Deleted both transactions; the Asset returned exactly to its `$100.00`
+  opening balance.
+- The year had exactly six default income categories.
+
+**Verification at this checkpoint**
+
+- Supabase: **5 files, 313 tests passed**.
+- Web: **67 files, 384 tests passed**.
+- ESLint, TypeScript, Vite/PWA build, generated database types, and
+  `git diff --check` passed. The existing large-chunk warning remains
+  non-blocking.
 
 
 ## Task 6 — web feature flows (complete)

@@ -1,8 +1,14 @@
 import { useState } from 'react'
 import { BottomSheet } from '@/shell/ui/BottomSheet'
 import { parseDollarsToCents } from '@/features/moneyInput'
+import { centsToInputValue } from '@/features/moneyInput'
+import { operationOutcomeError } from '@/lib/operations/outcome'
 import type { LedgerAsset } from './assets'
-import type { CategoryKind, MonthCategory } from './statements'
+import type {
+  CategoryKind,
+  LedgerTransaction,
+  MonthCategory,
+} from './statements'
 import { saveTransaction } from './statementMutations'
 
 const field =
@@ -16,23 +22,38 @@ export function TransactionSheet({
   householdId,
   yearId,
   month,
+  kind,
   categories,
   assets,
+  transaction = null,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   householdId: string
   yearId: string
   month: number
+  kind: CategoryKind
   categories: MonthCategory[]
   assets: LedgerAsset[]
+  transaction?: LedgerTransaction | null
 }) {
-  const [kind, setKind] = useState<CategoryKind>('spending')
-  const [categoryId, setCategoryId] = useState('')
-  const [assetId, setAssetId] = useState(assets[0]?.id ?? '')
-  const [amount, setAmount] = useState('')
-  const [description, setDescription] = useState('')
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const initialCategory = categories.find(
+    (category) =>
+      category.kind === kind &&
+      category.categoryId === transaction?.categoryId,
+  )
+  const [categoryId, setCategoryId] = useState(initialCategory?.id ?? '')
+  const [assetId, setAssetId] = useState(
+    transaction?.assetId ?? assets[0]?.id ?? '',
+  )
+  const [amount, setAmount] = useState(
+    centsToInputValue(transaction?.amountCents),
+  )
+  const [description, setDescription] = useState(transaction?.description ?? '')
+  const [date, setDate] = useState(
+    transaction?.occurredAt.slice(0, 10) ??
+      new Date().toISOString().slice(0, 10),
+  )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -49,10 +70,10 @@ export function TransactionSheet({
     setSaving(true)
     setError(null)
     try {
-      await saveTransaction(
+      const outcome = await saveTransaction(
         householdId,
         {
-          id: crypto.randomUUID(),
+          id: transaction?.id ?? crypto.randomUUID(),
           yearId,
           month,
           categoryId: category.categoryId,
@@ -62,8 +83,13 @@ export function TransactionSheet({
           occurredAt: new Date(`${date}T12:00:00Z`).toISOString(),
           description,
         },
-        null,
+        transaction?.revision ?? null,
       )
+      const outcomeError = operationOutcomeError(outcome)
+      if (outcomeError) {
+        setError(outcomeError)
+        return
+      }
       setAmount('')
       setDescription('')
       onOpenChange(false)
@@ -73,29 +99,12 @@ export function TransactionSheet({
   }
 
   return (
-    <BottomSheet open={open} onOpenChange={onOpenChange} title="New transaction">
+    <BottomSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title={`${transaction ? 'Edit' : 'New'} ${kind}`}
+    >
       <div className="space-y-3">
-        <div className="flex gap-2">
-          {(['spending', 'income'] as CategoryKind[]).map((k) => (
-            <button
-              key={k}
-              type="button"
-              aria-pressed={kind === k}
-              onClick={() => {
-                setKind(k)
-                setCategoryId('')
-              }}
-              className={
-                'flex-1 rounded-[var(--hh-radius-control)] px-3 py-2 text-sm font-medium capitalize ' +
-                (kind === k
-                  ? 'bg-[var(--hh-accent)] text-white'
-                  : 'bg-[var(--hh-surface-2)] text-[var(--hh-muted)]')
-              }
-            >
-              {k}
-            </button>
-          ))}
-        </div>
         <div>
           <label className={label} htmlFor="tx-category">
             Category

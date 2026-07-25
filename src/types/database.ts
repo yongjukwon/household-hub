@@ -7,31 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       asset_postings: {
@@ -2416,6 +2391,10 @@ export type Database = {
         Args: { target_asset_id: string }
         Returns: number
       }
+      mobile_ensure_default_income_categories: {
+        Args: { target_year_id: string }
+        Returns: undefined
+      }
       mobile_ensure_ledger_year: {
         Args: {
           actor_user_id: string
@@ -2704,9 +2683,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       booking_type: ["flight", "hotel", "car", "other"],

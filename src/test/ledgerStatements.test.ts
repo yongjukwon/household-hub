@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   categoryProgress,
   hasSpendingFromMonth,
+  monthlyBudgetLimits,
   monthSummaries,
+  spendingCategoryTotals,
+  statementTotals,
   type LedgerYearData,
 } from '@/features/ledger/statements'
 
@@ -84,5 +87,68 @@ describe('hasSpendingFromMonth', () => {
     })
     expect(hasSpendingFromMonth(d, 'c1', 7)).toBe(true)
     expect(hasSpendingFromMonth(d, 'c1', 10)).toBe(false)
+  })
+})
+
+describe('statement calculations', () => {
+  const statement = data({
+    categories: [
+      { id: 'mc-income', categoryId: 'income', monthId: 'm7', name: 'Salary', kind: 'income', sortOrder: 0, revision: 1 },
+      { id: 'mc-grocery-7', categoryId: 'grocery', monthId: 'm7', name: 'Groceries', kind: 'spending', sortOrder: 0, revision: 1 },
+      { id: 'mc-rent-7', categoryId: 'rent', monthId: 'm7', name: 'Rent', kind: 'spending', sortOrder: 1, revision: 1 },
+      { id: 'mc-grocery-8', categoryId: 'grocery', monthId: 'm8', name: 'Groceries', kind: 'spending', sortOrder: 0, revision: 1 },
+    ],
+    limits: [
+      { categoryId: 'income', monthId: 'm7', amountCents: 9_999_00, limitEntityId: 'li', revision: 1 },
+      { categoryId: 'grocery', monthId: 'm7', amountCents: 400_00, limitEntityId: 'lg7', revision: 1 },
+      { categoryId: 'rent', monthId: 'm7', amountCents: 600_00, limitEntityId: 'lr7', revision: 1 },
+      { categoryId: 'grocery', monthId: 'm8', amountCents: 450_00, limitEntityId: 'lg8', revision: 1 },
+    ],
+    transactions: [
+      { id: 'income-7', monthId: 'm7', categoryId: 'income', assetId: 'a', kind: 'income', amountCents: 2_000_00, occurredAt: '', description: 'Salary', revision: 1 },
+      { id: 'grocery-7', monthId: 'm7', categoryId: 'grocery', assetId: 'a', kind: 'spending', amountCents: 250_00, occurredAt: '', description: 'Food', revision: 1 },
+      { id: 'rent-7', monthId: 'm7', categoryId: 'rent', assetId: 'a', kind: 'spending', amountCents: 600_00, occurredAt: '', description: 'Rent', revision: 1 },
+      { id: 'grocery-8', monthId: 'm8', categoryId: 'grocery', assetId: 'a', kind: 'spending', amountCents: 100_00, occurredAt: '', description: 'Food', revision: 1 },
+    ],
+  })
+
+  it('calculates annual and monthly actuals from transactions', () => {
+    expect(statementTotals(statement)).toEqual({
+      incomeCents: 2_000_00,
+      spendingCents: 950_00,
+      limitCents: 1_450_00,
+      leftCents: 500_00,
+      utilization: 950 / 1_450,
+    })
+    expect(statementTotals(statement, 'm7')).toEqual({
+      incomeCents: 2_000_00,
+      spendingCents: 850_00,
+      limitCents: 1_000_00,
+      leftCents: 150_00,
+      utilization: 0.85,
+    })
+  })
+
+  it('returns null utilization when the spending limit is zero', () => {
+    expect(statementTotals(data({}))).toMatchObject({
+      limitCents: 0,
+      leftCents: 0,
+      utilization: null,
+    })
+  })
+
+  it('groups annual spending by category', () => {
+    expect(spendingCategoryTotals(statement)).toEqual([
+      { categoryId: 'grocery', name: 'Groceries', totalCents: 350_00 },
+      { categoryId: 'rent', name: 'Rent', totalCents: 600_00 },
+    ])
+  })
+
+  it('returns all twelve monthly spending-limit bars', () => {
+    const bars = monthlyBudgetLimits(statement)
+    expect(bars).toHaveLength(12)
+    expect(bars.find((bar) => bar.month === 7)?.limitCents).toBe(1_000_00)
+    expect(bars.find((bar) => bar.month === 8)?.limitCents).toBe(450_00)
+    expect(bars.find((bar) => bar.month === 9)?.limitCents).toBe(0)
   })
 })

@@ -12,6 +12,7 @@ import { CalendarScreen } from '@/features/calendar/CalendarScreen'
 import { GroceriesScreen } from '@/features/groceries/GroceriesScreen'
 import { GroceryListScreen } from '@/features/groceries/GroceryListScreen'
 import { LedgerScreen } from '@/features/ledger/LedgerScreen'
+import { StatementMonthScreen } from '@/features/ledger/StatementMonthScreen'
 import { NotesScreen } from '@/features/notes/NotesScreen'
 import { NoteScreen } from '@/features/notes/NoteScreen'
 import { TripsScreen } from '@/features/trips/TripsScreen'
@@ -50,6 +51,7 @@ const router = createBrowserRouter([
       { path: '/groceries', element: <GroceriesScreen /> },
       { path: '/groceries/:listId', element: <GroceryListScreen /> },
       { path: '/ledger', element: <LedgerScreen /> },
+      { path: '/ledger/:yearId', element: <StatementMonthScreen /> },
       { path: '/notes', element: <NotesScreen /> },
       { path: '/notes/:noteId', element: <NoteScreen /> },
       { path: '/trips', element: <TripsScreen /> },

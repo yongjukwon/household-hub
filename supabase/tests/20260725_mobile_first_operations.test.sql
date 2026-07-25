@@ -518,6 +518,48 @@ select is(
 
 select is(
   (
+    select count(*)::integer
+    from public.ledger_categories
+    where year_id = '30000000-0000-4000-8000-000000000001'
+      and kind = 'income'
+      and system_key = any(array[
+        'salary', 'bonus', 'rrsp', 'tfsa', 'espp', 'government_benefit'
+      ])
+  ),
+  6,
+  'a new Ledger year creates the six default income categories'
+);
+
+select is(
+  (
+    select count(*)::integer
+    from public.ledger_month_categories lmc
+    join public.ledger_categories lc on lc.id = lmc.category_id
+    join public.ledger_months lm on lm.id = lmc.month_id
+    where lm.year_id = '30000000-0000-4000-8000-000000000001'
+      and lc.system_key is not null
+  ),
+  72,
+  'each default income category is represented in all twelve months'
+);
+
+select is(
+  (
+    select count(*)::integer
+    from public.household_entity_revisions her
+    join public.ledger_categories lc
+      on lc.household_id = her.household_id
+      and lc.id = her.entity_id
+    where lc.year_id = '30000000-0000-4000-8000-000000000001'
+      and her.entity_type = 'ledger_category'
+      and not her.deleted
+  ),
+  6,
+  'default income categories receive mutable entity revisions'
+);
+
+select is(
+  (
     public.apply_household_operation(
       pg_temp.operation_command(
         '40000000-0000-4000-8000-000000000010',
