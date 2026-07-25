@@ -265,6 +265,54 @@ describe('durable operation queue', () => {
     expect(mockRpc).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps replaying after another device wins one of the queued entities', async () => {
+    setOnline(false)
+    await enqueueOperation(upsertEvent(EVENT_A))
+    await enqueueOperation(upsertEvent(EVENT_B, { baseRevision: 1 }))
+    await enqueueOperation(
+      upsertEvent(EVENT_A, { baseRevision: 1, payload: { title: 'Later' } }),
+    )
+    setOnline(true)
+
+    const sent = await pendingOperations()
+
+    // The partner's device already changed EVENT_B, so only that command loses;
+    // the rest of this device's queue still applies, in order.
+    respondWith((command) => {
+      const queued = sent.find(
+        (entry) => entry.operationId === command.operationId,
+      )
+      if (queued?.entityId === EVENT_B) {
+        return {
+          status: 'conflict',
+          operationId: command.operationId,
+          reason: 'Entity was changed by another operation',
+          currentRevision: revision(2),
+          winner: {
+            operationId: uuid('88888888-8888-4888-8888-888888888888'),
+            type: 'calendar.event.upsert',
+            entityType: 'calendar_event',
+            entityId: uuid(EVENT_B),
+            appliedAt: '2026-07-25T10:00:00.000Z',
+          },
+        }
+      }
+      return applied(command.operationId)
+    })
+
+    const summary = await flushOperations()
+
+    expect(summary.applied).toBe(2)
+    expect(summary.discarded).toBe(1)
+    expect(summary.remaining).toBe(0)
+    expect(
+      mockRpc.mock.calls.map(([, args]) => args.command.localSequence),
+    ).toEqual([1, 2, 3])
+
+    const [record] = await unacknowledgedDiscards()
+    expect(record.command.entityId).toBe(EVENT_B)
+  })
+
   it('discards a rejection with its stable code and warnings', async () => {
     respondWith((command) => ({
       status: 'rejected',
