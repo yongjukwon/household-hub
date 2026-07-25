@@ -8,6 +8,7 @@ import { AuthProvider } from '@/components/auth/AuthProvider'
 import { RequireAuth } from '@/components/auth/RequireAuth'
 import { AppShell } from '@/shell/AppShell'
 import { PlaceholderScreen } from '@/shell/PlaceholderScreen'
+import { CalendarScreen } from '@/features/calendar/CalendarScreen'
 import { SettingsScreen } from '@/screens/SettingsScreen'
 import { setupQueryPersistence } from '@/lib/offline/queryPersister'
 import LoginPage from '@/routes/LoginPage'
@@ -38,7 +39,7 @@ const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <Navigate to="/calendar" replace /> },
-      { path: '/calendar', element: <PlaceholderScreen title="Calendar" /> },
+      { path: '/calendar', element: <CalendarScreen /> },
       { path: '/groceries', element: <PlaceholderScreen title="Groceries" /> },
       { path: '/ledger', element: <PlaceholderScreen title="Ledger" /> },
       { path: '/notes', element: <PlaceholderScreen title="Notes" /> },

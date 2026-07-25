@@ -7,9 +7,10 @@
 **Implementation branch:** `codex/household-hub-mobile-first`
 
 **Implementation worktree:** `/Users/conlegs/dev/household-hub/.worktrees/household-hub-mobile-first`
-**Current HEAD:** `2cf1d88 feat: dev-only flag to skip the login gate for local testing`
+**Current HEAD:** `<pending 6A commit>` feat: Calendar feature flow (Task 6A)
 **Last review-clean baseline:** `d1f3e30` (Tasks 1–2, independent review).
-Tasks 3, 4, and 5 are complete (self-reviewed); Task 6 is next.
+Tasks 3, 4, and 5 are complete (self-reviewed). Task 6 is **in progress**:
+6A (Calendar) done; 6B–6F pending.
 
 This file is the source of truth for continuing the approved web-first
 Household Hub rebuild. Current Git state and fresh verification results take
@@ -81,11 +82,30 @@ precedence if this file ever becomes stale.
 | 3. Identity, notifications, jobs, deployment config | Complete | Verified at `24a5b39` (self-review; no independent review agent) |
 | 4. Durable web operation queue | Complete | Verified at `f86f4c0`; its UI surface lands with Task 5 |
 | 5. Responsive web shell and visual system | Complete | Verified at `626c681` (self-review) |
-| 6. Web feature flows | Pending | Not started |
+| 6. Web feature flows | In progress | 6A Calendar done; 6B–6F pending |
 | 7. Expo foundation and offline data layer | Pending | Not started |
 | 8. Expo feature parity and visual implementation | Pending | Not started |
 | 9. Reset procedure, E2E verification, release handoff | Pending | Not started |
 
+
+## Task 6 — web feature flows (in progress)
+
+Fills the placeholder routes with real, tested flows on top of the durable
+operation queue (Task 4) and shell (Task 5). Sub-checkpoints (each TDD →
+implement → affected suite → commit → this file):
+
+- **6A — Calendar (done).** `src/features/calendar/`: pure `monthGrid.ts`
+  (6×7 Sunday-first grid, span/shift helpers) and `events.ts` (recurrence +
+  multiday expansion, device-timezone placement via the domain's
+  `calendarDateInTimeZone`); `datetime.ts` wall-clock↔UTC for the event
+  timezone; `useCalendarEvents` (household-scoped read, reminders joined);
+  `mutations.ts` (`calendar.event.upsert`/`delete` payload builder + enqueue);
+  `EventSheet` (timed/all-day/multiday, recurrence, reminder presets, owner,
+  delete-confirm) and `CalendarScreen` (month grid with event dots,
+  selected-day list, `?event=<id>` notification deep link). Route wired in
+  `src/App.tsx`. `src/features/household.ts` shared household accessor.
+  **Verification:** `npx vitest run` **308 passed** (48 files; +29 vs Task 5),
+  lint clean, build clean. Next: 6B Groceries.
 
 ## Task 5 — responsive web shell + visual system (complete)
 
