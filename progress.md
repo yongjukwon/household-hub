@@ -106,7 +106,8 @@ precedence if this file ever becomes stale.
 | Web correction 2. Groceries | Complete | Purchase dates, autocomplete, rename, five cheapest history |
 | Web correction 3. Ledger | Complete | Annual/month charts, default income categories, separate transaction workflows |
 | Web correction 4. Notes | Complete | Plain read view plus explicit draft Save/Cancel |
-| Web correction 5. Trips | In progress | Next active correction |
+| Web correction 5. Trips | Complete | Manual destination currency and matching-Asset expense flow |
+| Web correction 6. Final verification | In progress | Next active correction |
 | 7. Expo foundation and offline data layer | Pending | Not started |
 | 8. Expo feature parity and visual implementation | Pending | Not started |
 | 9. Reset procedure, E2E verification, release handoff | Pending | Not started |
@@ -293,6 +294,30 @@ flowchart LR
   numbered/checklist document as Yongju, read the same document as Claire, and
   then deleted it through the real operation RPC.
 - Web verification: **68 files, 390 tests passed**; ESLint, TypeScript,
+  Vite/PWA build, and `git diff --check` passed.
+
+### Correction Task 5 — Trip currency and Asset workflow (complete)
+
+- Destination setup is grouped and previewed as
+  `destination · IANA timezone · ISO currency`. Currency remains fully manual,
+  normalizes to uppercase while typing, and must be a real three-letter ISO
+  code.
+- Trip names now use the same inline editor as Grocery lists; rename commands
+  preserve destination, timezone, dates, currency, and revision.
+- Expense currency choices are exactly CAD plus destination currency
+  (deduped). The Paid from control contains only Assets whose stored currency
+  matches the selected expense currency and resets safely when currency
+  changes.
+- When no matching Asset exists, Save is disabled and the sheet links directly
+  to `/ledger?segment=assets`; Ledger now honors that deep link.
+- Trip and expense forms inspect final operation outcomes and retain entered
+  values after a discarded/conflicted command.
+- Authenticated local verification for a GBP Trip recorded separate totals of
+  CAD `$20.00` and GBP `£70.00`. The CAD Asset moved to `$80.00`, GBP cash to
+  `£430.00`, and only the CAD expense produced a linked Travel Ledger row.
+  Both temporary expenses and the Trip were then removed, reversing their
+  balances and the CAD Ledger effect.
+- Web verification: **70 files, 398 tests passed**; ESLint, TypeScript,
   Vite/PWA build, and `git diff --check` passed.
 
 

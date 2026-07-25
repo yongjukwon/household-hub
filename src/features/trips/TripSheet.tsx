@@ -1,8 +1,11 @@
 import { useState } from 'react'
+import { isCurrencyCode } from '@household-hub/domain'
 import { BottomSheet } from '@/shell/ui/BottomSheet'
 import { ConfirmDialog } from '@/shell/ui/ConfirmDialog'
 import { deviceTimeZone } from '@/features/household'
+import { operationOutcomeError } from '@/lib/operations/outcome'
 import type { Trip } from './data'
+import { normalizeCurrencyInput } from './forms'
 import { deleteTrip, saveTrip } from './mutations'
 
 const field =
@@ -23,6 +26,15 @@ const COMMON_ZONES = [
   'Australia/Sydney',
 ]
 
+function isTimeZone(value: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: value }).format()
+    return true
+  } catch {
+    return false
+  }
+}
+
 interface TripSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -35,7 +47,9 @@ export function TripSheet({ open, onOpenChange, householdId, trip }: TripSheetPr
   const today = new Date().toISOString().slice(0, 10)
   const [name, setName] = useState(trip?.name ?? '')
   const [destination, setDestination] = useState(trip?.destination ?? '')
-  const [currency, setCurrency] = useState(trip?.destinationCurrency ?? 'CAD')
+  const [currency, setCurrency] = useState(
+    normalizeCurrencyInput(trip?.destinationCurrency ?? 'CAD'),
+  )
   const [timezone, setTimezone] = useState(trip?.destinationTimezone ?? deviceTimeZone())
   const [startDate, setStartDate] = useState(trip?.startDate ?? today)
   const [endDate, setEndDate] = useState(trip?.endDate ?? today)
@@ -52,10 +66,18 @@ export function TripSheet({ open, onOpenChange, householdId, trip }: TripSheetPr
       setError('The end date must be on or after the start date.')
       return
     }
+    if (!isCurrencyCode(currency)) {
+      setError('Enter a valid three-letter ISO currency code.')
+      return
+    }
+    if (!isTimeZone(timezone)) {
+      setError('Enter a valid IANA destination timezone.')
+      return
+    }
     setSaving(true)
     setError(null)
     try {
-      await saveTrip(
+      const outcome = await saveTrip(
         householdId,
         {
           id: trip?.id ?? crypto.randomUUID(),
@@ -68,6 +90,11 @@ export function TripSheet({ open, onOpenChange, householdId, trip }: TripSheetPr
         },
         trip?.revision ?? null,
       )
+      const outcomeError = operationOutcomeError(outcome)
+      if (outcomeError) {
+        setError(outcomeError)
+        return
+      }
       onOpenChange(false)
     } finally {
       setSaving(false)
@@ -78,7 +105,13 @@ export function TripSheet({ open, onOpenChange, householdId, trip }: TripSheetPr
     if (!trip) return
     setSaving(true)
     try {
-      await deleteTrip(householdId, trip.id, trip.revision)
+      const outcome = await deleteTrip(householdId, trip.id, trip.revision)
+      const outcomeError = operationOutcomeError(outcome)
+      if (outcomeError) {
+        setError(outcomeError)
+        setConfirmDelete(false)
+        return
+      }
       setConfirmDelete(false)
       onOpenChange(false)
     } finally {
@@ -95,17 +128,58 @@ export function TripSheet({ open, onOpenChange, householdId, trip }: TripSheetPr
           </label>
           <input id="trip-name" className={field} value={name} onChange={(e) => setName(e.target.value)} autoFocus />
         </div>
-        <div>
-          <label className={label} htmlFor="trip-destination">
-            Destination
-          </label>
-          <input
-            id="trip-destination"
-            className={field}
-            value={destination}
-            onChange={(e) => setDestination(e.target.value)}
-          />
-        </div>
+        <fieldset className="space-y-3 rounded-[var(--hh-radius-card)] bg-[var(--hh-surface-2)] p-3">
+          <legend className="px-1 text-sm font-semibold text-[var(--hh-ink)]">
+            Destination setup
+          </legend>
+          <div>
+            <label className={label} htmlFor="trip-destination">
+              City or destination
+            </label>
+            <input
+              id="trip-destination"
+              className={field}
+              value={destination}
+              onChange={(e) => setDestination(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className={label} htmlFor="trip-tz">
+              Destination timezone
+            </label>
+            <input
+              id="trip-tz"
+              className={field}
+              value={timezone}
+              list="trip-tz-options"
+              onChange={(e) => setTimezone(e.target.value)}
+            />
+            <datalist id="trip-tz-options">
+              {COMMON_ZONES.map((z) => (
+                <option key={z} value={z} />
+              ))}
+            </datalist>
+          </div>
+          <div>
+            <label className={label} htmlFor="trip-currency">
+              Destination currency
+            </label>
+            <input
+              id="trip-currency"
+              className={field}
+              value={currency}
+              maxLength={3}
+              autoCapitalize="characters"
+              spellCheck={false}
+              onChange={(e) => setCurrency(normalizeCurrencyInput(e.target.value))}
+            />
+          </div>
+          {destination.trim() && timezone.trim() && currency && (
+            <p className="text-sm font-medium text-[var(--hh-muted)]">
+              {destination.trim()} · {timezone.trim()} · {currency}
+            </p>
+          )}
+        </fieldset>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={label} htmlFor="trip-start">
@@ -134,37 +208,6 @@ export function TripSheet({ open, onOpenChange, householdId, trip }: TripSheetPr
               min={startDate}
               onChange={(e) => setEndDate(e.target.value)}
             />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={label} htmlFor="trip-currency">
-              Currency
-            </label>
-            <input
-              id="trip-currency"
-              className={field}
-              value={currency}
-              maxLength={3}
-              onChange={(e) => setCurrency(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className={label} htmlFor="trip-tz">
-              Timezone
-            </label>
-            <input
-              id="trip-tz"
-              className={field}
-              value={timezone}
-              list="trip-tz-options"
-              onChange={(e) => setTimezone(e.target.value)}
-            />
-            <datalist id="trip-tz-options">
-              {COMMON_ZONES.map((z) => (
-                <option key={z} value={z} />
-              ))}
-            </datalist>
           </div>
         </div>
         {error && <p className="text-sm text-[var(--hh-danger)]">{error}</p>}

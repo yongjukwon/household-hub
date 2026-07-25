@@ -1,9 +1,12 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { BottomSheet } from '@/shell/ui/BottomSheet'
 import { ConfirmDialog } from '@/shell/ui/ConfirmDialog'
 import { centsToInputValue, parseDollarsToCents } from '@/features/moneyInput'
 import { HOUSEHOLD_CURRENCY, type LedgerAsset } from '@/features/ledger/assets'
+import { operationOutcomeError } from '@/lib/operations/outcome'
 import type { Trip, TripExpense } from './data'
+import { compatibleExpenseAssets } from './forms'
 import { deleteExpense, saveExpense } from './mutations'
 
 const field =
@@ -33,29 +36,42 @@ export function ExpenseSheet({
   expense,
 }: ExpenseSheetProps) {
   const currencyChoices = Array.from(
-    new Set([trip.destinationCurrency, HOUSEHOLD_CURRENCY]),
+    new Set([trip.destinationCurrency.toUpperCase(), HOUSEHOLD_CURRENCY]),
   )
+  const initialCurrency =
+    expense?.currencyCode.toUpperCase() ?? trip.destinationCurrency.toUpperCase()
+  const initialAssets = compatibleExpenseAssets(assets, initialCurrency)
   const [description, setDescription] = useState(expense?.description ?? '')
   const [amount, setAmount] = useState(centsToInputValue(expense?.amountCents ?? null))
-  const [currency, setCurrency] = useState(expense?.currencyCode ?? trip.destinationCurrency)
-  const [assetId, setAssetId] = useState(expense?.assetId ?? assets[0]?.id ?? '')
+  const [currency, setCurrency] = useState(initialCurrency)
+  const [assetId, setAssetId] = useState(
+    initialAssets.some((asset) => asset.id === expense?.assetId)
+      ? expense!.assetId
+      : initialAssets[0]?.id ?? '',
+  )
   const [date, setDate] = useState(
     (expense?.spentAt ?? trip.startDate + 'T12:00:00Z').slice(0, 10),
   )
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const compatibleAssets = compatibleExpenseAssets(assets, currency)
 
   async function handleSave() {
     const cents = parseDollarsToCents(amount)
-    if (!assetId || !cents || cents <= 0 || description.trim().length === 0) {
+    if (
+      !compatibleAssets.some((asset) => asset.id === assetId) ||
+      !cents ||
+      cents <= 0 ||
+      description.trim().length === 0
+    ) {
       setError('Pick an asset, a positive amount, and a description.')
       return
     }
     setSaving(true)
     setError(null)
     try {
-      await saveExpense(
+      const outcome = await saveExpense(
         householdId,
         {
           id: expense?.id ?? crypto.randomUUID(),
@@ -68,6 +84,11 @@ export function ExpenseSheet({
         },
         expense?.revision ?? null,
       )
+      const outcomeError = operationOutcomeError(outcome)
+      if (outcomeError) {
+        setError(outcomeError)
+        return
+      }
       onOpenChange(false)
     } finally {
       setSaving(false)
@@ -78,7 +99,13 @@ export function ExpenseSheet({
     if (!expense) return
     setSaving(true)
     try {
-      await deleteExpense(householdId, expense.id, expense.revision)
+      const outcome = await deleteExpense(householdId, expense.id, expense.revision)
+      const outcomeError = operationOutcomeError(outcome)
+      if (outcomeError) {
+        setError(outcomeError)
+        setConfirmDelete(false)
+        return
+      }
       setConfirmDelete(false)
       onOpenChange(false)
     } finally {
@@ -127,7 +154,11 @@ export function ExpenseSheet({
               id="exp-currency"
               className={field}
               value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value
+                setCurrency(next)
+                setAssetId(compatibleExpenseAssets(assets, next)[0]?.id ?? '')
+              }}
             >
               {currencyChoices.map((c) => (
                 <option key={c} value={c}>
@@ -147,13 +178,26 @@ export function ExpenseSheet({
             value={assetId}
             onChange={(e) => setAssetId(e.target.value)}
           >
-            {assets.length === 0 && <option value="">No assets yet</option>}
-            {assets.map((a) => (
+            {compatibleAssets.length === 0 && (
+              <option value="">No matching assets</option>
+            )}
+            {compatibleAssets.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
               </option>
             ))}
           </select>
+          {compatibleAssets.length === 0 && (
+            <p className="mt-2 text-sm text-[var(--hh-muted)]">
+              No {currency} Asset is available.{' '}
+              <Link
+                to="/ledger?segment=assets"
+                className="font-semibold text-[var(--hh-accent)]"
+              >
+                Add a {currency} Asset
+              </Link>
+            </p>
+          )}
         </div>
         <div>
           <label className={label} htmlFor="exp-date">
@@ -171,7 +215,7 @@ export function ExpenseSheet({
         <div className="flex items-center gap-2 pt-1">
           <button
             type="button"
-            disabled={saving || assets.length === 0}
+          disabled={saving || compatibleAssets.length === 0}
             onClick={() => void handleSave()}
             className="flex-1 rounded-[var(--hh-radius-control)] bg-[var(--hh-accent)] px-4 py-2.5 font-semibold text-white disabled:opacity-60"
           >

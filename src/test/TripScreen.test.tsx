@@ -7,6 +7,7 @@ import { useActiveHousehold } from '@/features/household'
 import * as data from '@/features/trips/data'
 import { useLedgerAssets } from '@/features/ledger/assets'
 import type { Trip, TripExpense } from '@/features/trips/data'
+import * as mutations from '@/features/trips/mutations'
 
 vi.mock('@/features/household', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/household')>()),
@@ -19,6 +20,12 @@ vi.mock('@/features/trips/data', async (importOriginal) => ({
 vi.mock('@/features/ledger/assets', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/ledger/assets')>()),
   useLedgerAssets: vi.fn(),
+}))
+vi.mock('@/features/trips/mutations', () => ({
+  saveTrip: vi.fn().mockResolvedValue({ status: 'queued', operationId: 'op' }),
+  deleteTrip: vi.fn().mockResolvedValue({ status: 'queued', operationId: 'op' }),
+  saveExpense: vi.fn().mockResolvedValue({ status: 'queued', operationId: 'op' }),
+  deleteExpense: vi.fn().mockResolvedValue({ status: 'queued', operationId: 'op' }),
 }))
 
 const HH = '11111111-1111-1111-1111-111111111111'
@@ -114,5 +121,27 @@ describe('TripScreen', () => {
     const dialog = await screen.findByRole('dialog')
     expect(dialog).toBeInTheDocument()
     expect(screen.getByText('New expense')).toBeInTheDocument()
+  })
+
+  it('renames the trip inline while preserving destination setup', async () => {
+    setTrip([])
+    renderScreen()
+    await userEvent.click(screen.getByRole('button', { name: 'Trip name' }))
+    const input = screen.getByRole('textbox', { name: 'Trip name' })
+    await userEvent.clear(input)
+    await userEvent.type(input, 'Japan 2026{enter}')
+    expect(mutations.saveTrip).toHaveBeenCalledWith(
+      HH,
+      {
+        id: TRIP,
+        name: 'Japan 2026',
+        destination: trip.destination,
+        timezone: trip.destinationTimezone,
+        startDate: trip.startDate,
+        endDate: trip.endDate,
+        destinationCurrency: trip.destinationCurrency,
+      },
+      trip.revision,
+    )
   })
 })

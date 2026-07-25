@@ -3,12 +3,15 @@ import { Link, useParams } from 'react-router-dom'
 import { ChevronLeftIcon, PencilSquareIcon, PlusIcon } from '@heroicons/react/24/outline'
 import { formatMoney } from '@household-hub/domain'
 import { Screen } from '@/shell/Screen'
+import { EditableTitle } from '@/shell/ui/EditableTitle'
 import { EmptyState, ErrorState, LoadingState } from '@/shell/ui/states'
 import { useActiveHousehold } from '@/features/household'
 import { useLedgerAssets } from '@/features/ledger/assets'
 import { expenseBuckets, useTrip, type Trip, type TripExpense } from './data'
 import { TripSheet } from './TripSheet'
 import { ExpenseSheet } from './ExpenseSheet'
+import { saveTrip } from './mutations'
+import { operationOutcomeError } from '@/lib/operations/outcome'
 
 type TripTab = 'itinerary' | 'bookings' | 'checklist' | 'expenses'
 
@@ -31,8 +34,38 @@ export function TripScreen() {
 
   const trip = query.data?.trip ?? null
 
+  async function renameTrip(next: string): Promise<string | null> {
+    if (!householdId || !trip) return 'The trip is not available.'
+    const outcome = await saveTrip(
+      householdId,
+      {
+        id: trip.id,
+        name: next,
+        destination: trip.destination,
+        timezone: trip.destinationTimezone,
+        startDate: trip.startDate,
+        endDate: trip.endDate,
+        destinationCurrency: trip.destinationCurrency,
+      },
+      trip.revision,
+    )
+    return operationOutcomeError(outcome)
+  }
+
   return (
-    <Screen title={trip?.name ?? 'Trip'}>
+    <Screen
+      title={
+        trip ? (
+          <EditableTitle
+            value={trip.name}
+            ariaLabel="Trip name"
+            onSave={renameTrip}
+          />
+        ) : (
+          'Trip'
+        )
+      }
+    >
       <Link
         to="/trips"
         className="mb-3 inline-flex items-center gap-1 text-sm text-[var(--hh-muted)]"

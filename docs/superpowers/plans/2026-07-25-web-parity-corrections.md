@@ -909,13 +909,13 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
 
 - Currency input accepts a manually typed validated uppercase ISO code.
 
-- [ ] **Step 1: Write Trip form tests and verify RED**
+- [x] **Step 1: Write Trip form tests and verify RED**
 
   Cover uppercase normalization, invalid length/code, grouped
   city/timezone/currency labels, preview text, existing-trip editing, and a
   discarded outcome retaining the form.
 
-- [ ] **Step 2: Implement destination setup**
+- [x] **Step 2: Implement destination setup**
 
   Keep the current common timezone suggestions, require a manual three-letter
   currency, uppercase while typing, validate via the shared
@@ -925,7 +925,7 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
   London · Europe/London · GBP
   ```
 
-- [ ] **Step 3: Write ExpenseSheet filtering tests and verify RED**
+- [x] **Step 3: Write ExpenseSheet filtering tests and verify RED**
 
   Given CAD and GBP Assets:
 
@@ -935,19 +935,19 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
   - no match disables Save and displays a Ledger Assets recovery link; and
   - the currency choices are exactly CAD plus destination currency, deduped.
 
-- [ ] **Step 4: Implement filtered Asset workflow**
+- [x] **Step 4: Implement filtered Asset workflow**
 
   Filter before rendering options. Never send a known currency mismatch. Add a
   link to `/ledger?segment=assets`; update `LedgerScreen` to respect this query
   parameter only if not already supported.
 
-- [ ] **Step 5: Add inline Trip title editing**
+- [x] **Step 5: Add inline Trip title editing**
 
   Use `EditableTitle` with `saveTrip`, preserving all non-title Trip fields and
   the loaded revision. Keep the existing full Edit control for destination
   setup.
 
-- [ ] **Step 6: Verify CAD and foreign expenses live**
+- [x] **Step 6: Verify CAD and foreign expenses live**
 
   For a GBP Trip with CAD and GBP Assets:
 
@@ -958,7 +958,7 @@ Testing Library, pgTAP-style SQL tests, Vite 8.
   - verify changing currency after foreign spending retains the existing
     server lock.
 
-- [ ] **Step 7: Run full checks, update handoff, commit, and stop**
+- [x] **Step 7: Run full checks, update handoff, commit, and stop**
 
   Commit:
 
