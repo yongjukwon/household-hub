@@ -7,8 +7,9 @@
 **Implementation branch:** `codex/household-hub-mobile-first`
 
 **Implementation worktree:** `/Users/conlegs/dev/household-hub/.worktrees/household-hub-mobile-first`
-**Current HEAD:** `e173e07 feat: add auth policy and OAuth/test-password entry points`
-**Last review-clean baseline:** `d1f3e30` (Tasks 1–2). Task 3 in progress on top (3A + 3B code complete).
+**Current HEAD:** `1231941 feat: add notification delivery tables and job RPCs`
+**Last review-clean baseline:** `d1f3e30` (Tasks 1–2). Task 3 in progress on top
+(3A + 3B complete, 3C database layer complete, 3C Edge Functions in progress).
 
 This file is the source of truth for continuing the approved web-first
 Household Hub rebuild. Current Git state and fresh verification results take
@@ -45,8 +46,9 @@ precedence if this file ever becomes stale.
    - `docs/mobile-implementation-handoff.md`
    - the still-untracked files under `mobile/`
 
-5. Resume at **Task 3C** (Edge Functions). Do not redo Tasks 1, 2, 3A, or 3B —
-   all committed and verified (see the Task 3 progress section below).
+5. Resume at **Task 3C Edge Functions** (`supabase/functions/`). Do not redo
+   Tasks 1, 2, 3A, 3B, or the 3C database layer — all committed and verified
+   (see the Task 3 progress section below).
 
 6. **User directive (2026-07-25):** work straight through **3C → 3D** to finish
    Task 3, then **proceed into Task 4** — the user has pre-approved starting
@@ -549,12 +551,54 @@ the password path). Web helpers (`src/lib/auth.ts`): `signInWithOAuth`
 **Deferred to 3D:** `config.toml` external-provider wiring + `.env` templates
 (kept with the other config changes so local `db reset`/`start` stays stable).
 
-### Remaining Task 3 sub-checkpoints (not started)
+### Done: 3C DB layer (`1231941`)
 
-- **3C Edge Functions** — invite-admin (incl. redemption + account deletion),
-  push-dispatch, calendar-reminder-scheduler (all-day → 09:00 event tz),
-  recurring-transfer-executor, notification-cleanup (90-day); partner-only
-  calendar activity notifications; Deno unit tests on extracted pure logic.
+`supabase/migrations/20260725014000_notifications_devices_and_jobs.sql`:
+
+- **Tables** — `notification_devices` (Expo token per user+install, platform,
+  `disabled_at`, `failure_count`), `calendar_reminder_dispatches` (unique on
+  `(event_id, preset, occurrence_start)` → re-timing an event re-fires its
+  reminder; a retried scheduler run does not), `notification_push_deliveries`
+  (unique on `(notification_id, device_row_id)`). Client DML revoked; only
+  `notification_devices` is client-readable (own rows), the two job ledgers are
+  not readable at all.
+- **Partner-only Calendar activity** — trigger on `household_change_log`
+  (written last in `apply_household_operation`, after the receipt, so the actor
+  is available). Kinds `calendar.event.created|updated|deleted`, recipients =
+  members other than the actor. Deleted events carry `title: null` (the row is
+  already gone) but keep `entityId` for the deep link.
+- **Authenticated RPCs** — `register_notification_device` (reclaims a token
+  Expo reissued to another install so delivery can't strand on a stale row),
+  `unregister_notification_device`, `update_user_settings` (appearance +
+  notifications_enabled; profile DML stays revoked).
+- **Service-role job contract** — `job_calendar_reminder_candidates`,
+  `job_record_calendar_reminder` (reminders go to *every* member, unlike
+  activity), `job_pending_push_notifications` (skips opted-out recipients,
+  disabled devices, and already-delivered pairs), `job_record_push_delivery`,
+  `job_disable_notification_device`, `job_active_transfer_schedules`,
+  `job_execute_transfer_occurrence` (balanced postings mirroring
+  `ledger.transfer.upsert` legs; idempotent on `(schedule_id,
+  occurrence_date)`; negative-balance warning without blocking),
+  `job_cleanup_read_notifications`, `admin_prepare_account_deletion`.
+- **Account deletion** — owner+partner → `must_transfer_ownership`; sole owner
+  → household deleted with the account; non-owner → leaves and their authored
+  rows are reassigned to the owner via `mobile_reassign_authorship` (every
+  `created_by`/`recorded_by` is ON DELETE RESTRICT, legacy page tables
+  included, so `auth.users` deletion is otherwise blocked). The Edge Function
+  removes the `auth.users` row afterwards.
+- **Removed-member cleanup** — trigger on `household_members` delete drops that
+  user's devices and inbox rows for the household.
+
+Verified: `supabase db reset --local` clean; `supabase test db --local`
+4 files / **292 tests pass** (89 new); `supabase db lint` no errors.
+
+### Remaining Task 3 sub-checkpoints
+
+- **3C Edge Functions (in progress)** — household-admin (incl. redemption +
+  account deletion), push-dispatch, calendar-reminder-scheduler (all-day →
+  09:00 event tz), recurring-transfer-executor, notification-cleanup (90-day);
+  Deno unit tests on extracted pure logic (timezone resolution, reminder fire
+  times, schedule occurrence enumeration, Expo push batching/ticket handling).
 - **3D config/deploy** — `config.toml` `[functions]`, `.env.example`, seed
   fixtures, regenerated `src/types/database.ts`, `vercel.json`, Expo
   `app.json` (`householdhub://`, `com.conlegs.householdhub`, portrait-only),
