@@ -26,6 +26,7 @@ describe('domain scalar validation', () => {
 
   it('requires uppercase three-letter currency codes', () => {
     expect(isCurrencyCode('CAD')).toBe(true)
+    expect(isCurrencyCode('ZZZ')).toBe(false)
     expect(isCurrencyCode('cad')).toBe(false)
     expect(isCurrencyCode('US')).toBe(false)
   })

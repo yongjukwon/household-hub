@@ -38,5 +38,13 @@ describe('calendar time contracts', () => {
         timeZone: 'Not/A_Zone',
       }),
     ).toBe(false)
+    expect(
+      isCalendarTime({
+        kind: 'timed',
+        startsAt: '2026-02-30T12:00:00.000Z',
+        endsAt: '2026-02-30T13:00:00.000Z',
+        timeZone: 'America/Vancouver',
+      }),
+    ).toBe(false)
   })
 })

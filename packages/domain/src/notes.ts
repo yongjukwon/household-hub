@@ -2,7 +2,7 @@ import { isRecord } from './validation'
 
 export type RichNoteDocument = {
   type: 'doc'
-  content?: RichNoteNode[]
+  content: RichNoteNode[]
 }
 
 export type RichNoteNode = {
@@ -20,19 +20,27 @@ export function isRichNoteJson(value: unknown): value is RichNoteDocument {
 function isNode(value: unknown, expectedType?: string): value is RichNoteNode {
   if (!isRecord(value) || typeof value.type !== 'string') return false
   if (expectedType && value.type !== expectedType) return false
-  if ('marks' in value || !hasOnlyNodeFields(value)) return false
+  if ('marks' in value) return false
 
   switch (value.type) {
     case 'doc':
-      return isContent(value.content, isBlockNode)
+      return hasOnlyKeys(value, ['type', 'content']) && isContent(value.content, isBlockNode)
     case 'paragraph':
-      return value.content === undefined || isContent(value.content, isInlineNode)
+      return (
+        hasOnlyKeys(value, ['type', 'content']) &&
+        (value.content === undefined || isContent(value.content, isInlineNode))
+      )
     case 'text':
-      return typeof value.text === 'string' && value.text.length > 0
+      return (
+        hasOnlyKeys(value, ['type', 'text']) &&
+        typeof value.text === 'string' &&
+        value.text.length > 0
+      )
     case 'hardBreak':
-      return true
+      return hasOnlyKeys(value, ['type'])
     case 'heading':
       return (
+        hasOnlyKeys(value, ['type', 'attrs', 'content']) &&
         isRecord(value.attrs) &&
         hasOnlyKeys(value.attrs, ['level']) &&
         (value.attrs.level === 1 || value.attrs.level === 2 || value.attrs.level === 3) &&
@@ -40,16 +48,23 @@ function isNode(value: unknown, expectedType?: string): value is RichNoteNode {
       )
     case 'bulletList':
     case 'orderedList':
-      return isContent(value.content, (node) => isNode(node, 'listItem'))
+      return (
+        hasOnlyKeys(value, ['type', 'content']) &&
+        isContent(value.content, (node) => isNode(node, 'listItem'))
+      )
     case 'taskList':
-      return isContent(value.content, (node) => isNode(node, 'taskItem'))
+      return (
+        hasOnlyKeys(value, ['type', 'content']) &&
+        isContent(value.content, (node) => isNode(node, 'taskItem'))
+      )
     case 'listItem':
+      return hasOnlyKeys(value, ['type', 'content']) && isContent(value.content, isListItemChild)
     case 'taskItem':
       return (
-        (value.type !== 'taskItem' ||
-          (isRecord(value.attrs) &&
-            hasOnlyKeys(value.attrs, ['checked']) &&
-            typeof value.attrs.checked === 'boolean')) &&
+        hasOnlyKeys(value, ['type', 'attrs', 'content']) &&
+        isRecord(value.attrs) &&
+        hasOnlyKeys(value.attrs, ['checked']) &&
+        typeof value.attrs.checked === 'boolean' &&
         isContent(value.content, isListItemChild)
       )
     default:
@@ -80,10 +95,6 @@ function isBlockNode(node: unknown): boolean {
 
 function isListItemChild(node: unknown): boolean {
   return isBlockNode(node)
-}
-
-function hasOnlyNodeFields(value: Record<string, unknown>): boolean {
-  return hasOnlyKeys(value, ['type', 'attrs', 'content', 'text'])
 }
 
 function hasOnlyKeys(value: Record<string, unknown>, allowed: string[]): boolean {

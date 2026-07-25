@@ -18,8 +18,17 @@ export const operationTypes = [
   'grocery.item.delete',
   'ledger.asset.upsert',
   'ledger.asset.delete',
+  'ledger.year.clear',
+  'ledger.category.upsert',
+  'ledger.category.delete',
+  'ledger.limit.upsert',
+  'ledger.limit.delete',
   'ledger.transaction.upsert',
   'ledger.transaction.delete',
+  'ledger.transfer.upsert',
+  'ledger.transfer.delete',
+  'ledger.schedule.upsert',
+  'ledger.schedule.delete',
   'note.upsert',
   'note.delete',
   'trip.upsert',
@@ -57,6 +66,8 @@ export type OperationWarning = NegativeAssetBalanceWarning
 export type ConflictWinner = {
   operationId: UUID
   type: OperationType
+  entityType: string
+  entityId: UUID
   appliedAt: string
 }
 
@@ -77,8 +88,8 @@ export type OperationResult =
       status: 'conflict'
       operationId: UUID
       reason: string
-      currentRevision?: Revision
-      winner?: ConflictWinner
+      currentRevision: Revision
+      winner: ConflictWinner
     }
 
 export function isOperationType(value: unknown): value is OperationType {
@@ -119,8 +130,8 @@ export function isOperationResult(value: unknown): value is OperationResult {
       return (
         typeof value.reason === 'string' &&
         value.reason.trim().length > 0 &&
-        isOptional(value.currentRevision, isRevision) &&
-        isOptional(value.winner, isConflictWinner)
+        isRevision(value.currentRevision) &&
+        isConflictWinner(value.winner)
       )
     default:
       return false
@@ -141,6 +152,9 @@ function isConflictWinner(value: unknown): value is ConflictWinner {
     isRecord(value) &&
     isUuid(value.operationId) &&
     isOperationType(value.type) &&
+    typeof value.entityType === 'string' &&
+    value.entityType.trim().length > 0 &&
+    isUuid(value.entityId) &&
     isIsoDateTime(value.appliedAt)
   )
 }

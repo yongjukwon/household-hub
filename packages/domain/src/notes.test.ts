@@ -48,5 +48,24 @@ describe('isRichNoteJson', () => {
         content: [{ type: 'heading', attrs: { level: 4 } }],
       }),
     ).toBe(false)
+    expect(
+      isRichNoteJson({
+        type: 'doc',
+        content: [
+          {
+            type: 'paragraph',
+            content: [
+              {
+                type: 'text',
+                text: 'not allowed',
+                attrs: { arbitrary: true },
+                content: [],
+              },
+            ],
+          },
+        ],
+      }),
+    ).toBe(false)
+    expect(isRichNoteJson({ type: 'doc' })).toBe(false)
   })
 })

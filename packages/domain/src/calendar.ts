@@ -1,4 +1,4 @@
-import { type TimeZone, isRecord, isTimeZone } from './validation'
+import { type TimeZone, isIsoDateTime, isRecord, isTimeZone } from './validation'
 
 export type TimedCalendarTime = {
   kind: 'timed'
@@ -55,11 +55,7 @@ export function isCalendarTime(value: unknown): value is CalendarTime {
 }
 
 function isUtcInstant(value: unknown): value is string {
-  return (
-    typeof value === 'string' &&
-    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(value) &&
-    !Number.isNaN(Date.parse(value))
-  )
+  return typeof value === 'string' && value.endsWith('Z') && isIsoDateTime(value)
 }
 
 function isDateOnly(value: unknown): value is string {

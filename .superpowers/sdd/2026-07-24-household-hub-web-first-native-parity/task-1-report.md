@@ -69,3 +69,62 @@ Each test file was written and executed before its production module existed.
   no dependency remediation was performed in this scoped contracts task.
 - The existing production build retains Vite's large-chunk warning. This task
   does not touch web route bundling.
+
+## Fix round 1 — review findings
+
+### Implementation summary
+
+- Committed the Expo entry point, its imported `App.tsx`, and `tsconfig.json`,
+  so `mobile/package.json` can typecheck from a clean checkout without relying
+  on untracked scaffold files.
+- Expanded the operation allowlist for Ledger years, categories, limits,
+  transfers, and recurring schedules. Conflicts now require an affected
+  revision and a winner that identifies its action and entity.
+- Replaced currency-shape validation with an ISO 4217 code set and made trip
+  input/output types use the shared `CurrencyCode` and `Cents` contracts.
+- Reused strict ISO datetime validation for timed Calendar UTC instants and
+  tightened note-node keys so each allowed node accepts only its valid fields.
+  `RichNoteDocument.content` is now required to agree with the guard.
+
+### Focused RED/GREEN evidence
+
+- RED: `npm test -- --run packages/domain/src/operations.test.ts packages/domain/src/validation.test.ts packages/domain/src/calendar.test.ts packages/domain/src/notes.test.ts packages/domain/src/trips.test.ts`
+  failed with 6 expected assertions: missing Ledger operations, incomplete
+  conflicts accepted, `ZZZ` accepted, impossible timed dates accepted, invalid
+  text-node fields accepted, and no trip amount guard.
+- GREEN: the same command passed: 5 files, 17 tests.
+
+### Commands and results
+
+- `npx tsc -p packages/domain/tsconfig.json --noEmit` — passed.
+- `npx tsc -p mobile/tsconfig.json --noEmit` — passed using the tracked Expo
+  entrypoint/App/config files.
+- `npm test -- --run | tail -n 16` — passed: 34 files, 214 tests.
+- `npm run lint` — passed.
+- `npm run build` — passed.
+- `git diff --check` — passed.
+
+### Files changed
+
+- `mobile/index.ts`, `mobile/App.tsx`, and `mobile/tsconfig.json`.
+- `packages/domain/src/{validation,operations,calendar,notes,trips}.ts` and
+  their focused test files.
+- This report.
+
+### Self-review
+
+- Verified the additional Ledger operations are still bounded by an explicit
+  allowlist and retain the same command metadata validation.
+- Verified a conflict with only a reason is rejected, while a conflict naming
+  the winning operation, entity, and current revision is accepted.
+- Verified `ZZZ`, fractional cents, impossible timed dates, and text-node
+  `attrs`/`content` are rejected.
+- Verified only the minimum requested Expo scaffold files were added; later
+  native feature work remains out of scope.
+
+### Concerns
+
+- The ISO code set is intentionally explicit for deterministic web/native
+  validation and should be reviewed when ISO 4217 changes.
+- Existing dependency-vulnerability and web bundle-size warnings remain out of
+  scope for this contracts fix.
