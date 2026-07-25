@@ -7,10 +7,10 @@
 **Implementation branch:** `codex/household-hub-mobile-first`
 
 **Implementation worktree:** `/Users/conlegs/dev/household-hub/.worktrees/household-hub-mobile-first`
-**Current HEAD:** `b75e9e1 feat: Calendar feature flow (Task 6A)`
+**Current HEAD:** `<pending 6B commit>` feat: Groceries feature flow (Task 6B)
 **Last review-clean baseline:** `d1f3e30` (Tasks 1–2, independent review).
 Tasks 3, 4, and 5 are complete (self-reviewed). Task 6 is **in progress**:
-6A (Calendar) done; 6B–6F pending.
+6A (Calendar) and 6B (Groceries) done; 6C–6F pending.
 
 This file is the source of truth for continuing the approved web-first
 Household Hub rebuild. Current Git state and fresh verification results take
@@ -82,7 +82,7 @@ precedence if this file ever becomes stale.
 | 3. Identity, notifications, jobs, deployment config | Complete | Verified at `24a5b39` (self-review; no independent review agent) |
 | 4. Durable web operation queue | Complete | Verified at `f86f4c0`; its UI surface lands with Task 5 |
 | 5. Responsive web shell and visual system | Complete | Verified at `626c681` (self-review) |
-| 6. Web feature flows | In progress | 6A Calendar done; 6B–6F pending |
+| 6. Web feature flows | In progress | 6A/6B done; 6C–6F pending |
 | 7. Expo foundation and offline data layer | Pending | Not started |
 | 8. Expo feature parity and visual implementation | Pending | Not started |
 | 9. Reset procedure, E2E verification, release handoff | Pending | Not started |
@@ -105,7 +105,18 @@ implement → affected suite → commit → this file):
   selected-day list, `?event=<id>` notification deep link). Route wired in
   `src/App.tsx`. `src/features/household.ts` shared household accessor.
   **Verification:** `npx vitest run` **308 passed** (48 files; +29 vs Task 5),
-  lint clean, build clean. Next: 6B Groceries.
+  lint clean, build clean.
+- **6B — Groceries (done).** `src/features/groceries/`: `data.ts` (list index
+  + list detail reads with price history joined; `latestPriceByName`,
+  `normalizeItemName`); `mutations.ts` (list/item upsert+delete, toggle-checked,
+  clear-checked = one delete command per checked item); `GroceriesScreen`
+  (list index + create-list sheet), `GroceryListScreen` (add-item row with CAD
+  price, unchecked/checked split, per-item edit `ItemSheet`, price recall from
+  history, clear-checked + delete-list confirms), routes `/groceries` and
+  `/groceries/:listId`. Shared `src/features/moneyInput.ts`
+  (`parseDollarsToCents`/`centsToInputValue`, integer-cents boundary, reused by
+  Ledger/Trips). **Verification:** `npx vitest run` **324 passed** (51 files;
+  +16), lint clean, build clean. Next: 6C Ledger.
 
 ## Task 5 — responsive web shell + visual system (complete)
 

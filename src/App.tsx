@@ -9,6 +9,8 @@ import { RequireAuth } from '@/components/auth/RequireAuth'
 import { AppShell } from '@/shell/AppShell'
 import { PlaceholderScreen } from '@/shell/PlaceholderScreen'
 import { CalendarScreen } from '@/features/calendar/CalendarScreen'
+import { GroceriesScreen } from '@/features/groceries/GroceriesScreen'
+import { GroceryListScreen } from '@/features/groceries/GroceryListScreen'
 import { SettingsScreen } from '@/screens/SettingsScreen'
 import { setupQueryPersistence } from '@/lib/offline/queryPersister'
 import LoginPage from '@/routes/LoginPage'
@@ -40,7 +42,8 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/calendar" replace /> },
       { path: '/calendar', element: <CalendarScreen /> },
-      { path: '/groceries', element: <PlaceholderScreen title="Groceries" /> },
+      { path: '/groceries', element: <GroceriesScreen /> },
+      { path: '/groceries/:listId', element: <GroceryListScreen /> },
       { path: '/ledger', element: <PlaceholderScreen title="Ledger" /> },
       { path: '/notes', element: <PlaceholderScreen title="Notes" /> },
       { path: '/trips', element: <PlaceholderScreen title="Trips" /> },
