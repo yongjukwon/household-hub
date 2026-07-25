@@ -6,6 +6,7 @@ export const mockSignInWithPassword = vi.fn()
 export const mockSignOut = vi.fn()
 export const mockFrom = vi.fn()
 export const mockChannel = vi.fn()
+export const mockRpc = vi.fn()
 export const mockRemoveChannel = vi.fn()
 
 // One realtime channel mock per supabase.channel() call: chainable .on()
@@ -96,6 +97,7 @@ export const supabase = {
     signOut: mockSignOut,
   },
   from: mockFrom,
+  rpc: mockRpc,
   channel: mockChannel,
   removeChannel: mockRemoveChannel,
 }
@@ -108,6 +110,7 @@ export function resetSupabaseMocks() {
   mockSignInWithPassword.mockReset()
   mockSignOut.mockReset().mockResolvedValue({ error: null })
   mockFrom.mockReset()
+  mockRpc.mockReset().mockResolvedValue({ data: null, error: null })
   mockChannel.mockReset().mockImplementation(makeChannelMock)
   mockRemoveChannel.mockReset()
 }

@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Outlet, useLocation } from 'react-router-dom'
+import { setOperationQueryClient, startOperationSync } from '@/lib/operations'
 import {
   retryFailedWrites,
   startSyncManager,
@@ -16,6 +18,18 @@ export function AppShell() {
   // The outbox flushes while any signed-in screen is open: on mount, when
   // connectivity returns, and on a periodic fallback timer.
   useEffect(() => startSyncManager(), [])
+
+  // The durable operation queue (the rebuilt clients' only write path) runs
+  // beside it until Task 6 retires the legacy outbox with the legacy screens.
+  const queryClient = useQueryClient()
+  useEffect(() => {
+    setOperationQueryClient(queryClient)
+    const stop = startOperationSync()
+    return () => {
+      stop()
+      setOperationQueryClient(null)
+    }
+  }, [queryClient])
 
   return (
     <div className="min-h-svh bg-[var(--canvas)] text-[var(--text)] md:flex">
