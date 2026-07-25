@@ -7,9 +7,9 @@
 **Implementation branch:** `codex/household-hub-mobile-first`
 
 **Implementation worktree:** `/Users/conlegs/dev/household-hub/.worktrees/household-hub-mobile-first`
-**Current HEAD:** `f86f4c0 test: cover two-device ordering through the queue`
+**Current HEAD:** `626c681 feat: shared shell components and queue-backed state surfaces`
 **Last review-clean baseline:** `d1f3e30` (Tasks 1–2, independent review).
-Tasks 3 and 4 are complete (self-reviewed); Task 5 is next.
+Tasks 3, 4, and 5 are complete (self-reviewed); Task 6 is next.
 
 This file is the source of truth for continuing the approved web-first
 Household Hub rebuild. Current Git state and fresh verification results take
@@ -48,14 +48,15 @@ precedence if this file ever becomes stale.
    - `docs/mobile-implementation-handoff.md`
    - the still-untracked files under `mobile/`
 
-5. Resume at **Task 5 (responsive web shell and visual system)**. Tasks 1–4
-   are complete, committed, and verified — do not redo them.
+5. Resume at **Task 6 (web feature flows)**. Tasks 1–5 are complete,
+   committed, and verified — do not redo them. Task 6 fills the placeholder
+   screens (`src/shell/PlaceholderScreen.tsx` routes in `src/App.tsx`) with
+   real feature flows and retires the unrouted legacy page screens.
 
-6. **Task 5 is next** and is driven by the design reference in
-   `docs/mobile-design-reference/`. Per-task checkpoint discipline applies:
-   commit + verify each sub-checkpoint, and report at the task boundary.
-   (Tasks 3-4 are complete; the earlier Task 3→4 pre-approval directive no
-   longer applies.)
+6. **Task 6 is next** (web feature flows), also driven by
+   `docs/mobile-design-reference/`. Update `progress.md` at **every
+   sub-checkpoint** (HEAD, commit, verification, resume point), not only at
+   task boundaries — per the user's directive.
 
 ## Approved product direction
 
@@ -79,12 +80,39 @@ precedence if this file ever becomes stale.
 | 2. Supabase schema and operation RPC | Complete | Review-clean at `d1f3e30` |
 | 3. Identity, notifications, jobs, deployment config | Complete | Verified at `24a5b39` (self-review; no independent review agent) |
 | 4. Durable web operation queue | Complete | Verified at `f86f4c0`; its UI surface lands with Task 5 |
-| 5. Responsive web shell and visual system | Pending | Not started |
+| 5. Responsive web shell and visual system | Complete | Verified at `626c681` (self-review) |
 | 6. Web feature flows | Pending | Not started |
 | 7. Expo foundation and offline data layer | Pending | Not started |
 | 8. Expo feature parity and visual implementation | Pending | Not started |
 | 9. Reset procedure, E2E verification, release handoff | Pending | Not started |
 
+
+## Task 5 — responsive web shell + visual system (complete)
+
+Built beside the legacy Swiss theme; legacy page screens stay **unrouted** in
+the tree until Task 6 retires them. Sub-checkpoints (each committed + verified):
+
+- **d452fa3** — `src/styles/theme.css` semantic `--hh-*` tokens (design
+  reference: canvas `#EFEFF2`, ink `#14151A`, accent `#FF7A45`, data palette,
+  card radii/shadows) + light/system-dark/forced-dark; `src/lib/appearance.ts`
+  Light/Dark/System (`data-appearance` on `<html>`, persisted, applied on boot).
+- **37b60dc** — `src/shell/AppShell.tsx`: persistent header (rabbit/penguin
+  mark + Notifications/Settings header icons), phone floating 5-tab bar,
+  desktop left pane; Heroicons. Routes `/calendar` (default; `/` and unknown →
+  redirect), `/groceries`, `/ledger`, `/notes`, `/trips`, `/notifications`,
+  `/settings`. Placeholder screens; Settings is real (appearance/account/sign
+  out).
+- **626c681** — `src/shell/ui/`: `Card`, `SegmentedControl`, `BottomSheet`,
+  destructive `ConfirmDialog` (Radix), `Loading/Empty/Error` states, and
+  `SyncStatus` (surfaces the Task 4 queue: pending pill + per-discard conflict
+  cards via `explainDiscard`).
+
+**Verification at `626c681`** (arm64 node): `npx vitest run` 44 files /
+**279 passed**; `npm run lint` clean; `npm run build` clean. Responsive is via
+Tailwind `md:` breakpoints; visual/responsive **screenshot** tests are deferred
+to Task 9's Playwright setup (per the plan). Not independently reviewed
+(session directive: no subagents); `/code-review` remains the pre-merge
+follow-up.
 
 ## Environment, constraints & risks (condensed)
 
