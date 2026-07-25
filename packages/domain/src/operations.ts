@@ -18,6 +18,7 @@ export const operationTypes = [
   'grocery.item.delete',
   'ledger.asset.upsert',
   'ledger.asset.delete',
+  'ledger.year.upsert',
   'ledger.year.clear',
   'ledger.category.upsert',
   'ledger.category.delete',
@@ -78,6 +79,7 @@ export type OperationResult =
       serverSequence: number
       entityRevision?: Revision
       warning?: OperationWarning
+      details?: Record<string, unknown>
     }
   | {
       status: 'duplicate'
@@ -90,6 +92,14 @@ export type OperationResult =
       reason: string
       currentRevision: Revision
       winner: ConflictWinner
+    }
+  | {
+      status: 'rejected'
+      operationId: UUID
+      code: string
+      reason: string
+      details: Record<string, unknown>
+      warnings: OperationWarning[]
     }
 
 export function isOperationType(value: unknown): value is OperationType {
@@ -122,7 +132,8 @@ export function isOperationResult(value: unknown): value is OperationResult {
       return (
         isNonnegativeSafeInteger(value.serverSequence) &&
         isOptional(value.entityRevision, isRevision) &&
-        isOptional(value.warning, isOperationWarning)
+        isOptional(value.warning, isOperationWarning) &&
+        isOptional(value.details, isRecord)
       )
     case 'duplicate':
       return isNonnegativeSafeInteger(value.serverSequence)
@@ -132,6 +143,16 @@ export function isOperationResult(value: unknown): value is OperationResult {
         value.reason.trim().length > 0 &&
         isRevision(value.currentRevision) &&
         isConflictWinner(value.winner)
+      )
+    case 'rejected':
+      return (
+        typeof value.code === 'string' &&
+        value.code.trim().length > 0 &&
+        typeof value.reason === 'string' &&
+        value.reason.trim().length > 0 &&
+        isRecord(value.details) &&
+        Array.isArray(value.warnings) &&
+        value.warnings.every(isOperationWarning)
       )
     default:
       return false

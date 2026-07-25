@@ -39,6 +39,7 @@ describe('operation contracts', () => {
 
   it('allows every required Ledger write family', () => {
     for (const type of [
+      'ledger.year.upsert',
       'ledger.year.clear',
       'ledger.category.upsert',
       'ledger.limit.upsert',
@@ -77,6 +78,52 @@ describe('operation contracts', () => {
         },
       }),
     ).toBe(true)
+  })
+
+  it('accepts applied results with structured operation details', () => {
+    expect(
+      isOperationResult({
+        status: 'applied',
+        operationId: uuid,
+        serverSequence: 10,
+        entityRevision: 2,
+        details: {
+          detachedTripExpenseCount: 1,
+          detachedTripExpenseIds: ['550e8400-e29b-41d4-a716-446655440004'],
+        },
+      }),
+    ).toBe(true)
+    expect(
+      isOperationResult({
+        status: 'applied',
+        operationId: uuid,
+        serverSequence: 10,
+        details: [],
+      }),
+    ).toBe(false)
+  })
+
+  it('requires rejected results to explain the failure with structured details', () => {
+    expect(
+      isOperationResult({
+        status: 'rejected',
+        operationId: uuid,
+        code: 'category_has_spending',
+        reason: 'Category has spending in selected or later months',
+        details: { blockingMonths: ['04'] },
+        warnings: [],
+      }),
+    ).toBe(true)
+    expect(
+      isOperationResult({
+        status: 'rejected',
+        operationId: uuid,
+        code: '',
+        reason: '',
+        details: [],
+        warnings: {},
+      }),
+    ).toBe(false)
   })
 
   it('requires detailed conflict results with the winning action and affected revision', () => {
