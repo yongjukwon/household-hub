@@ -119,7 +119,7 @@ create policy "calendar events read"
   on public.calendar_events for select
   using (public.is_household_member(household_id));
 
-revoke insert, update, delete on table
+revoke insert, update, delete, truncate on table
   public.profiles,
   public.household_invites,
   public.ledger_assets,
@@ -145,6 +145,11 @@ revoke insert, update, delete on table
   public.household_entity_revisions,
   public.household_tombstones,
   public.household_change_log
+from authenticated, anon;
+
+revoke truncate on table
+  public.households,
+  public.household_members
 from authenticated, anon;
 
 grant select on table
@@ -203,6 +208,9 @@ revoke execute on function public.mobile_asset_balance(uuid)
   from public, anon, authenticated;
 revoke execute on function public.mobile_add_posting(
   uuid, uuid, uuid, text, uuid, text, bigint, timestamptz
+) from public, anon, authenticated;
+revoke execute on function public.mobile_record_cascade_deletion(
+  uuid, text, uuid, bigint, uuid, text, text, uuid, timestamptz
 ) from public, anon, authenticated;
 revoke execute on function public.mobile_ensure_ledger_year(
   uuid, integer, uuid, uuid, text, text, uuid, timestamptz

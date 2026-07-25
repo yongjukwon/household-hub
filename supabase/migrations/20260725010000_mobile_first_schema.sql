@@ -462,7 +462,7 @@ alter table public.calendar_events
       not all_day
       and start_at is not null
       and end_at is not null
-      and end_at > start_at
+      and end_at >= start_at
       and start_date is null
       and end_date is null
     )

@@ -431,6 +431,86 @@ begin
 end;
 $$;
 
+create or replace function public.mobile_record_cascade_deletion(
+  target_household_id uuid,
+  target_entity_type text,
+  target_entity_id uuid,
+  source_revision bigint,
+  target_operation_id uuid,
+  winning_operation_type text,
+  winning_entity_type text,
+  winning_entity_id uuid,
+  target_applied_at timestamptz
+)
+returns void
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  deleted_revision bigint;
+begin
+  insert into public.household_entity_revisions (
+    household_id,
+    entity_type,
+    entity_id,
+    revision,
+    deleted,
+    last_operation_id,
+    winner_type,
+    winner_entity_type,
+    winner_entity_id,
+    applied_at
+  )
+  values (
+    target_household_id,
+    target_entity_type,
+    target_entity_id,
+    source_revision + 1,
+    true,
+    target_operation_id,
+    winning_operation_type,
+    winning_entity_type,
+    winning_entity_id,
+    target_applied_at
+  )
+  on conflict on constraint household_entity_revisions_pkey do update
+  set
+    revision = household_entity_revisions.revision + 1,
+    deleted = true,
+    last_operation_id = excluded.last_operation_id,
+    winner_type = excluded.winner_type,
+    winner_entity_type = excluded.winner_entity_type,
+    winner_entity_id = excluded.winner_entity_id,
+    applied_at = excluded.applied_at
+  returning revision into deleted_revision;
+
+  insert into public.household_tombstones (
+    household_id,
+    entity_type,
+    entity_id,
+    revision,
+    operation_id,
+    deleted_at
+  )
+  values (
+    target_household_id,
+    target_entity_type,
+    target_entity_id,
+    deleted_revision,
+    target_operation_id,
+    target_applied_at
+  )
+  on conflict on constraint
+    household_tombstones_household_id_entity_type_entity_id_key
+  do update
+  set
+    revision = excluded.revision,
+    operation_id = excluded.operation_id,
+    deleted_at = excluded.deleted_at;
+end;
+$$;
+
 create or replace function public.mobile_ensure_ledger_year(
   target_household_id uuid,
   target_year integer,
@@ -663,6 +743,8 @@ set search_path = pg_catalog, public
 as $$
 declare
   reminder jsonb;
+  reminder_preset text;
+  seen_reminders text[] := array[]::text[];
 begin
   if jsonb_typeof(payload) <> 'object' then
     return false;
@@ -740,12 +822,16 @@ begin
 
       for reminder in select value from jsonb_array_elements(payload->'reminders')
       loop
+        reminder_preset := trim(both '"' from reminder::text);
         if jsonb_typeof(reminder) <> 'string'
-           or trim(both '"' from reminder::text) not in (
+           or reminder_preset not in (
              'at_time','10m','1h','1d','1w'
-           ) then
+           )
+           or reminder_preset = any(seen_reminders)
+        then
           return false;
         end if;
+        seen_reminders := array_append(seen_reminders, reminder_preset);
       end loop;
       return true;
 
@@ -1193,6 +1279,19 @@ begin
   from public.households h
   where h.id = household_id
   for update;
+
+  -- Hold the authorization row through commit so removal cannot race the
+  -- SECURITY DEFINER mutation after this recheck.
+  perform 1
+  from public.household_members hm
+  where hm.household_id = household_id
+    and hm.user_id = actor_id
+  for key share;
+
+  if not found then
+    raise insufficient_privilege
+      using message = 'caller is not a member of the household';
+  end if;
 
   command_hash := extensions.digest(command::text, 'sha256');
 
@@ -1852,6 +1951,46 @@ begin
           'Ledger year does not match the target'
         );
       end if;
+
+      for related_row in
+        select
+          'ledger_category'::text as entity_type,
+          lc.id as entity_id,
+          lc.revision as source_revision
+        from public.ledger_categories lc
+        where lc.year_id = entity_id
+          and lc.household_id = household_id
+        union all
+        select
+          'ledger_limit',
+          lml.limit_entity_id,
+          max(lml.revision)
+        from public.ledger_month_limits lml
+        join public.ledger_months lm on lm.id = lml.month_id
+        where lm.year_id = entity_id
+          and lml.household_id = household_id
+        group by lml.limit_entity_id
+        union all
+        select
+          'ledger_transaction',
+          lt.id,
+          lt.revision
+        from public.ledger_transactions lt
+        where lt.year_id = entity_id
+          and lt.household_id = household_id
+      loop
+        perform public.mobile_record_cascade_deletion(
+          household_id,
+          related_row.entity_type,
+          related_row.entity_id,
+          related_row.source_revision,
+          operation_id,
+          operation_type,
+          entity_type,
+          entity_id,
+          applied_at
+        );
+      end loop;
 
       select
         count(*)::integer,
@@ -2657,6 +2796,40 @@ begin
           old_row.amount_cents,
           applied_at
         );
+
+        perform public.mobile_record_cascade_deletion(
+          household_id,
+          'trip_expense',
+          old_row.id,
+          old_row.revision,
+          operation_id,
+          operation_type,
+          entity_type,
+          entity_id,
+          applied_at
+        );
+
+        if old_row.ledger_transaction_id is not null then
+          select *
+          into related_row
+          from public.ledger_transactions lt
+          where lt.id = old_row.ledger_transaction_id
+            and lt.household_id = household_id;
+
+          if found then
+            perform public.mobile_record_cascade_deletion(
+              household_id,
+              'ledger_transaction',
+              related_row.id,
+              related_row.revision,
+              operation_id,
+              operation_type,
+              entity_type,
+              entity_id,
+              applied_at
+            );
+          end if;
+        end if;
       end loop;
       update public.trip_expenses
       set ledger_transaction_id = null

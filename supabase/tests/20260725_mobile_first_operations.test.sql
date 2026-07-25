@@ -251,9 +251,57 @@ select is(
     where has_table_privilege('authenticated', 'public.' || table_name, 'INSERT')
        or has_table_privilege('authenticated', 'public.' || table_name, 'UPDATE')
        or has_table_privilege('authenticated', 'public.' || table_name, 'DELETE')
+       or has_table_privilege('authenticated', 'public.' || table_name, 'TRUNCATE')
   ),
   0,
-  'authenticated clients have no direct write grant on mobile-first state'
+  'authenticated clients have no direct write or truncate grant'
+);
+
+select is(
+  (
+    select count(*)::integer
+    from unnest(array['households', 'household_members'])
+      as tenant_table(table_name)
+    where has_table_privilege(
+      'authenticated',
+      'public.' || table_name,
+      'TRUNCATE'
+    )
+  ),
+  0,
+  'authenticated clients cannot truncate the extended tenancy tables'
+);
+
+select set_config(
+  'request.jwt.claim.sub',
+  '00000000-0000-4000-8000-000000000001',
+  true
+);
+
+select lives_ok(
+  $$
+    insert into public.calendar_events (
+      id,
+      household_id,
+      created_by,
+      title,
+      all_day,
+      start_at,
+      end_at,
+      event_timezone
+    )
+    values (
+      '31000000-0000-4000-8000-000000000005',
+      '10000000-0000-4000-8000-000000000001',
+      '00000000-0000-4000-8000-000000000001',
+      'Existing zero-duration event',
+      false,
+      '2026-07-24T20:00:00.000Z',
+      '2026-07-24T20:00:00.000Z',
+      'UTC'
+    )
+  $$,
+  'the mobile Calendar migration preserves valid legacy zero-duration events'
 );
 
 set local role authenticated;
@@ -297,6 +345,24 @@ select throws_ok(
   '42501',
   'permission denied for table calendar_events',
   'the extended legacy Calendar table is no longer directly writable'
+);
+
+select throws_ok(
+  $$
+    truncate table public.household_notes
+  $$,
+  '42501',
+  'permission denied for table household_notes',
+  'an authenticated client cannot bypass RLS with TRUNCATE'
+);
+
+select throws_ok(
+  $$
+    truncate table public.household_members
+  $$,
+  '42501',
+  'permission denied for table household_members',
+  'an authenticated client cannot truncate the household authorization roster'
 );
 
 select set_config(
@@ -1040,6 +1106,66 @@ select ok(
 
 select is(
   (
+    select count(*)::integer
+    from public.household_entity_revisions
+    where household_id = '10000000-0000-4000-8000-000000000001'
+      and deleted
+      and (entity_type, entity_id) in (
+        ('ledger_category', '30000000-0000-4000-8000-000000000003'::uuid),
+        ('ledger_limit', '30000000-0000-4000-8000-000000000004'::uuid),
+        ('ledger_transaction', '30000000-0000-4000-8000-000000000005'::uuid)
+      )
+  ),
+  3,
+  'year clear marks every operation-addressable child revision deleted'
+);
+
+select is(
+  (
+    select count(*)::integer
+    from public.household_tombstones
+    where household_id = '10000000-0000-4000-8000-000000000001'
+      and operation_id = '40000000-0000-4000-8000-000000000025'
+      and (entity_type, entity_id) in (
+        ('ledger_category', '30000000-0000-4000-8000-000000000003'::uuid),
+        ('ledger_limit', '30000000-0000-4000-8000-000000000004'::uuid),
+        ('ledger_transaction', '30000000-0000-4000-8000-000000000005'::uuid)
+      )
+  ),
+  3,
+  'year clear leaves durable tombstones for its logical children'
+);
+
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000039',
+        '10000000-0000-4000-8000-000000000001',
+        'ledger.transaction.upsert',
+        'ledger_transaction',
+        '30000000-0000-4000-8000-000000000005',
+        2,
+        jsonb_build_object(
+          'yearId', '30000000-0000-4000-8000-000000000001',
+          'month', 4,
+          'categoryId', '30000000-0000-4000-8000-000000000003',
+          'assetId', '30000000-0000-4000-8000-000000000002',
+          'kind', 'spending',
+          'amountCents', 1200,
+          'occurredAt', '2026-04-10T18:30:00.000Z',
+          'description', 'Queued before clear'
+        ),
+        38
+      )
+    )->>'status'
+  ),
+  'conflict',
+  'a queued child mutation conflicts with the winning year clear'
+);
+
+select is(
+  (
     select balance_cents
     from public.ledger_asset_balances
     where id = '30000000-0000-4000-8000-000000000002'
@@ -1386,6 +1512,46 @@ select is(
   (
     public.apply_household_operation(
       pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000040',
+        '10000000-0000-4000-8000-000000000001',
+        'calendar.event.upsert',
+        'calendar_event',
+        '31000000-0000-4000-8000-000000000004',
+        null,
+        jsonb_build_object(
+          'title', 'Duplicate reminder',
+          'note', null,
+          'ownerId', null,
+          'allDay', false,
+          'startAt', '2026-08-06T01:00:00.000Z',
+          'endAt', '2026-08-06T03:00:00.000Z',
+          'timezone', 'America/Vancouver',
+          'recurrenceFrequency', 'none',
+          'recurrenceUntil', null,
+          'reminders', jsonb_build_array('1h', '1h')
+        ),
+        39
+      )
+    )->>'code'
+  ),
+  'invalid_payload',
+  'duplicate Calendar reminders return a structured rejection'
+);
+
+select is(
+  (
+    select status
+    from public.operation_receipts
+    where operation_id = '40000000-0000-4000-8000-000000000040'
+  ),
+  'rejected',
+  'a duplicate-reminder rejection is durably replayable'
+);
+
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
         '40000000-0000-4000-8000-000000000036',
         '10000000-0000-4000-8000-000000000001',
         'notification.read',
@@ -1476,6 +1642,83 @@ select ok(
     where id = '30000000-0000-4000-8000-000000000002'
   ) = 700,
   'year clear detaches the Trip while preserving its Asset effect'
+);
+
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000041',
+        '10000000-0000-4000-8000-000000000001',
+        'trip.delete',
+        'trip',
+        '30000000-0000-4000-8000-000000000009',
+        1,
+        '{}',
+        40
+      )
+    )->>'status'
+  ),
+  'applied',
+  'deleting a Trip reverses its expense effects'
+);
+
+select is(
+  (
+    select count(*)::integer
+    from public.household_entity_revisions
+    where household_id = '10000000-0000-4000-8000-000000000001'
+      and entity_type = 'trip_expense'
+      and entity_id in (
+        '30000000-0000-4000-8000-00000000000a',
+        '30000000-0000-4000-8000-00000000000c'
+      )
+      and deleted
+  ),
+  2,
+  'Trip deletion marks every child expense revision deleted'
+);
+
+select is(
+  (
+    select count(*)::integer
+    from public.household_tombstones
+    where household_id = '10000000-0000-4000-8000-000000000001'
+      and operation_id = '40000000-0000-4000-8000-000000000041'
+      and entity_type = 'trip_expense'
+      and entity_id in (
+        '30000000-0000-4000-8000-00000000000a',
+        '30000000-0000-4000-8000-00000000000c'
+      )
+  ),
+  2,
+  'Trip deletion leaves durable tombstones for its expenses'
+);
+
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000042',
+        '10000000-0000-4000-8000-000000000001',
+        'trip.expense.upsert',
+        'trip_expense',
+        '30000000-0000-4000-8000-00000000000a',
+        1,
+        jsonb_build_object(
+          'tripId', '30000000-0000-4000-8000-000000000009',
+          'assetId', '30000000-0000-4000-8000-000000000002',
+          'amountCents', 200,
+          'currency', 'CAD',
+          'spentAt', '2026-08-03T12:00:00.000Z',
+          'description', 'Queued before Trip deletion'
+        ),
+        41
+      )
+    )->>'status'
+  ),
+  'conflict',
+  'a queued expense mutation conflicts with the winning Trip deletion'
 );
 
 select is(
