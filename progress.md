@@ -7,7 +7,7 @@
 **Implementation branch:** `codex/household-hub-mobile-first`
 
 **Implementation worktree:** `/Users/conlegs/dev/household-hub/.worktrees/household-hub-mobile-first`
-**Current HEAD:** `<pending 6C-1 commit>` feat: Ledger Assets segment (Task 6C-1)
+**Current HEAD:** `e63bcb1 feat: Ledger Assets segment (Task 6C-1)`
 **Last review-clean baseline:** `d1f3e30` (Tasks 1–2, independent review).
 Tasks 3, 4, and 5 are complete (self-reviewed). Task 6 is **in progress**:
 6A/6B done; 6C-1 (Ledger Assets) done; **6C-2 (Ledger Statements) is next**;
