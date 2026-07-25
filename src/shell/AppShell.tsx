@@ -6,6 +6,7 @@ import { setOperationQueryClient, startOperationSync } from '@/lib/operations'
 import { startSyncManager } from '@/lib/offline/syncManager'
 import { cn } from '@/lib/utils'
 import { PRIMARY_DESTINATIONS, type IconComponent } from './destinations'
+import { SyncStatus } from './ui/SyncStatus'
 
 const WORDMARK = '🐰&🐧'
 
@@ -34,6 +35,7 @@ export function AppShell() {
         </main>
       </div>
       <MobileTabBar />
+      <SyncStatus />
     </div>
   )
 }
