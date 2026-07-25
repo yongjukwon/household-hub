@@ -7,11 +7,12 @@
 **Implementation branch:** `codex/household-hub-mobile-first`
 
 **Implementation worktree:** `/Users/conlegs/dev/household-hub/.worktrees/household-hub-mobile-first`
-**Current HEAD:** `e63bcb1 feat: Ledger Assets segment (Task 6C-1)`
+**Current HEAD:** `787eca3 feat: Notes feature flow (Task 6D)`
 **Last review-clean baseline:** `d1f3e30` (Tasks 1–2, independent review).
 Tasks 3, 4, and 5 are complete (self-reviewed). Task 6 is **in progress**:
-6A/6B done; 6C-1 (Ledger Assets) done; **6C-2 (Ledger Statements) is next**;
-6D–6F pending.
+6A/6B done; 6C-1 (Ledger Assets) done; 6C-2 (Ledger Statements) done
+(committed `2ebd49b`); 6D (Notes) done (committed `787eca3`); **6E (Trips) is
+next**; 6F pending.
 
 This file is the source of truth for continuing the approved web-first
 Household Hub rebuild. Current Git state and fresh verification results take
@@ -55,10 +56,11 @@ precedence if this file ever becomes stale.
    screens (`src/shell/PlaceholderScreen.tsx` routes in `src/App.tsx`) with
    real feature flows and retires the unrouted legacy page screens.
 
-6. **Task 6 is next** (web feature flows), also driven by
-   `docs/mobile-design-reference/`. Update `progress.md` at **every
-   sub-checkpoint** (HEAD, commit, verification, resume point), not only at
-   task boundaries — per the user's directive.
+6. **Task 6E (Trips) is next** (web feature flows), also driven by
+   `docs/mobile-design-reference/`. 6A/6B/6C-1/6C-2/6D are done and committed
+   through `787eca3`. Update `progress.md` at **every sub-checkpoint** (HEAD,
+   commit, verification, resume point), not only at task boundaries — per
+   the user's directive.
 
 ## Approved product direction
 
@@ -83,7 +85,7 @@ precedence if this file ever becomes stale.
 | 3. Identity, notifications, jobs, deployment config | Complete | Verified at `24a5b39` (self-review; no independent review agent) |
 | 4. Durable web operation queue | Complete | Verified at `f86f4c0`; its UI surface lands with Task 5 |
 | 5. Responsive web shell and visual system | Complete | Verified at `626c681` (self-review) |
-| 6. Web feature flows | In progress | 6A/6B/6C-1 done; 6C-2, 6D–6F pending |
+| 6. Web feature flows | In progress | 6A/6B/6C-1/6C-2/6D done; 6E–6F pending |
 | 7. Expo foundation and offline data layer | Pending | Not started |
 | 8. Expo feature parity and visual implementation | Pending | Not started |
 | 9. Reset procedure, E2E verification, release handoff | Pending | Not started |
@@ -130,7 +132,48 @@ implement → affected suite → commit → this file):
   active-toggle + delete confirms). `LedgerScreen` shell with Statements/Assets
   `SegmentedControl`; route `/ledger`. `StatementsTab` is a temporary
   placeholder until 6C-2. **Verification:** `npx vitest run` **330 passed**
-  (53 files; +6), lint clean, build clean. Next: 6C-2 Statements.
+  (53 files; +6), lint clean, build clean.
+- **6C-2 — Ledger Statements segment (done, committed `2ebd49b`).**
+  `src/features/ledger/statements.ts` (`useLedgerYears`/`useLedgerYearData`
+  reads across months/month-categories/limits/transactions; `monthSummaries`
+  income/spending/net per month; `categoryProgress` spend-vs-limit ratio per
+  category; `hasSpendingFromMonth` deletion-guard helper); `statementMutations.ts`
+  (`createYear`/`clearYear`/`saveCategory`/`deleteCategory`/`saveLimit`/
+  `saveTransaction`/`deleteTransaction`, matching the RPC's `ledger.year.*`/
+  `ledger.category.*`/`ledger.limit.*`/`ledger.transaction.*` command types in
+  `supabase/migrations/20260725011000_household_operation_rpc.sql`);
+  `TransactionSheet`, `CategorySheet` (name/kind/limit, fromMonth→December
+  propagation), `ClearYearSheet` (typed-year confirmation); `StatementsTab`
+  replaces the 6C-1 placeholder with year picker + create-year, 4×3 month
+  picker with per-month net, category list with limit progress bars, and
+  clear-year. **Verification:** `npx vitest run` **334 passed** (54 files;
+  +4), lint clean, build clean. Not independently reviewed (session
+  directive: no subagents).
+- **6D — Notes (done, committed `787eca3`).** `src/features/notes/`:
+  `data.ts` (`useNotes` list, `useNote` detail reads against
+  `household_notes`; `emptyNoteDocument`); `mutations.ts` (`saveNote`/
+  `deleteNote` via `note.upsert`/`note.delete`, matching the RPC's
+  `mobile_note_node_valid` payload shape); `RestrictedEditor.tsx` — Tiptap
+  restricted to StarterKit with bold/italic/strike/code/codeBlock/blockquote/
+  horizontalRule/link/underline/dropcursor/gapcursor disabled, heading levels
+  capped to 1-3, plus `TaskList`/`TaskItem`, so every producible document
+  satisfies the shared `isRichNoteJson` validator (`packages/domain/src/
+  notes.ts`) that native TenTap must also satisfy; own `editor.css` using
+  `--hh-*` tokens (kept separate from the legacy `src/components/notes/
+  editor.css`, which still styles the unrestricted legacy Tiptap editor).
+  `NotesScreen` (list + create), `NoteScreen` (title input saved on blur,
+  document saved via the editor's debounced `onChange`, delete-confirm) at
+  routes `/notes` and `/notes/:noteId`, replacing the Task 5 placeholder.
+  Title and document edits share one locally-tracked revision (advanced by
+  one per successful save, matching the RPC's `current_revision + 1`) so a
+  title edit and a document edit moments apart each get a fresh base
+  revision without waiting on a refetch. **Verification:** `npx vitest run`
+  **342 passed** (57 files; +8), lint clean, build clean. Not independently
+  reviewed (session directive: no subagents); manual browser check limited to
+  confirming the route renders with no console/build errors — the worktree's
+  `VITE_DISABLE_AUTH` bypass (see Environment section) means there is no
+  Supabase session locally, so real household data CRUD wasn't exercised
+  end-to-end in a browser. Next: 6E (Trips).
 
 ## Task 5 — responsive web shell + visual system (complete)
 
