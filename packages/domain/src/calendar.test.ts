@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { calendarDateInTimeZone, isCalendarTime, type CalendarTime } from './index'
+import {
+  calendarDateInTimeZone,
+  isCalendarTime,
+  isReminderPreset,
+  reminderLeadMinutes,
+  reminderPresets,
+  type CalendarTime,
+} from './index'
 
 describe('calendar time contracts', () => {
   it('converts timed UTC instants into the viewing device timezone', () => {
@@ -46,5 +53,25 @@ describe('calendar time contracts', () => {
         timeZone: 'America/Vancouver',
       }),
     ).toBe(false)
+  })
+})
+
+describe('reminder presets', () => {
+  it('recognizes exactly the supported presets', () => {
+    expect(reminderPresets).toEqual(['none', 'at-time', '10m', '1h', '1d', '1w'])
+    for (const preset of reminderPresets) {
+      expect(isReminderPreset(preset)).toBe(true)
+    }
+    expect(isReminderPreset('30m')).toBe(false)
+    expect(isReminderPreset(10)).toBe(false)
+  })
+
+  it('maps presets to lead minutes before the event start', () => {
+    expect(reminderLeadMinutes('none')).toBeNull()
+    expect(reminderLeadMinutes('at-time')).toBe(0)
+    expect(reminderLeadMinutes('10m')).toBe(10)
+    expect(reminderLeadMinutes('1h')).toBe(60)
+    expect(reminderLeadMinutes('1d')).toBe(1440)
+    expect(reminderLeadMinutes('1w')).toBe(10080)
   })
 })

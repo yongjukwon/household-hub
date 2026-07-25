@@ -54,6 +54,41 @@ export function isCalendarTime(value: unknown): value is CalendarTime {
   )
 }
 
+/**
+ * Reminder lead times offered per event. `none` disables reminders, `at-time`
+ * fires at the event start; the rest fire the labeled amount before it.
+ * All-day events resolve `at-time`/offsets against 09:00 in the event timezone
+ * (that resolution is a scheduling concern, handled server-side).
+ */
+export const reminderPresets = ['none', 'at-time', '10m', '1h', '1d', '1w'] as const
+
+export type ReminderPreset = (typeof reminderPresets)[number]
+
+export function isReminderPreset(value: unknown): value is ReminderPreset {
+  return (
+    typeof value === 'string' &&
+    reminderPresets.includes(value as ReminderPreset)
+  )
+}
+
+/** Minutes before event start a preset fires, or null when there is no reminder. */
+export function reminderLeadMinutes(preset: ReminderPreset): number | null {
+  switch (preset) {
+    case 'none':
+      return null
+    case 'at-time':
+      return 0
+    case '10m':
+      return 10
+    case '1h':
+      return 60
+    case '1d':
+      return 60 * 24
+    case '1w':
+      return 60 * 24 * 7
+  }
+}
+
 function isUtcInstant(value: unknown): value is string {
   return typeof value === 'string' && value.endsWith('Z') && isIsoDateTime(value)
 }
