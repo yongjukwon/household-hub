@@ -1,0 +1,96 @@
+/*
+ * Mobile-first visual system (Task 5). Semantic --hh-* tokens sourced from
+ * docs/mobile-design-reference. The rebuilt shell/screens consume these; the
+ * legacy Swiss theme in index.css is untouched and retired with Task 6.
+ *
+ * Appearance: :root is light. System dark applies via prefers-color-scheme
+ * unless the user forced light; an explicit choice sets data-appearance on
+ * <html> (see src/lib/appearance.ts). data-appearance="dark" always wins,
+ * data-appearance="light" always stays light.
+ */
+:root {
+  --hh-canvas: #eff0f2;
+  --hh-surface: #ffffff;
+  --hh-surface-2: #f6f7f9;
+  --hh-ink: #14151a;
+  --hh-muted: rgba(20, 21, 26, 0.5);
+  --hh-muted-2: rgba(20, 21, 26, 0.45);
+  --hh-muted-3: rgba(20, 21, 26, 0.4);
+  --hh-line: rgba(20, 21, 26, 0.08);
+  --hh-accent: #ff7a45;
+  --hh-accent-contrast: #ffffff;
+  --hh-danger: #d6465f;
+
+  /* category / data palette: foreground + soft background */
+  --hh-blue: #5a73e8;
+  --hh-blue-bg: #e8ecff;
+  --hh-purple: #8a63e8;
+  --hh-purple-bg: #efe9ff;
+  --hh-amber: #d69412;
+  --hh-amber-bg: #fdf1da;
+  --hh-green: #379962;
+  --hh-green-bg: #e4f5ec;
+  --hh-teal: #279a8b;
+  --hh-teal-bg: #e1f5f2;
+  --hh-pink: #d6465f;
+  --hh-pink-bg: #fce7ea;
+
+  --hh-radius-card: 20px;
+  --hh-radius-control: 14px;
+  --hh-shadow-card: 0 6px 20px rgba(20, 21, 26, 0.06);
+  --hh-shadow-float: 0 8px 26px rgba(20, 21, 26, 0.12);
+  --hh-title-size: 22px;
+  --hh-title-weight: 800;
+  --hh-title-tracking: -0.01em;
+}
+
+/* Dark tokens: shared by system-dark (no explicit choice) and forced dark. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-appearance='light']) {
+    --hh-canvas: #101116;
+    --hh-surface: #1b1d24;
+    --hh-surface-2: #22242c;
+    --hh-ink: #f4f5f8;
+    --hh-muted: rgba(244, 245, 248, 0.55);
+    --hh-muted-2: rgba(244, 245, 248, 0.48);
+    --hh-muted-3: rgba(244, 245, 248, 0.4);
+    --hh-line: rgba(244, 245, 248, 0.1);
+    --hh-accent: #ff7a45;
+    --hh-accent-contrast: #14151a;
+    --hh-danger: #ef6f83;
+
+    --hh-blue-bg: rgba(90, 115, 232, 0.2);
+    --hh-purple-bg: rgba(138, 99, 232, 0.2);
+    --hh-amber-bg: rgba(214, 148, 18, 0.2);
+    --hh-green-bg: rgba(55, 153, 98, 0.2);
+    --hh-teal-bg: rgba(39, 154, 139, 0.2);
+    --hh-pink-bg: rgba(214, 70, 95, 0.2);
+
+    --hh-shadow-card: 0 6px 20px rgba(0, 0, 0, 0.4);
+    --hh-shadow-float: 0 8px 26px rgba(0, 0, 0, 0.5);
+  }
+}
+
+[data-appearance='dark'] {
+  --hh-canvas: #101116;
+  --hh-surface: #1b1d24;
+  --hh-surface-2: #22242c;
+  --hh-ink: #f4f5f8;
+  --hh-muted: rgba(244, 245, 248, 0.55);
+  --hh-muted-2: rgba(244, 245, 248, 0.48);
+  --hh-muted-3: rgba(244, 245, 248, 0.4);
+  --hh-line: rgba(244, 245, 248, 0.1);
+  --hh-accent: #ff7a45;
+  --hh-accent-contrast: #14151a;
+  --hh-danger: #ef6f83;
+
+  --hh-blue-bg: rgba(90, 115, 232, 0.2);
+  --hh-purple-bg: rgba(138, 99, 232, 0.2);
+  --hh-amber-bg: rgba(214, 148, 18, 0.2);
+  --hh-green-bg: rgba(55, 153, 98, 0.2);
+  --hh-teal-bg: rgba(39, 154, 139, 0.2);
+  --hh-pink-bg: rgba(214, 70, 95, 0.2);
+
+  --hh-shadow-card: 0 6px 20px rgba(0, 0, 0, 0.4);
+  --hh-shadow-float: 0 8px 26px rgba(0, 0, 0, 0.5);
+}

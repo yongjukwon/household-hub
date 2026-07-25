@@ -4,6 +4,8 @@
 /* Pretendard: self-hosted, full Hangul + Latin. The cross-device stand-in for
    Apple SD Gothic Neo (near-identical metrics) so Android/Pixel matches Apple. */
 @import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css';
+/* Mobile-first visual system (Task 5) — semantic --hh-* tokens + appearance. */
+@import './styles/theme.css';
 
 /*
  * Theme state lives on the <html> data-theme attribute (no .dark class):
