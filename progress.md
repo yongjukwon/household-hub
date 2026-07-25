@@ -7,11 +7,12 @@
 **Implementation branch:** `codex/household-hub-mobile-first`
 
 **Implementation worktree:** `/Users/conlegs/dev/household-hub/.worktrees/household-hub-mobile-first`
-**Current HEAD:** `eafdce8 feat: Settings + legacy-free rebuilt routes (Task 6F)`
+**Latest implementation checkpoint:** `c5dc6d3 fix: restore authenticated local testing`
 **Last review-clean baseline:** `d1f3e30` (Tasks 1–2, independent review).
 Tasks 3, 4, and 5 are complete (self-reviewed). **Task 6 is complete**
-(6A–6F done). **Task 7 (Expo foundation) is next** — a new phase; see
-`mobile/AGENTS.md` before touching Expo code.
+(6A–6F done). The authenticated local test household is ready. **The web
+UI-fidelity correction pass is next; Task 7 (Expo foundation) must not start
+until that pass is reviewed.**
 
 This file is the source of truth for continuing the approved web-first
 Household Hub rebuild. Current Git state and fresh verification results take
@@ -50,16 +51,17 @@ precedence if this file ever becomes stale.
    - `docs/mobile-implementation-handoff.md`
    - the still-untracked files under `mobile/`
 
-5. Resume at **Task 6 (web feature flows)**. Tasks 1–5 are complete,
-   committed, and verified — do not redo them. Task 6 fills the placeholder
-   screens (`src/shell/PlaceholderScreen.tsx` routes in `src/App.tsx`) with
-   real feature flows and retires the unrouted legacy page screens.
+5. Resume with the **web UI-fidelity correction pass** against the supplied
+   phone references. Tasks 1–6 are complete and the real local sign-in flow is
+   restored; do not redo them. Use the seeded test household below to exercise
+   the actual data-backed screens while correcting layout, spacing, typography,
+   and feature visibility.
 
-6. **Task 7 (Expo foundation and offline data layer) is next** — a new phase.
-   Task 6 (web feature flows) is complete: 6A–6F done and committed. Read
-   `mobile/AGENTS.md` before changing Expo code. Update `progress.md` at
-   **every sub-checkpoint** (HEAD, commit, verification, resume point) — per
-   the user's directive.
+6. **Do not start Task 7 yet.** It remains the first Expo/mobile task, but the
+   user explicitly requested the web UI correction first. Once that correction
+   is accepted, read `mobile/AGENTS.md` before changing Expo code. Update
+   `progress.md` at **every sub-checkpoint** (HEAD, commit, verification, resume
+   point) — per the user's directive.
 
    **Deferred cleanup (safe, no behavior impact):** the legacy page-based
    screens/hooks/components (`src/components/pages|budget|savings|groceries|
@@ -97,6 +99,7 @@ precedence if this file ever becomes stale.
 | 4. Durable web operation queue | Complete | Verified at `f86f4c0`; its UI surface lands with Task 5 |
 | 5. Responsive web shell and visual system | Complete | Verified at `626c681` (self-review) |
 | 6. Web feature flows | Complete | 6A–6F done; verified at `eafdce8` (self-review) |
+| Pre-7. Authenticated local test setup | Complete | Verified at `c5dc6d3`; real two-member Supabase household |
 | 7. Expo foundation and offline data layer | Pending | Not started |
 | 8. Expo feature parity and visual implementation | Pending | Not started |
 | 9. Reset procedure, E2E verification, release handoff | Pending | Not started |
@@ -180,11 +183,9 @@ implement → affected suite → commit → this file):
   title edit and a document edit moments apart each get a fresh base
   revision without waiting on a refetch. **Verification:** `npx vitest run`
   **342 passed** (57 files; +8), lint clean, build clean. Not independently
-  reviewed (session directive: no subagents); manual browser check limited to
-  confirming the route renders with no console/build errors — the worktree's
-  `VITE_DISABLE_AUTH` bypass (see Environment section) means there is no
-  Supabase session locally, so real household data CRUD wasn't exercised
-  end-to-end in a browser.
+  reviewed (session directive: no subagents). The sessionless bypass used at
+  that historical checkpoint has since been removed; authenticated local
+  feature testing is now available through the test household below.
 - **6E — Trips (done).** `src/features/trips/`: `data.ts` (`useTrips` list,
   `useTrip` detail with expenses; `expenseBuckets` delegates to the domain's
   `aggregateTripCurrencyBuckets` — CAD and destination-currency totals stay
@@ -258,11 +259,42 @@ follow-up.
 
 ## Environment, constraints & risks (condensed)
 
-- **Local sign-in is temporarily bypassed** (user request, re-enable later):
-  `VITE_DISABLE_AUTH=true` in `.env.local` makes `RequireAuth` skip the login
-  gate in dev (never in production or tests). This renders the shell with **no
-  Supabase session**, so household data won't load until sign-in is re-enabled
-  (remove the flag) or a dev auto-login is added. Committed at `2cf1d88`.
+- **Local sign-in is enabled and required.** `RequireAuth` no longer recognizes
+  `VITE_DISABLE_AUTH`; every protected route requires a real Supabase session.
+  The ignored `.env.local` has `VITE_ENABLE_TEST_AUTH=true`, which exposes the
+  email/password form only in the local/test build. Production authentication
+  remains Google and Apple OAuth only.
+- **Local test household:** `🐰 & 🐧 Test`, provisioned through the real
+  `onboard_household` + invite-redemption path with Yongju as owner and Claire
+  as member.
+
+  | Member | Email | Password | Role |
+  | --- | --- | --- | --- |
+  | Yongju | `yongju@test.local` | `household123` | Owner |
+  | Claire | `claire@test.local` | `household123` | Member |
+
+  Start the local stack and app with:
+
+  ```bash
+  PATH="/opt/homebrew/bin:$PATH" npx supabase start
+  PATH="/opt/homebrew/bin:$PATH" npm run dev
+  ```
+
+  Sign in manually with either account. Browser sessions persist normally, and
+  every record entered through the app persists in local Supabase across Vite
+  restarts. Re-running `scripts/seed-household.ts` with the same household and
+  credentials is idempotent: it reuses the accounts and membership without
+  clearing or replacing feature data.
+- **No separate demo mode exists.** The abandoned automatic-login/sample-data
+  design and implementation plan were removed in `c5dc6d3`; `npm run demo` was
+  never implemented.
+- **Browser verification at `c5dc6d3`:** an unauthenticated `/calendar` visit
+  redirected to `/login`; Yongju signed in and saw the two-member household
+  with owner controls; sign-out returned to `/login`; Claire signed in and saw
+  the same roster without owner-only controls.
+- **Verification at `c5dc6d3`:** Vitest **354 passed** across 61 files; ESLint
+  clean; TypeScript + Vite production build clean; `git diff --check` clean.
+  The build retains the existing non-blocking large-chunk warning.
 - **Run from this worktree** (`codex/household-hub-mobile-first`), not the main
   checkout — different branch.
 - **Prefix Node commands with `PATH="/opt/homebrew/bin:$PATH"`** — the Rosetta
