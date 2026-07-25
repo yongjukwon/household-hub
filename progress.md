@@ -7,10 +7,11 @@
 **Implementation branch:** `codex/household-hub-mobile-first`
 
 **Implementation worktree:** `/Users/conlegs/dev/household-hub/.worktrees/household-hub-mobile-first`
-**Current HEAD:** `95f0b7f feat: Groceries feature flow (Task 6B)`
+**Current HEAD:** `<pending 6C-1 commit>` feat: Ledger Assets segment (Task 6C-1)
 **Last review-clean baseline:** `d1f3e30` (Tasks 1–2, independent review).
 Tasks 3, 4, and 5 are complete (self-reviewed). Task 6 is **in progress**:
-6A (Calendar) and 6B (Groceries) done; 6C–6F pending.
+6A/6B done; 6C-1 (Ledger Assets) done; **6C-2 (Ledger Statements) is next**;
+6D–6F pending.
 
 This file is the source of truth for continuing the approved web-first
 Household Hub rebuild. Current Git state and fresh verification results take
@@ -82,7 +83,7 @@ precedence if this file ever becomes stale.
 | 3. Identity, notifications, jobs, deployment config | Complete | Verified at `24a5b39` (self-review; no independent review agent) |
 | 4. Durable web operation queue | Complete | Verified at `f86f4c0`; its UI surface lands with Task 5 |
 | 5. Responsive web shell and visual system | Complete | Verified at `626c681` (self-review) |
-| 6. Web feature flows | In progress | 6A/6B done; 6C–6F pending |
+| 6. Web feature flows | In progress | 6A/6B/6C-1 done; 6C-2, 6D–6F pending |
 | 7. Expo foundation and offline data layer | Pending | Not started |
 | 8. Expo feature parity and visual implementation | Pending | Not started |
 | 9. Reset procedure, E2E verification, release handoff | Pending | Not started |
@@ -116,7 +117,20 @@ implement → affected suite → commit → this file):
   `/groceries/:listId`. Shared `src/features/moneyInput.ts`
   (`parseDollarsToCents`/`centsToInputValue`, integer-cents boundary, reused by
   Ledger/Trips). **Verification:** `npx vitest run` **324 passed** (51 files;
-  +16), lint clean, build clean. Next: 6C Ledger.
+  +16), lint clean, build clean.
+- **6C-1 — Ledger Assets segment (done).** `src/features/ledger/`: `assets.ts`
+  (reads from the `ledger_asset_balances` view; transfers + schedules reads;
+  `totalsByCurrency`/`householdTotalCents` — CAD is the household total, foreign
+  currencies shown separately and never converted); `assetMutations.ts`
+  (asset/transfer/schedule upsert+delete, `toggleSchedule`, balance is the
+  *desired* balance the server reconciles); `AssetSheet` (name/kind/currency/
+  balance; currency locked once the asset exists), `TransferSheet` +
+  `ScheduleSheet` (weekly/biweekly/semi_monthly/monthly), `AssetsTab` (total
+  header + foreign subtotals, asset cards, transfers, recurring with
+  active-toggle + delete confirms). `LedgerScreen` shell with Statements/Assets
+  `SegmentedControl`; route `/ledger`. `StatementsTab` is a temporary
+  placeholder until 6C-2. **Verification:** `npx vitest run` **330 passed**
+  (53 files; +6), lint clean, build clean. Next: 6C-2 Statements.
 
 ## Task 5 — responsive web shell + visual system (complete)
 

@@ -11,6 +11,7 @@ import { PlaceholderScreen } from '@/shell/PlaceholderScreen'
 import { CalendarScreen } from '@/features/calendar/CalendarScreen'
 import { GroceriesScreen } from '@/features/groceries/GroceriesScreen'
 import { GroceryListScreen } from '@/features/groceries/GroceryListScreen'
+import { LedgerScreen } from '@/features/ledger/LedgerScreen'
 import { SettingsScreen } from '@/screens/SettingsScreen'
 import { setupQueryPersistence } from '@/lib/offline/queryPersister'
 import LoginPage from '@/routes/LoginPage'
@@ -44,7 +45,7 @@ const router = createBrowserRouter([
       { path: '/calendar', element: <CalendarScreen /> },
       { path: '/groceries', element: <GroceriesScreen /> },
       { path: '/groceries/:listId', element: <GroceryListScreen /> },
-      { path: '/ledger', element: <PlaceholderScreen title="Ledger" /> },
+      { path: '/ledger', element: <LedgerScreen /> },
       { path: '/notes', element: <PlaceholderScreen title="Notes" /> },
       { path: '/trips', element: <PlaceholderScreen title="Trips" /> },
       {
