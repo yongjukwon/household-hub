@@ -20,6 +20,10 @@ function makeEvent(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
     recurrence_until: null,
     created_at: '2026-07-01T00:00:00.000Z',
     updated_at: '2026-07-01T00:00:00.000Z',
+    start_date: null,
+    end_date: null,
+    event_timezone: 'America/Toronto',
+    revision: 1,
     ...overrides,
   }
 }
@@ -59,7 +63,9 @@ describe('expandOccurrences', () => {
   it('expands a weekly event across the visible month', () => {
     const event = makeEvent({ recurrence_freq: 'weekly' })
     // Jul 1, 8, 15, 22, 29
-    expect(expandOccurrences([event], rangeStart, rangeEndMonth)).toHaveLength(5)
+    expect(expandOccurrences([event], rangeStart, rangeEndMonth)).toHaveLength(
+      5,
+    )
   })
 
   it('expands a monthly event to one occurrence in the month', () => {
@@ -116,8 +122,16 @@ describe('expandOccurrences', () => {
   })
 
   it('sorts occurrences from multiple events by start', () => {
-    const a = makeEvent({ id: 'a', start_at: '2026-07-03T09:00:00.000Z', end_at: '2026-07-03T10:00:00.000Z' })
-    const b = makeEvent({ id: 'b', start_at: '2026-07-01T09:00:00.000Z', end_at: '2026-07-01T10:00:00.000Z' })
+    const a = makeEvent({
+      id: 'a',
+      start_at: '2026-07-03T09:00:00.000Z',
+      end_at: '2026-07-03T10:00:00.000Z',
+    })
+    const b = makeEvent({
+      id: 'b',
+      start_at: '2026-07-01T09:00:00.000Z',
+      end_at: '2026-07-01T10:00:00.000Z',
+    })
     const occ = expandOccurrences([a, b], rangeStart, rangeEndWeek)
     expect(occ.map((o) => o.event.id)).toEqual(['b', 'a'])
   })

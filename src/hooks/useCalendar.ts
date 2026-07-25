@@ -1,7 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { queueWrite } from '@/lib/offline/outbox'
-import type { CalendarEvent, RecurrenceFreq } from '@/lib/calendar'
+import {
+  toLegacyCalendarEvent,
+  type CalendarEvent,
+  type RecurrenceFreq,
+} from '@/lib/calendar'
 
 export const calendarKeys = {
   all: ['calendar'] as const,
@@ -19,7 +23,11 @@ export function useCalendarEvents() {
         .order('id', { ascending: true })
 
       if (error) throw error
-      return data ?? []
+      // All-day rows (no start_at) belong to the mobile-first Calendar and are
+      // not renderable by this screen; see toLegacyCalendarEvent.
+      return (data ?? [])
+        .map(toLegacyCalendarEvent)
+        .filter((event): event is CalendarEvent => event !== null)
     },
   })
 }
@@ -65,6 +73,12 @@ export function useSaveCalendarEvent() {
             recurrence_until: input.recurrenceUntil,
             created_at: old.find((e) => e.id === input.id)?.created_at ?? now,
             updated_at: now,
+            // Mobile-first columns (Task 2). This screen writes timed events
+            // only; the server fills these in on the refetch.
+            start_date: null,
+            end_date: null,
+            event_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            revision: old.find((e) => e.id === input.id)?.revision ?? 1,
           }
           const without = old.filter((e) => e.id !== input.id)
           return [...without, optimistic].sort((a, b) =>

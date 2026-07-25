@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Household Hub",
+    "slug": "household-hub",
+    "version": "1.0.0",
+    "scheme": "householdhub",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.conlegs.householdhub",
+      "supportsTablet": false,
+      "infoPlist": {
+        "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait"]
+      }
+    },
+    "android": {
+      "package": "com.conlegs.householdhub",
+      "adaptiveIcon": {
+        "backgroundColor": "#EFEFF2",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["android.permission.POST_NOTIFICATIONS"]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}

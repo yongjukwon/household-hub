@@ -107,9 +107,15 @@ file_size_limit = "50MiB"
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "http://127.0.0.1:3000"
+site_url = "http://127.0.0.1:5173"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://127.0.0.1:3000"]
+# Web uses /auth/callback (see src/lib/auth.ts); native uses the householdhub://
+# scheme declared in mobile/app.json.
+additional_redirect_urls = [
+  "http://127.0.0.1:5173/auth/callback",
+  "http://localhost:5173/auth/callback",
+  "householdhub://auth/callback",
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # If disabled, the refresh token will never expire.
@@ -251,9 +257,15 @@ max_frequency = "5s"
 # Use an external OAuth provider. The full list of providers are: `apple`, `azure`, `bitbucket`,
 # `discord`, `facebook`, `github`, `gitlab`, `google`, `keycloak`, `linkedin_oidc`, `notion`, `twitch`,
 # `twitter`, `slack`, `spotify`, `workos`, `zoom`.
+#
+# Production authentication is Google and Apple only (see packages/domain/src/
+# auth.ts). Both stay `enabled = false` locally unless you export the matching
+# client id/secret — with them disabled, local development uses the seeded
+# password accounts (VITE_ENABLE_TEST_AUTH=true), which production builds can
+# never expose. Client ids are not secrets; secrets stay in the environment.
 [auth.external.apple]
 enabled = false
-client_id = ""
+client_id = "env(SUPABASE_AUTH_EXTERNAL_APPLE_CLIENT_ID)"
 # DO NOT commit your OAuth provider secret to git. Use environment variable substitution instead:
 secret = "env(SUPABASE_AUTH_EXTERNAL_APPLE_SECRET)"
 # Overrides the default auth redirectUrl.
@@ -263,6 +275,15 @@ redirect_uri = ""
 url = ""
 # If enabled, the nonce check will be skipped. Required for local sign in with Google auth.
 skip_nonce_check = false
+
+[auth.external.google]
+enabled = false
+client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
+redirect_uri = ""
+url = ""
+# Required for local sign in with Google auth.
+skip_nonce_check = true
 
 # Use Firebase Auth as a third-party provider alongside Supabase Auth.
 [auth.third_party.firebase]
@@ -299,6 +320,25 @@ deno_version = 1
 
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
+
+# Edge Functions. `verify_jwt` makes the platform reject unsigned requests
+# before the function runs; the four job functions additionally require the
+# service-role key inside the function (see _shared/http.ts), because a valid
+# anon JWT is not enough to run them.
+[functions.household-admin]
+verify_jwt = true
+
+[functions.calendar-reminder-scheduler]
+verify_jwt = true
+
+[functions.push-dispatch]
+verify_jwt = true
+
+[functions.recurring-transfer-executor]
+verify_jwt = true
+
+[functions.notification-cleanup]
+verify_jwt = true
 
 [analytics]
 enabled = true

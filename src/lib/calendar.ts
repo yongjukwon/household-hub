@@ -14,7 +14,32 @@ import {
 } from 'date-fns'
 import type { Tables } from '@/types/database'
 
-export type CalendarEvent = Tables<'calendar_events'>
+/**
+ * The Calendar row shape this (pre-rebuild) UI was written against: every event
+ * is timed, with non-null `start_at`/`end_at`.
+ *
+ * Task 2 widened `calendar_events` for the mobile-first model — `start_at`/
+ * `end_at` became nullable, and all-day events carry `start_date`/`end_date`
+ * plus an `event_timezone` — and the rebuilt Calendar in Task 6 consumes that
+ * shape directly. Until then this screen keeps its narrower view, and
+ * `toLegacyCalendarEvent` is the single place rows are checked against it.
+ */
+export type CalendarEvent = Omit<
+  Tables<'calendar_events'>,
+  'start_at' | 'end_at'
+> & {
+  start_at: string
+  end_at: string
+}
+
+/** A stored row in the legacy shape, or null when it is an all-day row. */
+export function toLegacyCalendarEvent(
+  row: Tables<'calendar_events'>,
+): CalendarEvent | null {
+  if (row.start_at === null || row.end_at === null) return null
+  return { ...row, start_at: row.start_at, end_at: row.end_at }
+}
+
 export type RecurrenceFreq = CalendarEvent['recurrence_freq']
 type RepeatFreq = Exclude<RecurrenceFreq, 'none'>
 
@@ -106,7 +131,9 @@ export function expandOccurrences(
     // recurrence_until is an inclusive last date; allow an occurrence that
     // starts anytime on that day.
     const untilEnd = event.recurrence_until
-      ? parseLocalDate(event.recurrence_until).getTime() + 24 * 60 * 60 * 1000 - 1
+      ? parseLocalDate(event.recurrence_until).getTime() +
+        24 * 60 * 60 * 1000 -
+        1
       : null
 
     // First candidate that could still overlap the range starts no earlier
