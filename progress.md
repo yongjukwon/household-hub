@@ -1,15 +1,16 @@
 # Household Hub Mobile-First Implementation Progress
 
-**Last updated:** 2026-07-24
+**Last updated:** 2026-07-25
 
 **Canonical continuation file:** `progress.md`
 
 **Implementation branch:** `codex/household-hub-mobile-first`
 
 **Implementation worktree:** `/Users/conlegs/dev/household-hub/.worktrees/household-hub-mobile-first`
-**Current HEAD:** `1231941 feat: add notification delivery tables and job RPCs`
+**Current HEAD:** `df02de6 feat: add household admin and scheduled job Edge Functions`
 **Last review-clean baseline:** `d1f3e30` (Tasks 1–2). Task 3 in progress on top
-(3A + 3B complete, 3C database layer complete, 3C Edge Functions in progress).
+(3A + 3B complete, 3C complete — database layer and Edge Functions; 3D
+config/deploy remaining).
 
 This file is the source of truth for continuing the approved web-first
 Household Hub rebuild. Current Git state and fresh verification results take
@@ -46,9 +47,9 @@ precedence if this file ever becomes stale.
    - `docs/mobile-implementation-handoff.md`
    - the still-untracked files under `mobile/`
 
-5. Resume at **Task 3C Edge Functions** (`supabase/functions/`). Do not redo
-   Tasks 1, 2, 3A, 3B, or the 3C database layer — all committed and verified
-   (see the Task 3 progress section below).
+5. Resume at **Task 3D config/deploy**. Do not redo Tasks 1, 2, 3A, 3B, or
+   3C (database layer and Edge Functions) — all committed and verified (see
+   the Task 3 progress section below).
 
 6. **User directive (2026-07-25):** work straight through **3C → 3D** to finish
    Task 3, then **proceed into Task 4** — the user has pre-approved starting
@@ -79,7 +80,7 @@ precedence if this file ever becomes stale.
 | --- | --- | --- |
 | 1. Shared foundation and domain contracts | Complete | Review-clean at `ffc3c01` |
 | 2. Supabase schema and operation RPC | Complete | Review-clean at `d1f3e30` |
-| 3. Identity, notifications, jobs, deployment config | In progress | 3A + 3B done; 3C Edge Functions + 3D config/deploy remain |
+| 3. Identity, notifications, jobs, deployment config | In progress | 3A + 3B + 3C done; 3D config/deploy remains |
 | 4. Durable web operation queue | Pending | Not started |
 | 5. Responsive web shell and visual system | Pending | Not started |
 | 6. Web feature flows | Pending | Not started |
@@ -592,13 +593,59 @@ the password path). Web helpers (`src/lib/auth.ts`): `signInWithOAuth`
 Verified: `supabase db reset --local` clean; `supabase test db --local`
 4 files / **292 tests pass** (89 new); `supabase db lint` no errors.
 
+### Done: 3C Edge Functions (`df02de6`)
+
+`supabase/functions/` — five functions plus tested pure modules:
+
+- **`_shared/timezone.ts`** — `Intl`-based offset resolution (Temporal is not
+  on the edge runtime). Fall-back wall times resolve to the *earlier* instant;
+  spring-forward gap times resolve to the transition instant itself (found by
+  a minute-granularity binary search), so a 02:30 anchor on a spring-forward
+  day still runs, at 03:00 local.
+- **`_shared/reminders.ts`** — all-day events anchor to 09:00 in the event
+  timezone while the dispatch key stays the event's own start (so re-timing an
+  event re-fires, a retried run does not); `none`/unknown presets never fire;
+  reminders past the 60-minute grace window are dropped instead of delivered
+  late; candidate window = grace back, longest lead + 1 day forward.
+- **`_shared/schedules.ts`** — occurrence enumeration for the four
+  frequencies in the schedule's own timezone (wall-clock preserved across
+  DST). Monthly re-derives from the anchor day so a February clamp doesn't
+  drag later months; semi-monthly pairs the anchor day with one 15 days away;
+  a run materializes at most 24 occurrences so an outage catches up in
+  bounded batches.
+- **`_shared/expo.ts`** — one message per (notification, enabled device),
+  malformed tokens dropped, 100-message batches, positional ticket matching;
+  a short/missing ticket becomes `MissingTicket` rather than a silent drop,
+  and `DeviceNotRegistered` marks the device for disabling.
+- **`_shared/http.ts` / `_shared/supabase.ts` / `_shared/json.ts`** — CORS,
+  method/body guards, constant-time service-role check, and a dependency-free
+  PostgREST/Auth client (no SDK bundle runs with the service-role key, and
+  `deno check`/`deno test` work offline).
+- **`household-admin`** — one audited entry point for every administration
+  action. Strict `{action, payload}` validation mirroring the domain contract;
+  RPC actions run as the *caller* (RLS and `auth.uid()` still apply); the
+  typed household name is verified against the stored name server-side; account
+  deletion runs `admin_prepare_account_deletion` first and only removes the
+  `auth.users` row when the database accepted, so a rejection leaves the
+  account intact.
+- **`calendar-reminder-scheduler`**, **`push-dispatch`**,
+  **`recurring-transfer-executor`**, **`notification-cleanup`** — service-role
+  only. Push deliveries are recorded per (notification, device); a transport
+  failure records nothing so the next run retries, while an Expo-reported
+  error is recorded as permanent (the inbox row remains the durable record).
+
+Also: `npm run test:functions` (`deno test supabase/functions/`),
+`src/test/edgeFunctionParity.test.ts` (asserts the edge copies of the reminder
+presets, admin actions, name/code validation, and the 90-day TTL still match
+`@household-hub/domain`), and a Vitest `exclude` for `supabase/**` so Vitest
+no longer tries to load the Deno tests.
+
+Verified: `deno test supabase/functions/` **73 passed**; `npx vitest run` 37
+files / **233 passed**; `npm run lint` clean; `npm run build` clean;
+`deno check` clean.
+
 ### Remaining Task 3 sub-checkpoints
 
-- **3C Edge Functions (in progress)** — household-admin (incl. redemption +
-  account deletion), push-dispatch, calendar-reminder-scheduler (all-day →
-  09:00 event tz), recurring-transfer-executor, notification-cleanup (90-day);
-  Deno unit tests on extracted pure logic (timezone resolution, reminder fire
-  times, schedule occurrence enumeration, Expo push batching/ticket handling).
 - **3D config/deploy** — `config.toml` `[functions]`, `.env.example`, seed
   fixtures, regenerated `src/types/database.ts`, `vercel.json`, Expo
   `app.json` (`householdhub://`, `com.conlegs.householdhub`, portrait-only),
