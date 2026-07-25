@@ -16,7 +16,7 @@ import { NotesScreen } from '@/features/notes/NotesScreen'
 import { NoteScreen } from '@/features/notes/NoteScreen'
 import { TripsScreen } from '@/features/trips/TripsScreen'
 import { TripScreen } from '@/features/trips/TripScreen'
-import { SettingsScreen } from '@/screens/SettingsScreen'
+import { SettingsScreen } from '@/features/settings/SettingsScreen'
 import { setupQueryPersistence } from '@/lib/offline/queryPersister'
 import LoginPage from '@/routes/LoginPage'
 

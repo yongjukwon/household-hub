@@ -7,11 +7,11 @@
 **Implementation branch:** `codex/household-hub-mobile-first`
 
 **Implementation worktree:** `/Users/conlegs/dev/household-hub/.worktrees/household-hub-mobile-first`
-**Current HEAD:** `981f968 feat: Trips feature flow (Task 6E)`
+**Current HEAD:** `<pending 6F commit>` feat: Settings + legacy retirement (Task 6F)
 **Last review-clean baseline:** `d1f3e30` (Tasks 1–2, independent review).
-Tasks 3, 4, and 5 are complete (self-reviewed). Task 6 is **in progress**:
-6A/6B done; 6C-1/6C-2 (Ledger) done; 6D (Notes) done; 6E (Trips) done;
-**6F (Settings + legacy retirement) is next** — the final Task 6 sub-checkpoint.
+Tasks 3, 4, and 5 are complete (self-reviewed). **Task 6 is complete**
+(6A–6F done). **Task 7 (Expo foundation) is next** — a new phase; see
+`mobile/AGENTS.md` before touching Expo code.
 
 This file is the source of truth for continuing the approved web-first
 Household Hub rebuild. Current Git state and fresh verification results take
@@ -55,14 +55,23 @@ precedence if this file ever becomes stale.
    screens (`src/shell/PlaceholderScreen.tsx` routes in `src/App.tsx`) with
    real feature flows and retires the unrouted legacy page screens.
 
-6. **Task 6F (Settings + legacy retirement) is next** — the final Task 6
-   sub-checkpoint. 6A–6E are done and committed. 6F expands Settings
-   (notification preferences, household/invite/ownership actions, destructive
-   account/household) and removes the rebuilt routes' remaining dependency on
-   legacy `pages`/`budget_*`/`savings_*` hooks (leaving the legacy tables in
-   place), then runs full verification. Update `progress.md` at **every
-   sub-checkpoint** (HEAD, commit, verification, resume point), not only at
-   task boundaries — per the user's directive.
+6. **Task 7 (Expo foundation and offline data layer) is next** — a new phase.
+   Task 6 (web feature flows) is complete: 6A–6F done and committed. Read
+   `mobile/AGENTS.md` before changing Expo code. Update `progress.md` at
+   **every sub-checkpoint** (HEAD, commit, verification, resume point) — per
+   the user's directive.
+
+   **Deferred cleanup (safe, no behavior impact):** the legacy page-based
+   screens/hooks/components (`src/components/pages|budget|savings|groceries|
+   trips|notes`, `src/hooks/useBudget|useSavings|usePages|useTrip|useGroceries|
+   useCalendar`, `src/routes/PageView|SectionListPage`, and their tests) remain
+   in the tree but are **fully unrouted and unreferenced by the rebuilt route
+   graph** (verified by grep from `App.tsx` through `features/`, `shell/`,
+   `components/auth/`). The functional retirement requirement — rebuilt clients
+   never read/write legacy `pages`/`budget_*`/`savings_*` — is met. Physically
+   deleting that dead code (~15 files + tests) was deferred to avoid
+   destabilizing the passing suite at the end of Task 6; do it as its own
+   commit before merge or during Task 9 cleanup.
 
 ## Approved product direction
 
@@ -87,13 +96,13 @@ precedence if this file ever becomes stale.
 | 3. Identity, notifications, jobs, deployment config | Complete | Verified at `24a5b39` (self-review; no independent review agent) |
 | 4. Durable web operation queue | Complete | Verified at `f86f4c0`; its UI surface lands with Task 5 |
 | 5. Responsive web shell and visual system | Complete | Verified at `626c681` (self-review) |
-| 6. Web feature flows | In progress | 6A–6E done; 6F pending |
+| 6. Web feature flows | Complete | 6A–6F done; verified at `<pending 6F>` (self-review) |
 | 7. Expo foundation and offline data layer | Pending | Not started |
 | 8. Expo feature parity and visual implementation | Pending | Not started |
 | 9. Reset procedure, E2E verification, release handoff | Pending | Not started |
 
 
-## Task 6 — web feature flows (in progress)
+## Task 6 — web feature flows (complete)
 
 Fills the placeholder routes with real, tested flows on top of the durable
 operation queue (Task 4) and shell (Task 5). Sub-checkpoints (each TDD →
@@ -195,7 +204,30 @@ implement → affected suite → commit → this file):
   content tables + operations (a schema follow-up, not part of the current
   durable-queue contract). **Verification:** `npx vitest run` **348 passed**
   (59 files; +6), lint clean, build clean. Not independently reviewed (session
-  directive: no subagents). Next: 6F (Settings + legacy retirement).
+  directive: no subagents).
+- **6F — Settings + legacy retirement (done).** `src/features/settings/`:
+  `profile.ts` (`useProfile` reads the signed-in user's `profiles` row;
+  `saveProfileSettings` persists displayName/appearance/notificationsEnabled via
+  the `settings.update` durable operation, entityId = user id per the RPC's
+  `entity_id = actor_id` rule); `household.ts` (`useHouseholdMembers` with roles
+  + `owner_user_id`, `useHouseholdInvites` pending list; admin RPC wrappers
+  `createInvite`/`revokeInvite`/`transferOwnership`/`removeMember`/
+  `deleteHousehold`/`prepareAccountDeletion`, each normalized to the domain's
+  `HouseholdAdminResult`); `DangerConfirm` (typed-phrase destructive gate);
+  `SettingsScreen` replaces the Task-5 `src/screens/SettingsScreen.tsx`
+  (removed) with Profile (name + notifications), Appearance (local + synced via
+  settings.update), Household (members/roles, invite create+revoke shown only
+  when there's no partner, transfer-ownership + remove-member shown to the owner
+  with a partner), Account (email + sign out), and a Danger zone (delete
+  household / delete account, both typed-confirmed). Route rewired in
+  `src/App.tsx`. **Legacy retirement:** the rebuilt route graph (App → features/
+  shell/ components/auth) is verified free of legacy `pages`/`budget_*`/
+  `savings_*`/page-template hook imports; the dead legacy code physically
+  remains in-tree (unrouted, unreferenced) with deletion deferred as a safe
+  standalone cleanup (see "How to resume safely" §6). **Verification:**
+  `npx vitest run` **353 passed** (60 files; +5), lint clean, build clean. Not
+  independently reviewed (session directive: no subagents). **Task 6 complete;
+  next is Task 7 (Expo).**
 
 ## Task 5 — responsive web shell + visual system (complete)
 
