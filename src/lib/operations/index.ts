@@ -4,6 +4,7 @@ export {
   useOperationQueueStatus,
   type OperationQueueStatus,
 } from './useOperationQueue'
+export { useHouseholdRealtime } from './realtime'
 export { getDeviceId, nextLocalSequence, resetDeviceIdentity } from './device'
 export {
   applyOptimisticOverlay,
