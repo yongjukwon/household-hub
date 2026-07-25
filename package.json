@@ -15,7 +15,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest",
+    "test:functions": "deno test supabase/functions/"
   },
   "dependencies": {
     "@household-hub/domain": "file:packages/domain",

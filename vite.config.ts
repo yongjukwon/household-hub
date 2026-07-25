@@ -63,5 +63,8 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['src/test/setup.ts'],
+    // Edge Function tests are Deno tests (`deno test supabase/functions/`) and
+    // import jsr: specifiers Vite cannot resolve.
+    exclude: ['node_modules/**', 'dist/**', 'mobile/**', 'supabase/**'],
   },
 })
