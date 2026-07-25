@@ -7,7 +7,8 @@
 **Implementation branch:** `codex/household-hub-mobile-first`
 
 **Implementation worktree:** `/Users/conlegs/dev/household-hub/.worktrees/household-hub-mobile-first`
-**Current HEAD:** `d1f3e30 fix: harden mobile operation invariants`
+**Current HEAD:** `47f1763 feat: add household admin domain contracts and reminder presets`
+**Last review-clean baseline:** `d1f3e30` (Tasks 1–2). Task 3 in progress on top.
 
 This file is the source of truth for continuing the approved web-first
 Household Hub rebuild. Current Git state and fresh verification results take
@@ -70,7 +71,7 @@ precedence if this file ever becomes stale.
 | --- | --- | --- |
 | 1. Shared foundation and domain contracts | Complete | Review-clean at `ffc3c01` |
 | 2. Supabase schema and operation RPC | Complete | Review-clean at `d1f3e30` |
-| 3. Identity, notifications, jobs, deployment config | Pending | Next task |
+| 3. Identity, notifications, jobs, deployment config | In progress | Domain contracts done (`47f1763`); DB/auth/functions/config remain |
 | 4. Durable web operation queue | Pending | Not started |
 | 5. Responsive web shell and visual system | Pending | Not started |
 | 6. Web feature flows | Pending | Not started |
@@ -488,9 +489,59 @@ Expected existing warnings:
 7. **Live Realtime:** publication and replica-identity metadata are verified;
    live two-client websocket delivery remains for Task 9.
 
-## Next task — Task 3
+## Task 3 — In progress
 
-Do not start without the user’s approval.
+Being executed in ordered sub-checkpoints (commit + verify after each) because
+Task 3 is large; this keeps progress durable across sessions.
+
+### Done: 3A domain contracts (`47f1763`)
+
+Added the household-administration domain layer in `@household-hub/domain`:
+
+- `packages/domain/src/households.ts` — `householdAdminActions` allowlist
+  (`household.onboard`, `invite.create|revoke|redeem`, `ownership.transfer`,
+  `member.remove`, `account.delete`, `household.delete`) with strict
+  per-action payload validation (exact key set + per-field validators, extra
+  keys rejected); `MAX_HOUSEHOLD_MEMBERS = 2`, `INVITE_TTL_DAYS = 7`,
+  `READ_NOTIFICATION_TTL_DAYS = 90`; `HouseholdAdminResult` ok/rejected guard.
+- Admin actions are modeled **separately from `operationTypes`** — they are
+  synchronous, online-only, and executed by security-definer RPCs / service-
+  role Edge Functions, not queued through the durable operation queue.
+- `packages/domain/src/calendar.ts` — `reminderPresets`
+  (`none|at-time|10m|1h|1d|1w`), `isReminderPreset`, and `reminderLeadMinutes`.
+- Tests: `households.test.ts` (+8), reminder cases in `calendar.test.ts` (+2).
+
+Verified under arm64 node: `npx vitest run` 35 files / 226 passed;
+`npm run lint` clean; `npm run build` clean.
+
+### Remaining Task 3 sub-checkpoints (not started)
+
+- **3A DB** — security-definer `onboard_household` RPC + admin RPCs for
+  ownership transfer / member removal / household deletion (household-scoped),
+  with the two-member cap and RLS/grants consistent with Task 2. Invite
+  redemption and account deletion (needs `auth.users` access) belong to the
+  service-role Edge Function in 3C. pgTAP tests first (TDD), then
+  `supabase db reset --local` + suites. New ordered migration beside the three
+  Task 2 files.
+- **3B auth** — Google/Apple `signInWithOAuth` (web) + native callback
+  contract; email/password behind a dev + `test-auth` guard (unit-tested);
+  `config.toml` external providers wired to env.
+- **3C Edge Functions** — invite-admin (incl. redemption + account deletion),
+  push-dispatch, calendar-reminder-scheduler (all-day → 09:00 event tz),
+  recurring-transfer-executor, notification-cleanup (90-day); partner-only
+  calendar activity notifications; Deno unit tests on extracted pure logic.
+- **3D config/deploy** — `config.toml` `[functions]`, `.env.example`, seed
+  fixtures, regenerated `src/types/database.ts`, `vercel.json`, Expo
+  `app.json` (`householdhub://`, `com.conlegs.householdhub`, portrait-only),
+  `eas.json`, deployment docs — no secrets.
+
+Then run the full baseline (db reset + pgTAP + lint/build/test + deno tests),
+self-review for Critical/Important issues, update this file, and deliver the
+Task 3 checkpoint report before starting Task 4.
+
+## Original Task 3 scope (unchanged reference)
+
+Do not start Task 4 without the user’s approval.
 
 ### Task 3 scope
 
