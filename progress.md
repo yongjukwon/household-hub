@@ -368,8 +368,29 @@ Sub-checkpoints:
   every route — including the ones blocked from interactive tap-through —
   bundles without resolution errors.
 
-Next: 8D (Notes/TenTap), 8E (Trips), 8F (Settings + Notifications), then 8G
-final verification.
+- **8D — Notes tab, TenTap port (done, `5619825`).** Converted `notes.tsx` to
+  a folder route. Ported web's `data.ts`/`mutations.ts` verbatim.
+  `RestrictedEditor.tsx` assembles TenTap's bridge extensions individually
+  (Core/History/Heading-levels-1-3/BulletList/OrderedList/ListItem/TaskList/
+  HardBreak/Placeholder) instead of the full `TenTapStartKit`, which also
+  ships bold/italic/strike/code/link/color/highlight/image/blockquote/
+  underline/dropcursor — none permitted by the shared `isRichNoteJson`
+  domain validator. This mirrors exactly how web restricts `StarterKit`.
+  TenTap runs Tiptap inside a WebView (new native dep: `react-native-webview`)
+  and exposes content async via `editor.getJSON()`; a custom toolbar (Body/
+  H1-H3/bullet/numbered/checklist/undo/redo) matches web's one-for-one, reading
+  active state from `useBridgeState`. `RestrictedNoteView.tsx` is a native
+  read-mode renderer for the same restricted node set. `[noteId]`: plain read
+  view with explicit Edit/Save/Cancel drafting (one title+document draft,
+  matching web's queued-save/local-accepted-snapshot pattern).
+  **Verification:** tsc clean; 91 tests still pass (no new pure logic beyond
+  what `packages/domain/src/notes.test.ts` already covers). Native rebuild
+  required (webview/tentap-editor ship native code); clean on-device boot,
+  plus a full production `expo export` (1732 modules, up from 1458 at 8C, zero
+  errors) — this eagerly bundles TenTap's WebView editor HTML/assets, which
+  dev Metro's lazy route loading would not otherwise exercise.
+
+Next: 8E (Trips), 8F (Settings + Notifications), then 8G final verification.
 
 ## Environment, constraints & risks (condensed)
 
