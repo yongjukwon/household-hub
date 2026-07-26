@@ -1,3 +1,5 @@
+import { isRevision } from '@household-hub/domain'
+
 import { getOperationStore } from './store'
 import type { QueuedOperation } from './types'
 
@@ -41,13 +43,17 @@ export function applyOptimisticOverlay<Row extends EntityRow>(
     }
 
     const existing = merged.get(operation.entityId)
-    merged.set(operation.entityId, {
+    const projected = {
       // A queued edit only carries the fields it changed, so it is layered on
       // the server row rather than replacing it.
       ...(existing ?? {}),
       ...operation.optimistic,
       id: operation.entityId,
-    } as Row)
+    } as Row & { revision?: unknown }
+    if (!isRevision(projected.revision)) {
+      projected.revision = operation.command.baseRevision ?? 1
+    }
+    merged.set(operation.entityId, projected)
   }
 
   return [...merged.values()]

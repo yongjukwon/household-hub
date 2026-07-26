@@ -273,7 +273,35 @@ describe('durable operation queue', () => {
     const serverRows = [{ id: EVENT_A, title: 'Old title' }]
     const merged = await withOptimisticOverlay(serverRows, 'calendar_event')
 
-    expect(merged).toEqual([{ id: EVENT_A, title: 'Renamed' }])
+    expect(merged).toEqual([{ id: EVENT_A, title: 'Renamed', revision: 1 }])
+  })
+
+  it('repairs the revision on a legacy optimistic create before exposing it', () => {
+    const merged = applyOptimisticOverlay(
+      [],
+      [
+        {
+          operationId: uuid('55555555-5555-4555-8555-555555555555'),
+          localSequence: 1,
+          householdId: HOUSEHOLD,
+          entityType: 'trip',
+          entityId: EVENT_A,
+          command: {
+            baseRevision: null,
+          } as never,
+          // Mobile builds before the revision projection fix stored this shape.
+          optimistic: { name: 'London' },
+          enqueuedAt: '2026-07-25T00:00:00.000Z',
+          attempts: 0,
+          lastError: null,
+        },
+      ],
+      'trip',
+    )
+
+    expect(merged).toEqual([
+      { id: EVENT_A, name: 'London', revision: 1 },
+    ])
   })
 
   it('applyOptimisticOverlay removes an entity a queued delete targets', () => {

@@ -9,6 +9,7 @@ import {
 } from './db/sqlite'
 
 const QUERY_CACHE_KEY = 'react-query-client'
+export const MOBILE_QUERY_CACHE_BUSTER = 'mobile-v2'
 
 /**
  * Stores the dehydrated React Query client in the same durable SQLite
@@ -26,7 +27,12 @@ export function createQueryPersister(
       const value = await store.get(QUERY_CACHE_KEY)
       if (!value) return undefined
       try {
-        return JSON.parse(value) as PersistedClient
+        const client = JSON.parse(value) as PersistedClient
+        if (client.buster !== MOBILE_QUERY_CACHE_BUSTER) {
+          await store.remove(QUERY_CACHE_KEY)
+          return undefined
+        }
+        return client
       } catch {
         await store.remove(QUERY_CACHE_KEY)
         return undefined

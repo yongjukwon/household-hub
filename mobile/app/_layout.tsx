@@ -10,7 +10,10 @@ import { useOAuthDeepLinks } from '@/lib/auth/useOAuthDeepLinks'
 import { HouseholdRuntime } from '@/lib/HouseholdRuntime'
 import { useOperationSync } from '@/lib/operations/useOperationSync'
 import { createQueryClient } from '@/lib/query'
-import { createQueryPersister } from '@/lib/queryPersister'
+import {
+  MOBILE_QUERY_CACHE_BUSTER,
+  createQueryPersister,
+} from '@/lib/queryPersister'
 import { useQueryEnvironment } from '@/lib/useQueryEnvironment'
 import { AppearanceProvider } from '@/theme/AppearanceProvider'
 
@@ -43,7 +46,7 @@ export default function RootLayout() {
       <PersistQueryClientProvider
         client={queryClient}
         persistOptions={{
-          buster: 'mobile-v1',
+          buster: MOBILE_QUERY_CACHE_BUSTER,
           maxAge: Number.POSITIVE_INFINITY,
           persister,
         }}

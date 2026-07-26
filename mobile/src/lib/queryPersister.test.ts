@@ -1,7 +1,10 @@
 import type { PersistedClient } from '@tanstack/query-persist-client-core'
 
 import type { QueryCacheStore } from './db/sqlite'
-import { createQueryPersister } from './queryPersister'
+import {
+  MOBILE_QUERY_CACHE_BUSTER,
+  createQueryPersister,
+} from './queryPersister'
 
 function memoryStore(): QueryCacheStore & { value: string | null } {
   return {
@@ -20,7 +23,7 @@ function memoryStore(): QueryCacheStore & { value: string | null } {
 
 const client: PersistedClient = {
   timestamp: 1,
-  buster: 'mobile-v1',
+  buster: MOBILE_QUERY_CACHE_BUSTER,
   clientState: { mutations: [], queries: [] },
 }
 
@@ -35,6 +38,14 @@ describe('createQueryPersister', () => {
   it('removes malformed persisted data instead of blocking startup', async () => {
     const store = memoryStore()
     store.value = '{not-json'
+
+    await expect(createQueryPersister(store).restoreClient()).resolves.toBeUndefined()
+    expect(store.value).toBeNull()
+  })
+
+  it('removes a persisted client from an incompatible mobile data contract', async () => {
+    const store = memoryStore()
+    store.value = JSON.stringify({ ...client, buster: 'mobile-v1' })
 
     await expect(createQueryPersister(store).restoreClient()).resolves.toBeUndefined()
     expect(store.value).toBeNull()
