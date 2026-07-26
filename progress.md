@@ -10,11 +10,18 @@
 
 **Latest implementation checkpoint:** Tasks 1–6 and the web parity correction
 pass are complete and user-accepted (web app done). **Task 7 (Expo foundation
-and offline data layer) is complete (self-review), HEAD `edd24dd` plus the 7E
-config/metro/progress commit.** 7A–7E done: Expo Router shell + auth gate,
-Supabase session, SQLite durable operation queue + device identity, realtime,
-deep-link OAuth, Expo Notifications, and a verified iOS Metro bundle. Awaiting
-user acceptance before Task 8 (Expo feature parity + visual implementation).
+and offline data layer) is complete and user-accepted**, HEAD `a41c92c`. 7A–7E
+done: Expo Router shell + auth gate, Supabase session, SQLite durable operation
+queue + device identity, realtime, deep-link OAuth, Expo Notifications, and a
+verified iOS Metro bundle. **User acceptance evidence:** built and ran the real
+SDK 57 app end-to-end on a local iOS Simulator (iPhone 17, iOS 26.5) via
+`expo run:ios` — signed in with the local test account and navigated the
+five-tab shell. (Expo Go could not be used: its public build only supports SDK
+54, one behind this project's deliberate SDK 57 baseline — see
+`mobile/AGENTS.md`. EAS dev-client / TestFlight on the user's physical iPhone
+is pending Apple Developer Program enrollment, tracked separately.)
+**Task 8 (Expo feature parity and visual implementation) is now the active
+task** — the user approved starting it.
 
 This file is the source of truth for continuing the approved web-first
 Household Hub rebuild. Current Git state and fresh verification results take
@@ -58,7 +65,7 @@ completed web work lives in `docs/superpowers/progress-detail.md`.
    - `docs/mobile-implementation-handoff.md`
    - the still-untracked files under `mobile/`
 
-5. **Task 7 is complete (self-review); Task 8 is the next task.** Task 8 = Expo
+5. **Task 7 is complete and user-accepted; Task 8 is the active task.** Task 8 = Expo
    feature parity + visual implementation. Build the five tabs, header actions,
    detail stacks, modal/sheet flows, and design tokens against
    `docs/mobile-design-reference/` (Heroicons, React Native SVG, TenTap), reusing
@@ -122,14 +129,14 @@ completed web work lives in `docs/superpowers/progress-detail.md`.
 | 6. Web feature flows | Complete | 6A–6F done; verified at `eafdce8` |
 | Pre-7. Authenticated local test setup | Complete | Verified at `c5dc6d3`; real two-member Supabase household |
 | Web parity correction pass (1–6) | Complete & accepted | Final handoff at `edd24dd` era |
-| **7. Expo foundation and offline data layer** | **Complete (self-review)** | 7A–7E done; verified at `edd24dd`+config; awaiting user acceptance |
-| 8. Expo feature parity and visual implementation | Pending | Not started |
+| 7. Expo foundation and offline data layer | Complete & accepted | 7A–7E done; user-accepted on a real iOS Simulator build at `a41c92c` |
+| **8. Expo feature parity and visual implementation** | **In progress** | **Active task** |
 | 9. Reset procedure, E2E verification, release handoff | Pending | Not started |
 
 Per-task narratives, sub-checkpoints, and live-evidence logs for Tasks 1–6 and
 the correction pass are archived in `docs/superpowers/progress-detail.md`.
 
-## Task 7 — Expo foundation and offline data layer (complete, self-review)
+## Task 7 — Expo foundation and offline data layer (complete, user-accepted)
 
 Scope (from the plan): replace the Expo scaffold with Expo Router, shared domain
 package consumption, Supabase session storage, OAuth/deep links, a SQLite query
@@ -222,6 +229,31 @@ Sub-checkpoints:
     `/code-review` pass is the recommended pre-merge follow-up, alongside the
     web branch review.
 
+- **7F — Real-device validation + acceptance (done, `a41c92c`).** Fixed a real
+  npm-hoisting bug found only by actually running the dev server: `expo-router`
+  is declared as an *optional* peer of `@expo/cli`/`@expo/router-server` (both
+  hoisted to the workspace root), so npm never hoisted `expo-router` itself —
+  it stayed nested under `mobile/node_modules`. Those packages' runtime code
+  does a plain `require('expo-router/_ctx-shared')` resolved from their own
+  (root) location, which `npx expo start`/`npx expo run:ios` could never
+  satisfy, crashing with `MODULE_NOT_FOUND`. Fix: declare `expo-router` as a
+  real root `devDependency` (same `~57.0.8` pin) so npm hoists one shared copy.
+  Linked `mobile/app.json` to an EAS project (`eas init`, `penguinfactory`
+  account) for the push-token `projectId` `notifications.ts` already reads.
+  Discovered Expo Go's public build only supports SDK 54 (one behind this
+  project's SDK 57), so device validation used a local **iOS Simulator**
+  instead (downloaded via `xcodebuild -downloadPlatform iOS`, no Apple
+  Developer Program needed): `npx expo run:ios` — first run needed CocoaPods,
+  installed via `brew install cocoapods` after the automated installer inside
+  `expo run:ios` failed non-interactively. Full native build succeeded,
+  installed, and launched on an iPhone 17 (iOS 26.5) simulator; screenshot
+  confirmed the real login screen (🐰🐧 mark, Google/Apple buttons, local
+  test sign-in). **User signed in with the local test account and confirmed
+  navigating the five-tab shell** — this is the acceptance evidence for Task 7.
+  Physical-iPhone testing (Expo Go is not usable at SDK 57) is deferred to an
+  EAS dev-client or TestFlight build, gated on the user's in-progress Apple
+  Developer Program enrollment — tracked in memory, not blocking Task 8.
+
 **Known caveat carried forward:** the on-disk React duplicate (19.2.3 vs 19.2.7)
 is a monorepo artifact of the accepted web app's React pin. It is mitigated for
 the native bundle by the Metro single-React resolver and for tests by the jest
@@ -229,8 +261,34 @@ the native bundle by the Metro single-React resolver and for tests by the jest
 cross-cutting change to the accepted web checkpoint and was deliberately not
 made under Task 7; revisit during Task 9 dependency hardening.
 
-**Next gate:** review the mobile foundation, then approve Task 8 (Expo feature
-parity + visual implementation against `docs/mobile-design-reference/`).
+**Task 7 is accepted.** See the Task 8 section below for the active work.
+
+## Task 8 — Expo feature parity and visual implementation (in progress)
+
+Scope (from the plan): implement the same five tabs, header actions, detail
+stacks, modal/bottom-sheet flows, design tokens, validation, optimistic
+behavior, and server operations as web. Use Heroicons, React Native SVG, and
+TenTap. Implement Calendar, Groceries, Ledger/Assets, multiple Notes,
+Trips/Expenses, notification inbox, and Settings at phone portrait sizes.
+Validate against the supplied references on iPhone and Android development
+builds and add focused component tests.
+
+Reference material to build against:
+
+- `docs/mobile-design-reference/README.md` + `Household Hub Mobile.dc.html` —
+  the target visual system and interaction patterns for every screen.
+- Web feature implementations (`src/features/calendar|groceries|ledger|notes|
+  trips|settings/`) — the read/mutation contracts to mirror exactly (same
+  `enqueueOperation` command types, same domain validators). Native screens
+  are a new UI layer over the *same* server contract, not a reinterpretation.
+- `mobile/src/lib/operations/` (queue, overlay, realtime), `mobile/src/lib/
+  supabase.ts`, `mobile/src/lib/auth/` — already built in Task 7, ready to use.
+- `mobile/src/theme/tokens.ts` — light/dark tokens exist but are minimal;
+  expect to expand them to match the design reference's full palette/spacing.
+
+Sub-checkpoints will be recorded here as they complete. Device validation
+(iOS Simulator, `npx expo run:ios`) is available now — see Task 7F above for
+the working setup (CocoaPods via Homebrew, EAS project linked).
 
 ## Environment, constraints & risks (condensed)
 
