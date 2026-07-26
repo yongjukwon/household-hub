@@ -45,3 +45,9 @@ jest.mock('expo-blur', () => {
 
   return { BlurView }
 })
+
+// expo-linear-gradient ships a native view; tests just need something renderable.
+jest.mock('expo-linear-gradient', () => {
+  const { View } = require('react-native')
+  return { LinearGradient: View }
+})
