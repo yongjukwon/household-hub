@@ -6,6 +6,10 @@ import { Card } from '@/components/Card'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { ArrowRightIcon, PlusIcon } from '@/components/icons'
 import { EmptyState, ErrorState, LoadingState } from '@/components/states'
+import {
+  operationOutcomeError,
+  operationThrownError,
+} from '@/lib/operations'
 import { useTheme } from '@/theme/tokens'
 import {
   HOUSEHOLD_CURRENCY,
@@ -54,6 +58,8 @@ export function AssetsTab({
   const [deleteTarget, setDeleteTarget] = useState<
     { kind: 'transfer' | 'schedule'; id: string; revision: number } | null
   >(null)
+  const [operationBusy, setOperationBusy] = useState(false)
+  const [operationError, setOperationError] = useState<string | null>(null)
 
   const assets = useMemo(() => assetsQuery.data ?? [], [assetsQuery.data])
   const byId = useMemo(() => {
@@ -72,12 +78,53 @@ export function AssetsTab({
 
   async function confirmDelete() {
     if (!deleteTarget) return
-    if (deleteTarget.kind === 'transfer') {
-      await deleteTransfer(householdId, deleteTarget.id, deleteTarget.revision)
-    } else {
-      await deleteSchedule(householdId, deleteTarget.id, deleteTarget.revision)
+    setOperationBusy(true)
+    setOperationError(null)
+    try {
+      const outcome =
+        deleteTarget.kind === 'transfer'
+          ? await deleteTransfer(
+              householdId,
+              deleteTarget.id,
+              deleteTarget.revision,
+            )
+          : await deleteSchedule(
+              householdId,
+              deleteTarget.id,
+              deleteTarget.revision,
+            )
+      const outcomeError = operationOutcomeError(outcome)
+      if (outcomeError) {
+        setOperationError(outcomeError)
+        return
+      }
+      setDeleteTarget(null)
+    } catch (failure) {
+      setOperationError(
+        operationThrownError(failure, 'Could not delete this transfer.'),
+      )
+    } finally {
+      setOperationBusy(false)
     }
-    setDeleteTarget(null)
+  }
+
+  async function handleScheduleToggle(
+    schedule: TransferSchedule,
+    active: boolean,
+  ) {
+    setOperationError(null)
+    try {
+      const outcome = await toggleSchedule(householdId, schedule, active)
+      const outcomeError = operationOutcomeError(outcome)
+      if (outcomeError) setOperationError(outcomeError)
+    } catch (failure) {
+      setOperationError(
+        operationThrownError(
+          failure,
+          'Could not update this recurring transfer.',
+        ),
+      )
+    }
   }
 
   if (assetsQuery.isLoading) return <LoadingState />
@@ -87,6 +134,11 @@ export function AssetsTab({
 
   return (
     <View style={styles.stack}>
+      {operationError && !deleteTarget ? (
+        <Text style={[styles.operationError, { color: tokens.danger }]}>
+          {operationError}
+        </Text>
+      ) : null}
       <Card>
         <Text style={[styles.totalLabel, { color: tokens.muted }]}>Household total</Text>
         <Text style={[styles.totalValue, { color: tokens.ink }]}>
@@ -155,7 +207,14 @@ export function AssetsTab({
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Delete transfer"
-                  onPress={() => setDeleteTarget({ kind: 'transfer', id: t.id, revision: t.revision })}
+                  onPress={() => {
+                    setOperationError(null)
+                    setDeleteTarget({
+                      kind: 'transfer',
+                      id: t.id,
+                      revision: t.revision,
+                    })
+                  }}
                   hitSlop={6}
                 >
                   <Text style={[styles.deleteLink, { color: tokens.danger }]}>Delete</Text>
@@ -189,13 +248,22 @@ export function AssetsTab({
               <View style={styles.scheduleRight}>
                 <Switch
                   value={s.active}
-                  onValueChange={(active) => void toggleSchedule(householdId, s, active)}
+                  onValueChange={(active) =>
+                    void handleScheduleToggle(s, active)
+                  }
                   trackColor={{ true: tokens.accent }}
                 />
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Delete recurring transfer"
-                  onPress={() => setDeleteTarget({ kind: 'schedule', id: s.id, revision: s.revision })}
+                  onPress={() => {
+                    setOperationError(null)
+                    setDeleteTarget({
+                      kind: 'schedule',
+                      id: s.id,
+                      revision: s.revision,
+                    })
+                  }}
                   hitSlop={6}
                 >
                   <Text style={[styles.deleteLink, { color: tokens.danger }]}>Delete</Text>
@@ -245,11 +313,16 @@ export function AssetsTab({
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(open) => {
-          if (!open) setDeleteTarget(null)
+          if (!open && !operationBusy) {
+            setOperationError(null)
+            setDeleteTarget(null)
+          }
         }}
         title={deleteTarget?.kind === 'schedule' ? 'Delete recurring transfer?' : 'Delete transfer?'}
         description="This cannot be undone."
+        error={operationError}
         confirmLabel="Delete"
+        confirmDisabled={operationBusy}
         onConfirm={() => void confirmDelete()}
       />
     </View>
@@ -319,5 +392,6 @@ const styles = StyleSheet.create({
   scheduleMeta: { fontSize: 12, marginTop: 2 },
   scheduleRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   deleteLink: { fontSize: 12.5, fontWeight: '600' },
+  operationError: { fontSize: 13 },
   disabled: { opacity: 0.4 },
 })

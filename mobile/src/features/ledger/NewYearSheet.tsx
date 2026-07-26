@@ -4,7 +4,10 @@ import { useQueryClient } from '@tanstack/react-query'
 
 import { BottomSheet } from '@/components/BottomSheet'
 import { SelectField } from '@/components/SelectField'
-import { operationOutcomeError } from '@/lib/operations'
+import {
+  operationOutcomeError,
+  operationThrownError,
+} from '@/lib/operations'
 import { newUuid } from '@/lib/uuid'
 import { useTheme } from '@/theme/tokens'
 import { createYear } from './statementMutations'
@@ -69,6 +72,10 @@ export function NewYearSheet({
         seedPendingLedgerYear(queryClient, householdId, yearId, year)
       }
       onOpenChange(false)
+    } catch (failure) {
+      setError(
+        operationThrownError(failure, 'Could not create this statement year.'),
+      )
     } finally {
       setSaving(false)
     }

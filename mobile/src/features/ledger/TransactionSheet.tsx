@@ -5,7 +5,10 @@ import { BottomSheet } from '@/components/BottomSheet'
 import { DateTimeField } from '@/components/DateTimeField'
 import { SelectField } from '@/components/SelectField'
 import { centsToInputValue, parseDollarsToCents } from '@/features/moneyInput'
-import { operationOutcomeError } from '@/lib/operations'
+import {
+  operationOutcomeError,
+  operationThrownError,
+} from '@/lib/operations'
 import { newUuid } from '@/lib/uuid'
 import { useTheme } from '@/theme/tokens'
 import type { LedgerAsset } from './assets'
@@ -84,6 +87,10 @@ export function TransactionSheet({
       setAmount('')
       setDescription('')
       onOpenChange(false)
+    } catch (failure) {
+      setError(
+        operationThrownError(failure, `Could not save this ${kind}.`),
+      )
     } finally {
       setSaving(false)
     }

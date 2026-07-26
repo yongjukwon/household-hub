@@ -7,7 +7,10 @@ import { DateTimeField } from '@/components/DateTimeField'
 import { SelectField } from '@/components/SelectField'
 import { utcToZonedWall, zonedWallToUtc } from '@/features/calendar/datetime'
 import { newUuid } from '@/lib/uuid'
-import { operationOutcomeError } from '@/lib/operations'
+import {
+  operationOutcomeError,
+  operationThrownError,
+} from '@/lib/operations'
 import { useTheme } from '@/theme/tokens'
 import type { BookingEntry, BookingKind, Trip } from './data'
 import { deleteBookingEntry, saveBookingEntry } from './mutations'
@@ -114,6 +117,8 @@ export function BookingSheet({
         return
       }
       onOpenChange(false)
+    } catch (failure) {
+      setError(operationThrownError(failure, 'Could not save this booking.'))
     } finally {
       setSaving(false)
     }
@@ -132,6 +137,9 @@ export function BookingSheet({
       }
       setConfirmDelete(false)
       onOpenChange(false)
+    } catch (failure) {
+      setConfirmDelete(false)
+      setError(operationThrownError(failure, 'Could not delete this booking.'))
     } finally {
       setSaving(false)
     }
@@ -260,7 +268,9 @@ export function BookingSheet({
         onOpenChange={setConfirmDelete}
         title="Delete this booking?"
         description="This cannot be undone."
+        error={confirmDelete ? error : null}
         confirmLabel="Delete"
+        confirmDisabled={saving}
         onConfirm={() => void handleDelete()}
       />
     </BottomSheet>

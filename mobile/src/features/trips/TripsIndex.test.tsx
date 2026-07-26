@@ -83,11 +83,11 @@ describe('Trips index operation lifecycle', () => {
     })
     const view = await renderScreen()
 
-    fireEvent.press(view.getByLabelText('Delete London'))
+    await fireEvent.press(view.getByLabelText('Delete London'))
     await waitFor(() => {
       expect(view.getByText('Delete London?')).toBeOnTheScreen()
     })
-    fireEvent.press(view.getByText('Delete'))
+    await fireEvent.press(view.getByText('Delete'))
 
     await waitFor(() => {
       expect(view.queryByText('Delete London?')).toBeNull()
@@ -100,11 +100,11 @@ describe('Trips index operation lifecycle', () => {
     )
     const view = await renderScreen()
 
-    fireEvent.press(view.getByLabelText('Delete London'))
+    await fireEvent.press(view.getByLabelText('Delete London'))
     await waitFor(() => {
       expect(view.getByText('Delete London?')).toBeOnTheScreen()
     })
-    fireEvent.press(view.getByText('Delete'))
+    await fireEvent.press(view.getByText('Delete'))
 
     await waitFor(() => {
       expect(

@@ -19,7 +19,10 @@ import { useNote, type Note } from '@/features/notes/data'
 import { saveNote } from '@/features/notes/mutations'
 import { RestrictedEditor } from '@/features/notes/RestrictedEditor'
 import { RestrictedNoteView } from '@/features/notes/RestrictedNoteView'
-import { operationOutcomeError } from '@/lib/operations'
+import {
+  operationOutcomeError,
+  operationThrownError,
+} from '@/lib/operations'
 import { useTheme } from '@/theme/tokens'
 
 interface NoteDraft {
@@ -91,6 +94,8 @@ export default function NoteScreen() {
         revision: saved.revision + 1,
       })
       setDraft(null)
+    } catch (failure) {
+      setError(operationThrownError(failure, 'Could not save this note.'))
     } finally {
       setBusy(false)
     }

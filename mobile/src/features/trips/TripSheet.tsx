@@ -8,7 +8,10 @@ import { DateTimeField } from '@/components/DateTimeField'
 import { SelectField } from '@/components/SelectField'
 import { deviceTimeZone } from '@/features/household'
 import { newUuid } from '@/lib/uuid'
-import { operationOutcomeError } from '@/lib/operations'
+import {
+  operationOutcomeError,
+  operationThrownError,
+} from '@/lib/operations'
 import { useTheme } from '@/theme/tokens'
 import type { Trip } from './data'
 import { normalizeCurrencyInput } from './forms'
@@ -106,6 +109,8 @@ export function TripSheet({ open, onOpenChange, householdId, trip }: TripSheetPr
         return
       }
       onOpenChange(false)
+    } catch (failure) {
+      setError(operationThrownError(failure, 'Could not save this trip.'))
     } finally {
       setSaving(false)
     }
@@ -124,6 +129,9 @@ export function TripSheet({ open, onOpenChange, householdId, trip }: TripSheetPr
       }
       setConfirmDelete(false)
       onOpenChange(false)
+    } catch (failure) {
+      setConfirmDelete(false)
+      setError(operationThrownError(failure, 'Could not delete this trip.'))
     } finally {
       setSaving(false)
     }
@@ -237,7 +245,9 @@ export function TripSheet({ open, onOpenChange, householdId, trip }: TripSheetPr
         onOpenChange={setConfirmDelete}
         title="Delete trip?"
         description="This removes the trip and its expenses. This cannot be undone."
+        error={confirmDelete ? error : null}
         confirmLabel="Delete"
+        confirmDisabled={saving}
         onConfirm={() => void handleDelete()}
       />
     </BottomSheet>

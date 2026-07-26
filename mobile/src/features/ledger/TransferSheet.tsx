@@ -6,6 +6,10 @@ import { DateTimeField } from '@/components/DateTimeField'
 import { SelectField } from '@/components/SelectField'
 import { deviceTimeZone } from '@/features/household'
 import { parseDollarsToCents } from '@/features/moneyInput'
+import {
+  operationOutcomeError,
+  operationThrownError,
+} from '@/lib/operations'
 import { newUuid } from '@/lib/uuid'
 import { useTheme } from '@/theme/tokens'
 import type { LedgerAsset, TransferFrequency } from './assets'
@@ -44,7 +48,7 @@ export function TransferSheet({
     setSaving(true)
     setError(null)
     try {
-      await saveTransfer(
+      const outcome = await saveTransfer(
         householdId,
         {
           id: newUuid(),
@@ -56,9 +60,16 @@ export function TransferSheet({
         },
         null,
       )
+      const outcomeError = operationOutcomeError(outcome)
+      if (outcomeError) {
+        setError(outcomeError)
+        return
+      }
       setAmount('')
       setNote('')
       onOpenChange(false)
+    } catch (failure) {
+      setError(operationThrownError(failure, 'Could not create this transfer.'))
     } finally {
       setSaving(false)
     }
@@ -157,7 +168,7 @@ export function ScheduleSheet({
     try {
       const occursAt = new Date(startDate)
       occursAt.setHours(12, 0, 0, 0)
-      await saveSchedule(
+      const outcome = await saveSchedule(
         householdId,
         {
           id: newUuid(),
@@ -171,8 +182,20 @@ export function ScheduleSheet({
         },
         null,
       )
+      const outcomeError = operationOutcomeError(outcome)
+      if (outcomeError) {
+        setError(outcomeError)
+        return
+      }
       setAmount('')
       onOpenChange(false)
+    } catch (failure) {
+      setError(
+        operationThrownError(
+          failure,
+          'Could not create this recurring transfer.',
+        ),
+      )
     } finally {
       setSaving(false)
     }

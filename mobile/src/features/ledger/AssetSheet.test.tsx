@@ -85,4 +85,32 @@ describe('AssetSheet outcomes', () => {
     expect(onSaved).not.toHaveBeenCalled()
     expect(onOpenChange).not.toHaveBeenCalledWith(false)
   })
+
+  it('shows a thrown queue failure instead of leaving an unhandled promise', async () => {
+    mockSaveAsset.mockRejectedValue(
+      new Error('baseRevision must be a revision of at least 1, got undefined'),
+    )
+    const onOpenChange = jest.fn()
+    const view = await render(
+      <SafeAreaProvider initialMetrics={metrics}>
+        <AssetSheet
+          open
+          onOpenChange={onOpenChange}
+          householdId="11111111-1111-4111-8111-111111111111"
+          asset={null}
+          sortOrder={0}
+        />
+      </SafeAreaProvider>,
+    )
+
+    await fireEvent.changeText(view.getByLabelText('Name'), 'Chequing')
+    await fireEvent.press(view.getByText('Save'))
+
+    await waitFor(() => {
+      expect(
+        view.getByText('This item is out of date. Refresh it and try again.'),
+      ).toBeOnTheScreen()
+    })
+    expect(onOpenChange).not.toHaveBeenCalledWith(false)
+  })
 })

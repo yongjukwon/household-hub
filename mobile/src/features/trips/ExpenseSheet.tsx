@@ -9,7 +9,10 @@ import { SelectField } from '@/components/SelectField'
 import { HOUSEHOLD_CURRENCY, type LedgerAsset } from '@/features/ledger/assets'
 import { centsToInputValue, parseDollarsToCents } from '@/features/moneyInput'
 import { newUuid } from '@/lib/uuid'
-import { operationOutcomeError } from '@/lib/operations'
+import {
+  operationOutcomeError,
+  operationThrownError,
+} from '@/lib/operations'
 import { useTheme } from '@/theme/tokens'
 import type {
   BookingEntry,
@@ -114,6 +117,8 @@ export function ExpenseSheet({
         return
       }
       onOpenChange(false)
+    } catch (failure) {
+      setError(operationThrownError(failure, 'Could not save this expense.'))
     } finally {
       setSaving(false)
     }
@@ -132,6 +137,9 @@ export function ExpenseSheet({
       }
       setConfirmDelete(false)
       onOpenChange(false)
+    } catch (failure) {
+      setConfirmDelete(false)
+      setError(operationThrownError(failure, 'Could not delete this expense.'))
     } finally {
       setSaving(false)
     }
@@ -256,7 +264,9 @@ export function ExpenseSheet({
         onOpenChange={setConfirmDelete}
         title="Delete expense?"
         description="This removes the expense and reverses its asset debit."
+        error={confirmDelete ? error : null}
         confirmLabel="Delete"
+        confirmDisabled={saving}
         onConfirm={() => void handleDelete()}
       />
     </BottomSheet>

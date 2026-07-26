@@ -39,7 +39,10 @@ import { BookingSheet } from '@/features/trips/BookingSheet'
 import { ChecklistSheet } from '@/features/trips/ChecklistSheet'
 import { TripSheet } from '@/features/trips/TripSheet'
 import { saveChecklistEntry, saveTrip, toggleChecklistEntry } from '@/features/trips/mutations'
-import { operationOutcomeError } from '@/lib/operations'
+import {
+  operationOutcomeError,
+  operationThrownError,
+} from '@/lib/operations'
 import { newUuid } from '@/lib/uuid'
 import { useTheme } from '@/theme/tokens'
 
@@ -67,20 +70,24 @@ export default function TripScreen() {
 
   async function renameTrip(next: string): Promise<string | null> {
     if (!householdId || !trip) return 'The trip is not available.'
-    const outcome = await saveTrip(
-      householdId,
-      {
-        id: trip.id,
-        name: next,
-        destination: trip.destination,
-        timezone: trip.destinationTimezone,
-        startDate: trip.startDate,
-        endDate: trip.endDate,
-        destinationCurrency: trip.destinationCurrency,
-      },
-      trip.revision,
-    )
-    return operationOutcomeError(outcome)
+    try {
+      const outcome = await saveTrip(
+        householdId,
+        {
+          id: trip.id,
+          name: next,
+          destination: trip.destination,
+          timezone: trip.destinationTimezone,
+          startDate: trip.startDate,
+          endDate: trip.endDate,
+          destinationCurrency: trip.destinationCurrency,
+        },
+        trip.revision,
+      )
+      return operationOutcomeError(outcome)
+    } catch (failure) {
+      return operationThrownError(failure, 'Could not rename this trip.')
+    }
   }
 
   return (
@@ -410,8 +417,29 @@ function ChecklistTab({
         return
       }
       setNewLabel('')
+    } catch (failure) {
+      setError(
+        operationThrownError(failure, 'Could not add this checklist item.'),
+      )
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function toggleItem(entry: ChecklistEntry) {
+    setError(null)
+    try {
+      const outcome = await toggleChecklistEntry(
+        householdId,
+        entry,
+        !entry.checked,
+      )
+      const outcomeError = operationOutcomeError(outcome)
+      if (outcomeError) setError(outcomeError)
+    } catch (failure) {
+      setError(
+        operationThrownError(failure, 'Could not update this checklist item.'),
+      )
     }
   }
 
@@ -463,7 +491,7 @@ function ChecklistTab({
             <ChecklistRow
               key={entry.id}
               entry={entry}
-              householdId={householdId}
+              onToggle={() => void toggleItem(entry)}
               onEdit={() => setEditing(entry)}
             />
           ))}
@@ -476,7 +504,7 @@ function ChecklistTab({
                 <ChecklistRow
                   key={entry.id}
                   entry={entry}
-                  householdId={householdId}
+                  onToggle={() => void toggleItem(entry)}
                   onEdit={() => setEditing(entry)}
                 />
               ))}
@@ -503,11 +531,11 @@ function ChecklistTab({
 
 function ChecklistRow({
   entry,
-  householdId,
+  onToggle,
   onEdit,
 }: {
   entry: ChecklistEntry
-  householdId: string
+  onToggle: () => void
   onEdit: () => void
 }) {
   const { tokens } = useTheme()
@@ -517,9 +545,7 @@ function ChecklistRow({
         accessibilityRole="checkbox"
         accessibilityLabel={`Check ${entry.label}`}
         accessibilityState={{ checked: entry.checked }}
-        onPress={() =>
-          void toggleChecklistEntry(householdId, entry, !entry.checked)
-        }
+        onPress={onToggle}
         style={[
           styles.checkbox,
           {

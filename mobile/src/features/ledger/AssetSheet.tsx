@@ -5,7 +5,10 @@ import { BottomSheet } from '@/components/BottomSheet'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { SelectField } from '@/components/SelectField'
 import { centsToInputValue, parseDollarsToCents } from '@/features/moneyInput'
-import { operationOutcomeError } from '@/lib/operations'
+import {
+  operationOutcomeError,
+  operationThrownError,
+} from '@/lib/operations'
 import { newUuid } from '@/lib/uuid'
 import { useTheme } from '@/theme/tokens'
 import { HOUSEHOLD_CURRENCY, type AssetKind, type LedgerAsset } from './assets'
@@ -72,6 +75,8 @@ export function AssetSheet({
       }
       onSaved?.()
       onOpenChange(false)
+    } catch (failure) {
+      setError(operationThrownError(failure, 'Could not save this asset.'))
     } finally {
       setSaving(false)
     }
@@ -91,6 +96,9 @@ export function AssetSheet({
       }
       setConfirmDelete(false)
       onOpenChange(false)
+    } catch (failure) {
+      setConfirmDelete(false)
+      setError(operationThrownError(failure, 'Could not delete this asset.'))
     } finally {
       setSaving(false)
     }
@@ -180,7 +188,9 @@ export function AssetSheet({
         onOpenChange={setConfirmDelete}
         title="Delete asset?"
         description="This removes the asset and its postings. This cannot be undone."
+        error={confirmDelete ? error : null}
         confirmLabel="Delete"
+        confirmDisabled={saving}
         onConfirm={() => void handleDelete()}
       />
     </BottomSheet>

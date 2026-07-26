@@ -2,6 +2,10 @@ import { useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput } from 'react-native'
 
 import { BottomSheet } from '@/components/BottomSheet'
+import {
+  operationOutcomeError,
+  operationThrownError,
+} from '@/lib/operations'
 import { useTheme } from '@/theme/tokens'
 import { clearYear } from './statementMutations'
 import type { LedgerYear } from './statements'
@@ -24,15 +28,29 @@ export function ClearYearSheet({
   const { tokens } = useTheme()
   const [typed, setTyped] = useState('')
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const matches = typed.trim() === String(year.year)
 
   async function handleClear() {
     if (!matches) return
     setSaving(true)
+    setError(null)
     try {
-      await clearYear(householdId, year.id, year.year, year.revision)
+      const outcome = await clearYear(
+        householdId,
+        year.id,
+        year.year,
+        year.revision,
+      )
+      const outcomeError = operationOutcomeError(outcome)
+      if (outcomeError) {
+        setError(outcomeError)
+        return
+      }
       setTyped('')
       onOpenChange(false)
+    } catch (failure) {
+      setError(operationThrownError(failure, 'Could not delete this statement.'))
     } finally {
       setSaving(false)
     }
@@ -58,6 +76,7 @@ export function ClearYearSheet({
           { borderColor: tokens.line, borderRadius: tokens.radiusControl, color: tokens.ink },
         ]}
       />
+      {error ? <Text style={[styles.error, { color: tokens.danger }]}>{error}</Text> : null}
       <Pressable
         accessibilityRole="button"
         disabled={!matches || saving}
@@ -79,5 +98,6 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, marginBottom: 10 },
   button: { paddingVertical: 13, alignItems: 'center' },
   buttonText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  error: { fontSize: 13, marginBottom: 10 },
   disabled: { opacity: 0.4 },
 })

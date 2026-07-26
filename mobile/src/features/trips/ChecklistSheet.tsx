@@ -3,7 +3,10 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 
 import { BottomSheet } from '@/components/BottomSheet'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
-import { operationOutcomeError } from '@/lib/operations'
+import {
+  operationOutcomeError,
+  operationThrownError,
+} from '@/lib/operations'
 import { useTheme } from '@/theme/tokens'
 import type { ChecklistEntry, Trip } from './data'
 import { deleteChecklistEntry, saveChecklistEntry } from './mutations'
@@ -55,6 +58,10 @@ export function ChecklistSheet({
         return
       }
       onOpenChange(false)
+    } catch (failure) {
+      setError(
+        operationThrownError(failure, 'Could not save this checklist item.'),
+      )
     } finally {
       setSaving(false)
     }
@@ -72,6 +79,11 @@ export function ChecklistSheet({
       }
       setConfirmDelete(false)
       onOpenChange(false)
+    } catch (failure) {
+      setConfirmDelete(false)
+      setError(
+        operationThrownError(failure, 'Could not delete this checklist item.'),
+      )
     } finally {
       setSaving(false)
     }
@@ -121,7 +133,9 @@ export function ChecklistSheet({
         onOpenChange={setConfirmDelete}
         title="Delete this item?"
         description="This removes it from the checklist. This cannot be undone."
+        error={confirmDelete ? error : null}
         confirmLabel="Delete"
+        confirmDisabled={saving}
         onConfirm={() => void handleDelete()}
       />
     </BottomSheet>

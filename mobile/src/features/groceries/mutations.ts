@@ -109,9 +109,13 @@ export function deleteGroceryItem(
 export async function clearCheckedItems(
   householdId: string,
   items: GroceryItem[],
-): Promise<void> {
+): Promise<EnqueueOutcome[]> {
   const checked = items.filter((i) => i.checked)
+  const outcomes: EnqueueOutcome[] = []
   for (const item of checked) {
-    await deleteGroceryItem(householdId, item.id, item.revision)
+    outcomes.push(
+      await deleteGroceryItem(householdId, item.id, item.revision),
+    )
   }
+  return outcomes
 }

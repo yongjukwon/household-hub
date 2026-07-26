@@ -5,7 +5,10 @@ import { BottomSheet } from '@/components/BottomSheet'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { DateTimeField } from '@/components/DateTimeField'
 import { newUuid } from '@/lib/uuid'
-import { operationOutcomeError } from '@/lib/operations'
+import {
+  operationOutcomeError,
+  operationThrownError,
+} from '@/lib/operations'
 import { useTheme } from '@/theme/tokens'
 import type { ItineraryEntry, Trip } from './data'
 import { deleteItineraryEntry, saveItineraryEntry } from './mutations'
@@ -82,6 +85,10 @@ export function ItinerarySheet({
         return
       }
       onOpenChange(false)
+    } catch (failure) {
+      setError(
+        operationThrownError(failure, 'Could not save this itinerary entry.'),
+      )
     } finally {
       setSaving(false)
     }
@@ -100,6 +107,14 @@ export function ItinerarySheet({
       }
       setConfirmDelete(false)
       onOpenChange(false)
+    } catch (failure) {
+      setConfirmDelete(false)
+      setError(
+        operationThrownError(
+          failure,
+          'Could not delete this itinerary entry.',
+        ),
+      )
     } finally {
       setSaving(false)
     }
@@ -192,7 +207,9 @@ export function ItinerarySheet({
         onOpenChange={setConfirmDelete}
         title="Delete this entry?"
         description="This removes it from the itinerary. This cannot be undone."
+        error={confirmDelete ? error : null}
         confirmLabel="Delete"
+        confirmDisabled={saving}
         onConfirm={() => void handleDelete()}
       />
     </BottomSheet>

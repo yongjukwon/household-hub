@@ -13,7 +13,10 @@ import { BottomSheet } from '@/components/BottomSheet'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { DateTimeField } from '@/components/DateTimeField'
 import { deviceTimeZone, type HouseholdMember } from '@/features/household'
-import { operationOutcomeError } from '@/lib/operations'
+import {
+  operationOutcomeError,
+  operationThrownError,
+} from '@/lib/operations'
 import { newUuid } from '@/lib/uuid'
 import { useTheme } from '@/theme/tokens'
 import { utcToZonedWall, zonedWallToUtc } from './datetime'
@@ -116,8 +119,8 @@ export function EventSheet({
         return
       }
       onOpenChange(false)
-    } catch {
-      setError('Could not save the event. It will retry when you reconnect.')
+    } catch (failure) {
+      setError(operationThrownError(failure, 'Could not save this event.'))
     } finally {
       setSaving(false)
     }
@@ -137,9 +140,9 @@ export function EventSheet({
       }
       setConfirmDelete(false)
       onOpenChange(false)
-    } catch {
+    } catch (failure) {
       setConfirmDelete(false)
-      setError('Could not delete the event. It will retry when you reconnect.')
+      setError(operationThrownError(failure, 'Could not delete this event.'))
     } finally {
       setSaving(false)
     }
@@ -372,7 +375,9 @@ export function EventSheet({
         onOpenChange={setConfirmDelete}
         title="Delete event?"
         description="This removes the event for both of you. This cannot be undone."
+        error={confirmDelete ? error : null}
         confirmLabel="Delete"
+        confirmDisabled={saving}
         onConfirm={() => void handleDelete()}
       />
     </BottomSheet>

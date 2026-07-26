@@ -4,7 +4,10 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { BottomSheet } from '@/components/BottomSheet'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { centsToInputValue, parseDollarsToCents } from '@/features/moneyInput'
-import { operationOutcomeError } from '@/lib/operations'
+import {
+  operationOutcomeError,
+  operationThrownError,
+} from '@/lib/operations'
 import { newUuid } from '@/lib/uuid'
 import { useTheme } from '@/theme/tokens'
 import type { CategoryKind, CategoryProgress } from './statements'
@@ -93,6 +96,8 @@ export function CategorySheet({
       }
       onSaved?.(kind)
       onOpenChange(false)
+    } catch (failure) {
+      setError(operationThrownError(failure, 'Could not save this category.'))
     } finally {
       setSaving(false)
     }
@@ -117,6 +122,9 @@ export function CategorySheet({
       }
       setConfirmDelete(false)
       onOpenChange(false)
+    } catch (failure) {
+      setConfirmDelete(false)
+      setError(operationThrownError(failure, 'Could not delete this category.'))
     } finally {
       setSaving(false)
     }
@@ -209,7 +217,9 @@ export function CategorySheet({
         onOpenChange={setConfirmDelete}
         title="Delete category?"
         description="Removes it from this month forward. Blocked if a later month already has spending."
+        error={confirmDelete ? error : null}
         confirmLabel="Delete"
+        confirmDisabled={saving}
         onConfirm={() => void handleDelete()}
       />
     </BottomSheet>

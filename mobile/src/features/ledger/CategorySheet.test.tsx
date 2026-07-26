@@ -90,4 +90,26 @@ describe('CategorySheet operation outcomes', () => {
     })
     expect(onOpenChange).not.toHaveBeenCalledWith(false)
   })
+
+  it('shows a thrown queue failure and keeps the category form open', async () => {
+    mockSaveCategory.mockRejectedValue(
+      new Error('baseRevision must be a revision of at least 1, got undefined'),
+    )
+    const onOpenChange = jest.fn()
+    const view = await render(
+      <SafeAreaProvider initialMetrics={metrics}>
+        <CategorySheet {...baseProps} onOpenChange={onOpenChange} />
+      </SafeAreaProvider>,
+    )
+
+    await fireEvent.changeText(view.getByLabelText('Name'), 'Food')
+    await fireEvent.press(view.getByText('Save'))
+
+    await waitFor(() => {
+      expect(
+        view.getByText('This item is out of date. Refresh it and try again.'),
+      ).toBeOnTheScreen()
+    })
+    expect(onOpenChange).not.toHaveBeenCalledWith(false)
+  })
 })

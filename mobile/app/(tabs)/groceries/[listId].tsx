@@ -36,7 +36,10 @@ import {
   toggleGroceryItem,
 } from '@/features/groceries/mutations'
 import { ItemSheet } from '@/features/groceries/ItemSheet'
-import { operationOutcomeError } from '@/lib/operations'
+import {
+  operationOutcomeError,
+  operationThrownError,
+} from '@/lib/operations'
 import { newUuid } from '@/lib/uuid'
 import { useTheme } from '@/theme/tokens'
 
@@ -79,15 +82,24 @@ export default function GroceryListScreen() {
 
   async function renameList(next: string): Promise<string | null> {
     if (!householdId || !list) return 'The list is not available.'
-    const outcome = await saveGroceryList(householdId, { ...list, name: next }, list.revision)
-    return operationOutcomeError(outcome)
+    try {
+      const outcome = await saveGroceryList(
+        householdId,
+        { ...list, name: next },
+        list.revision,
+      )
+      return operationOutcomeError(outcome)
+    } catch (failure) {
+      return operationThrownError(failure, 'Could not rename this list.')
+    }
   }
 
   async function addItem() {
     if (!householdId || !listId || newName.trim().length === 0) return
     setBusy(true)
+    setError(null)
     try {
-      await saveGroceryItem(
+      const outcome = await saveGroceryItem(
         householdId,
         {
           id: newUuid(),
@@ -100,8 +112,15 @@ export default function GroceryListScreen() {
         },
         null,
       )
+      const outcomeError = operationOutcomeError(outcome)
+      if (outcomeError) {
+        setError(outcomeError)
+        return
+      }
       setNewName('')
       setNewPrice('')
+    } catch (failure) {
+      setError(operationThrownError(failure, 'Could not add this item.'))
     } finally {
       setBusy(false)
     }
@@ -110,9 +129,21 @@ export default function GroceryListScreen() {
   async function handleClear() {
     if (!householdId) return
     setBusy(true)
+    setError(null)
     try {
-      await clearCheckedItems(householdId, items)
+      const outcomes = await clearCheckedItems(householdId, items)
+      const outcomeError = outcomes
+        .map(operationOutcomeError)
+        .find((message) => message !== null)
+      if (outcomeError) {
+        setError(outcomeError)
+        return
+      }
       setConfirmClear(false)
+    } catch (failure) {
+      setError(
+        operationThrownError(failure, 'Could not clear the checked items.'),
+      )
     } finally {
       setBusy(false)
     }
@@ -121,12 +152,40 @@ export default function GroceryListScreen() {
   async function handleDeleteItem() {
     if (!householdId || !deleteItem) return
     setBusy(true)
+    setError(null)
     try {
-      await deleteGroceryItem(householdId, deleteItem.id, deleteItem.revision)
+      const outcome = await deleteGroceryItem(
+        householdId,
+        deleteItem.id,
+        deleteItem.revision,
+      )
+      const outcomeError = operationOutcomeError(outcome)
+      if (outcomeError) {
+        setError(outcomeError)
+        return
+      }
       setDeleteItem(null)
       if (historyItem?.id === deleteItem.id) setHistoryItem(null)
+    } catch (failure) {
+      setError(operationThrownError(failure, 'Could not delete this item.'))
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function handleToggle(item: GroceryItem) {
+    if (!householdId) return
+    setError(null)
+    try {
+      const outcome = await toggleGroceryItem(
+        householdId,
+        item,
+        !item.checked,
+      )
+      const outcomeError = operationOutcomeError(outcome)
+      if (outcomeError) setError(outcomeError)
+    } catch (failure) {
+      setError(operationThrownError(failure, 'Could not update this item.'))
     }
   }
 
@@ -221,6 +280,11 @@ export default function GroceryListScreen() {
                 </Text>
               ) : null}
             </Card>
+            {error && !confirmClear && !deleteItem ? (
+              <Text style={[styles.error, { color: tokens.danger }]}>
+                {error}
+              </Text>
+            ) : null}
 
             {query.isLoading ? (
               <LoadingState />
@@ -239,9 +303,12 @@ export default function GroceryListScreen() {
           ) : (
             <ItemRow
               item={row.item}
-              householdId={householdId!}
+              onToggle={() => void handleToggle(row.item)}
               onEdit={() => setEditing(row.item)}
-              onDelete={() => setDeleteItem(row.item)}
+              onDelete={() => {
+                setError(null)
+                setDeleteItem(row.item)
+              }}
               onHistory={() => setHistoryItem(row.item)}
             />
           )
@@ -297,7 +364,9 @@ export default function GroceryListScreen() {
         onOpenChange={setConfirmClear}
         title="Clear checked items?"
         description="This permanently removes the checked items from this list."
+        error={confirmClear ? error : null}
         confirmLabel="Clear"
+        confirmDisabled={busy}
         onConfirm={() => void handleClear()}
       />
       <ConfirmDialog
@@ -319,13 +388,13 @@ export default function GroceryListScreen() {
 
 function ItemRow({
   item,
-  householdId,
+  onToggle,
   onEdit,
   onDelete,
   onHistory,
 }: {
   item: GroceryItem
-  householdId: string
+  onToggle: () => void
   onEdit: () => void
   onDelete: () => void
   onHistory: () => void
@@ -337,7 +406,7 @@ function ItemRow({
         accessibilityRole="checkbox"
         accessibilityState={{ checked: item.checked }}
         accessibilityLabel={`Check ${item.name}`}
-        onPress={() => void toggleGroceryItem(householdId, item, !item.checked)}
+        onPress={onToggle}
         style={[
           styles.checkbox,
           {
@@ -401,6 +470,7 @@ const styles = StyleSheet.create({
   },
   pageTitle: { fontSize: 22, fontWeight: '800' },
   headerActions: { flexDirection: 'row', gap: 12, paddingTop: 4 },
+  error: { fontSize: 13, marginBottom: 10 },
   headerActionText: { fontSize: 13, fontWeight: '600' },
   addCard: { marginBottom: 16, padding: 12 },
   addRow: { flexDirection: 'row', gap: 8 },

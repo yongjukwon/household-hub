@@ -4,7 +4,10 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { Card } from '@/components/Card'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
-import { operationOutcomeError } from '@/lib/operations'
+import {
+  operationOutcomeError,
+  operationThrownError,
+} from '@/lib/operations'
 import { useTheme } from '@/theme/tokens'
 import { HOUSEHOLD_CURRENCY, type LedgerAsset } from './assets'
 import type { LedgerTransaction, MonthCategory } from './statements'
@@ -26,18 +29,33 @@ export function TransactionList({
   const { tokens } = useTheme()
   const [deleting, setDeleting] = useState<LedgerTransaction | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
   const categoryById = new Map(categories.map((entry) => [entry.categoryId, entry.name]))
   const assetById = new Map(assets.map((entry) => [entry.id, entry.name]))
 
   async function handleDelete() {
     if (!deleting) return
-    const outcome = await deleteTransaction(householdId, deleting.id, deleting.revision)
-    const outcomeError = operationOutcomeError(outcome)
-    if (outcomeError) {
-      setError(outcomeError)
-      return
+    setBusy(true)
+    setError(null)
+    try {
+      const outcome = await deleteTransaction(
+        householdId,
+        deleting.id,
+        deleting.revision,
+      )
+      const outcomeError = operationOutcomeError(outcome)
+      if (outcomeError) {
+        setError(outcomeError)
+        return
+      }
+      setDeleting(null)
+    } catch (failure) {
+      setError(
+        operationThrownError(failure, 'Could not delete this transaction.'),
+      )
+    } finally {
+      setBusy(false)
     }
-    setDeleting(null)
   }
 
   if (transactions.length === 0) {
@@ -68,7 +86,14 @@ export function TransactionList({
               {transaction.kind === 'spending' ? '−' : '+'}
               {formatMoney(transaction.amountCents, HOUSEHOLD_CURRENCY)}
             </Text>
-            <Pressable accessibilityRole="button" onPress={() => setDeleting(transaction)} hitSlop={6}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                setError(null)
+                setDeleting(transaction)
+              }}
+              hitSlop={6}
+            >
               <Text style={[styles.deleteLink, { color: tokens.danger }]}>Delete</Text>
             </Pressable>
           </View>
@@ -81,7 +106,9 @@ export function TransactionList({
         }}
         title="Delete transaction?"
         description="The linked Asset posting will be reversed."
+        error={error}
         confirmLabel="Delete"
+        confirmDisabled={busy}
         onConfirm={() => void handleDelete()}
       />
     </View>
