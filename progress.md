@@ -335,7 +335,41 @@ Sub-checkpoints:
   by the same pure-logic tests as web plus manual verification is expected
   from the user.
 
-Next: 8B (Groceries), then 8C–8F, then 8G final verification.
+- **8B — Groceries tab (done, `e842444`).** Converted `groceries.tsx` to a
+  folder route (`index` + `[listId]`). Ported web's pure logic verbatim
+  (`sortGroceryItems`, `cheapestPriceHistory`, `groceryNameSuggestions`,
+  `normalizeItemName`, `latestPriceByName`, `moneyInput`'s
+  `parseDollarsToCents`/`centsToInputValue`). List index + detail (add-item
+  row with CAD price, household-wide name autocomplete, last-price recall,
+  unchecked/checked sections, five-cheapest price-history card, per-item edit,
+  inline rename via new `EditableTitle`, clear-checked/delete-list confirms)
+  against the same `grocery.list.*`/`grocery.item.*` contract as web.
+  `FloatingTabBar` active-matching now prefix-matches non-root paths so a
+  detail route keeps its tab highlighted. **Verification:** 80 tests / 15
+  suites, tsc clean. Visual: confirmed clean app boot only — `simctl` in this
+  Xcode has no synthetic-tap capability, and `simctl openurl` for a
+  `/groceries` deep link hits an untappable iOS "Open in App?" system dialog,
+  so interactive tap-through to nested routes isn't currently automatable in
+  this environment.
+- **8C — Ledger tab, Statements + Assets (done, `72615f3`).** Converted
+  `ledger.tsx` to a folder route. Ported all pure Ledger logic and mutation
+  builders verbatim (`statements.ts`, `statementMutations.ts`, `assets.ts`,
+  `assetMutations.ts`). `LedgerScreen` (Statements/Assets `SegmentedControl`),
+  `StatementsTab` (year list, inline-expand summary, new-year sheet),
+  `[yearId]` month detail (4×3 month grid, `StatementCharts` with income/
+  spending breakdown + monthly-limit bars, Spent/Limit/Left cards, category
+  progress bars, Income/Spending transaction lists, typed-year clear),
+  `AssetsTab` (CAD total + foreign subtotals never converted, assets,
+  one-off + recurring transfers). New shared `DonutChart` (react-native-svg
+  stroke-dasharray — recharts is DOM-only) and `SelectField` (native
+  wheel-picker wrapping `@react-native-picker/picker`, RN's `<select>`
+  equivalent). **Verification:** 91 tests / 17 suites, tsc clean; a full
+  production `expo export` (1458 modules, up from 1283 at Task 7E) confirmed
+  every route — including the ones blocked from interactive tap-through —
+  bundles without resolution errors.
+
+Next: 8D (Notes/TenTap), 8E (Trips), 8F (Settings + Notifications), then 8G
+final verification.
 
 ## Environment, constraints & risks (condensed)
 
