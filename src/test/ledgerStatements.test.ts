@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   categoryProgress,
   hasSpendingFromMonth,
-  monthlyBudgetLimits,
   monthSummaries,
   spendingCategoryTotals,
   statementTotals,
@@ -142,13 +141,5 @@ describe('statement calculations', () => {
       { categoryId: 'grocery', name: 'Groceries', totalCents: 350_00 },
       { categoryId: 'rent', name: 'Rent', totalCents: 600_00 },
     ])
-  })
-
-  it('returns all twelve monthly spending-limit bars', () => {
-    const bars = monthlyBudgetLimits(statement)
-    expect(bars).toHaveLength(12)
-    expect(bars.find((bar) => bar.month === 7)?.limitCents).toBe(1_000_00)
-    expect(bars.find((bar) => bar.month === 8)?.limitCents).toBe(450_00)
-    expect(bars.find((bar) => bar.month === 9)?.limitCents).toBe(0)
   })
 })

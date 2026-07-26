@@ -22,5 +22,5 @@ export function StatementYearSummary({
       </Text>
     )
   }
-  return <StatementCharts data={query.data} showMonthlyLimits />
+  return <StatementCharts data={query.data} />
 }

@@ -6,7 +6,6 @@ import { DonutChart } from '@/components/DonutChart'
 import { useTheme } from '@/theme/tokens'
 import { HOUSEHOLD_CURRENCY } from './assets'
 import {
-  monthlyBudgetLimits,
   spendingCategoryTotals,
   statementTotals,
   type LedgerYearData,
@@ -17,17 +16,13 @@ const COLORS = ['#5B73EA', '#FF7A45', '#D99500', '#2CA58D', '#8B5CF6', '#EC4899'
 export function StatementCharts({
   data,
   monthId,
-  showMonthlyLimits = false,
 }: {
   data: LedgerYearData
   monthId?: string
-  showMonthlyLimits?: boolean
 }) {
   const { tokens } = useTheme()
   const totals = statementTotals(data, monthId)
   const categories = spendingCategoryTotals(data, monthId)
-  const limits = monthlyBudgetLimits(data)
-  const maxLimit = Math.max(...limits.map((entry) => entry.limitCents), 1)
 
   return (
     <View style={styles.stack}>
@@ -66,35 +61,6 @@ export function StatementCharts({
           </View>
         </View>
       </Card>
-
-      {showMonthlyLimits ? (
-        <Card>
-          <Text style={[styles.sectionLabel, { color: tokens.muted, marginBottom: 12 }]}>
-            Monthly budget limits
-          </Text>
-          <View style={styles.barChart}>
-            {limits.map((entry) => (
-              <View key={entry.month} style={styles.barCol}>
-                <View
-                  style={[
-                    styles.bar,
-                    {
-                      height: Math.max(4, (entry.limitCents / maxLimit) * 68),
-                      backgroundColor: tokens.accent,
-                      opacity: entry.limitCents > 0 ? 1 : 0.2,
-                    },
-                  ]}
-                />
-                <Text style={[styles.barLabel, { color: tokens.muted }]}>
-                  {new Intl.DateTimeFormat('en', { month: 'short' }).format(
-                    new Date(2026, entry.month - 1, 1),
-                  )}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </Card>
-      ) : null}
     </View>
   )
 }
@@ -124,8 +90,4 @@ const styles = StyleSheet.create({
   legendSwatch: { width: 8, height: 8, borderRadius: 2 },
   legendName: { fontSize: 11.5, flexShrink: 1 },
   legendValue: { fontSize: 11.5, fontWeight: '700' },
-  barChart: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 96 },
-  barCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
-  bar: { width: '100%', borderTopLeftRadius: 4, borderTopRightRadius: 4 },
-  barLabel: { fontSize: 9 },
 })

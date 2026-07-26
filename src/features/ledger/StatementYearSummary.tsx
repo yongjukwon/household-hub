@@ -19,5 +19,5 @@ export function StatementYearSummary({
       </p>
     )
   }
-  return <StatementCharts data={query.data} showMonthlyLimits />
+  return <StatementCharts data={query.data} />
 }

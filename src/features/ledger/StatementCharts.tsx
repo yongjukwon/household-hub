@@ -9,7 +9,6 @@ import { formatMoney } from '@household-hub/domain'
 
 import { HOUSEHOLD_CURRENCY } from './assets'
 import {
-  monthlyBudgetLimits,
   spendingCategoryTotals,
   statementTotals,
   type LedgerYearData,
@@ -20,16 +19,12 @@ const COLORS = ['#5B73EA', '#FF7A45', '#D99500', '#2CA58D', '#8B5CF6', '#EC4899'
 export function StatementCharts({
   data,
   monthId,
-  showMonthlyLimits = false,
 }: {
   data: LedgerYearData
   monthId?: string
-  showMonthlyLimits?: boolean
 }) {
   const totals = statementTotals(data, monthId)
   const categories = spendingCategoryTotals(data, monthId)
-  const limits = monthlyBudgetLimits(data)
-  const maxLimit = Math.max(...limits.map((entry) => entry.limitCents), 1)
 
   return (
     <div className="space-y-4">
@@ -96,39 +91,6 @@ export function StatementCharts({
           </ul>
         </div>
       </div>
-
-      {showMonthlyLimits && (
-        <div className="rounded-[var(--hh-radius-card)] bg-[var(--hh-surface)] p-4 shadow-[var(--hh-shadow-card)]">
-          <h3 className="mb-3 text-sm font-semibold text-[var(--hh-muted)]">
-            Monthly budget limits
-          </h3>
-          <div
-            className="flex h-24 items-end gap-1.5"
-            aria-label="Monthly budget limit chart"
-          >
-            {limits.map((entry) => (
-              <div
-                key={entry.month}
-                className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1"
-              >
-                <div
-                  className="w-full rounded-t bg-[var(--hh-accent)]"
-                  style={{
-                    height: `${Math.max(4, (entry.limitCents / maxLimit) * 68)}px`,
-                    opacity: entry.limitCents > 0 ? 1 : 0.2,
-                  }}
-                  title={formatMoney(entry.limitCents, HOUSEHOLD_CURRENCY)}
-                />
-                <span className="text-[10px] text-[var(--hh-muted)]">
-                  {new Intl.DateTimeFormat('en', { month: 'short' }).format(
-                    new Date(2026, entry.month - 1, 1),
-                  )}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
