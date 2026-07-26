@@ -46,6 +46,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "29130c36-ef42-40f5-bb1b-56a62a766018"
+      }
+    },
+    "owner": "penguinfactory"
   }
 }
