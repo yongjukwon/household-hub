@@ -1,8 +1,13 @@
 import { Slot } from 'expo-router'
 import { StyleSheet, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { AppHeader } from '@/components/AppHeader'
-import { FloatingTabBar } from '@/components/FloatingTabBar'
+import {
+  FloatingTabBar,
+  TAB_BAR_FLOAT_OFFSET,
+  TAB_BAR_HEIGHT,
+} from '@/components/FloatingTabBar'
 import { useTheme } from '@/theme/tokens'
 
 /**
@@ -14,11 +19,17 @@ import { useTheme } from '@/theme/tokens'
  */
 export default function TabsLayout() {
   const { tokens } = useTheme()
+  const insets = useSafeAreaInsets()
 
   return (
-    <View style={[styles.root, { backgroundColor: tokens.canvas }]}>
+    <View style={styles.root}>
       <AppHeader />
-      <View style={styles.content}>
+      <View
+        style={[
+          styles.content,
+          { paddingBottom: insets.bottom + TAB_BAR_FLOAT_OFFSET + TAB_BAR_HEIGHT + 12 },
+        ]}
+      >
         <Slot />
       </View>
       <FloatingTabBar />
