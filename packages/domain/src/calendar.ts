@@ -104,3 +104,43 @@ function isDateOnly(value: unknown): value is string {
     date.getUTCDate() === day
   )
 }
+
+// --- Owner attribution colors ---------------------------------------------
+
+/** Distinct, dot-legible hues; Shared ties to the app's amber accent family. */
+const OWNER_COLOR_A = '#3b5bdb' // indigo
+const OWNER_COLOR_B = '#c2255c' // raspberry
+const OWNER_COLOR_SHARED = '#d9a400' // deep gold (brand-adjacent)
+
+export interface OwnerColors {
+  /** Color for an event's owner_id (null = shared). */
+  colorFor: (ownerId: string | null) => string
+  /** Display label for an event's owner_id ("You" / name / "Shared"). */
+  labelFor: (ownerId: string | null) => string
+}
+
+/**
+ * Deterministically map the (exactly two) household members to two colors by
+ * sorted user id, plus a third for Shared. Stable across sessions/devices so
+ * both partners see the same person in the same color on web and native.
+ */
+export function buildOwnerColors(
+  members: { userId: string; displayName: string }[],
+  currentUserId: string | null,
+): OwnerColors {
+  const sorted = [...members].sort((a, b) => a.userId.localeCompare(b.userId))
+  const palette = [OWNER_COLOR_A, OWNER_COLOR_B]
+  const byUser = new Map<string, string>()
+  sorted.forEach((m, i) => byUser.set(m.userId, palette[i] ?? OWNER_COLOR_A))
+
+  const colorFor = (ownerId: string | null) =>
+    ownerId === null ? OWNER_COLOR_SHARED : (byUser.get(ownerId) ?? OWNER_COLOR_SHARED)
+
+  const labelFor = (ownerId: string | null) => {
+    if (ownerId === null) return 'Shared'
+    if (ownerId === currentUserId) return 'You'
+    return members.find((m) => m.userId === ownerId)?.displayName ?? 'Shared'
+  }
+
+  return { colorFor, labelFor }
+}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildOwnerColors,
   calendarDateInTimeZone,
   isCalendarTime,
   isReminderPreset,
@@ -73,5 +74,37 @@ describe('reminder presets', () => {
     expect(reminderLeadMinutes('1h')).toBe(60)
     expect(reminderLeadMinutes('1d')).toBe(1440)
     expect(reminderLeadMinutes('1w')).toBe(10080)
+  })
+})
+
+describe('buildOwnerColors', () => {
+  const members = [
+    { userId: 'b-user', displayName: 'Claire' },
+    { userId: 'a-user', displayName: 'Yongju' },
+  ]
+
+  it('assigns colors by sorted user id, stable regardless of input order', () => {
+    const colors = buildOwnerColors(members, null)
+    expect(colors.colorFor('a-user')).not.toBe(colors.colorFor('b-user'))
+    expect(colors.colorFor('a-user')).toBe(buildOwnerColors([...members].reverse(), null).colorFor('a-user'))
+  })
+
+  it('gives shared events their own color, distinct from either member', () => {
+    const colors = buildOwnerColors(members, null)
+    const shared = colors.colorFor(null)
+    expect(shared).not.toBe(colors.colorFor('a-user'))
+    expect(shared).not.toBe(colors.colorFor('b-user'))
+  })
+
+  it('labels the current user "You" and the partner by display name', () => {
+    const colors = buildOwnerColors(members, 'a-user')
+    expect(colors.labelFor('a-user')).toBe('You')
+    expect(colors.labelFor('b-user')).toBe('Claire')
+    expect(colors.labelFor(null)).toBe('Shared')
+  })
+
+  it('falls back to the shared color for an unknown owner id', () => {
+    const colors = buildOwnerColors(members, null)
+    expect(colors.colorFor('missing-user')).toBe(colors.colorFor(null))
   })
 })
