@@ -1,3 +1,4 @@
+import { BlurView } from 'expo-blur'
 import { usePathname, useRouter } from 'expo-router'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -15,7 +16,7 @@ import { BellIcon, ChevronLeftIcon, CogIcon } from './icons'
  * (settings) as floating circular buttons top-right.
  */
 export function AppHeader() {
-  const { tokens } = useTheme()
+  const { tokens, scheme } = useTheme()
   const router = useRouter()
   const pathname = usePathname()
   const insets = useSafeAreaInsets()
@@ -25,7 +26,7 @@ export function AppHeader() {
     <View
       style={[
         styles.row,
-        { paddingTop: insets.top + 6, backgroundColor: tokens.canvas },
+        { paddingTop: insets.top + 6, backgroundColor: 'transparent' },
       ]}
     >
       <View
@@ -43,13 +44,21 @@ export function AppHeader() {
           accessibilityLabel={backDestination.label}
           hitSlop={4}
           onPress={() => router.replace(backDestination.path)}
-          style={[
-            styles.iconButton,
-            { backgroundColor: tokens.card },
-            tokens.shadowCard,
-          ]}
         >
-          <ChevronLeftIcon size={18} color={tokens.muted} />
+          <BlurView
+            intensity={30}
+            tint={scheme}
+            style={[
+              styles.iconButton,
+              {
+                backgroundColor: tokens.glass.fill,
+                borderColor: tokens.glass.border,
+                borderWidth: 1,
+              },
+            ]}
+          >
+            <ChevronLeftIcon size={18} color={tokens.muted} />
+          </BlurView>
         </Pressable>
       ) : (
         <View style={styles.leftSpacer} />
@@ -59,25 +68,41 @@ export function AppHeader() {
           accessibilityRole="button"
           accessibilityLabel="Notifications"
           onPress={() => router.push('/notifications')}
-          style={[
-            styles.iconButton,
-            { backgroundColor: tokens.card },
-            tokens.shadowCard,
-          ]}
         >
-          <BellIcon size={18} color={tokens.muted} />
+          <BlurView
+            intensity={30}
+            tint={scheme}
+            style={[
+              styles.iconButton,
+              {
+                backgroundColor: tokens.glass.fill,
+                borderColor: tokens.glass.border,
+                borderWidth: 1,
+              },
+            ]}
+          >
+            <BellIcon size={18} color={tokens.muted} />
+          </BlurView>
         </Pressable>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Settings"
           onPress={() => router.push('/settings')}
-          style={[
-            styles.iconButton,
-            { backgroundColor: tokens.card },
-            tokens.shadowCard,
-          ]}
         >
-          <CogIcon size={18} color={tokens.muted} />
+          <BlurView
+            intensity={30}
+            tint={scheme}
+            style={[
+              styles.iconButton,
+              {
+                backgroundColor: tokens.glass.fill,
+                borderColor: tokens.glass.border,
+                borderWidth: 1,
+              },
+            ]}
+          >
+            <CogIcon size={18} color={tokens.muted} />
+          </BlurView>
         </Pressable>
       </View>
     </View>
