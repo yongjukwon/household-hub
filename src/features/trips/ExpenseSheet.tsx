@@ -5,8 +5,17 @@ import { ConfirmDialog } from '@/shell/ui/ConfirmDialog'
 import { centsToInputValue, parseDollarsToCents } from '@/features/moneyInput'
 import { HOUSEHOLD_CURRENCY, type LedgerAsset } from '@/features/ledger/assets'
 import { operationOutcomeError } from '@/lib/operations/outcome'
-import type { Trip, TripExpense } from './data'
-import { compatibleExpenseAssets } from './forms'
+import type {
+  BookingEntry,
+  ItineraryEntry,
+  Trip,
+  TripExpense,
+} from './data'
+import {
+  compatibleExpenseAssets,
+  expenseLinkValue,
+  parseExpenseLink,
+} from './forms'
 import { deleteExpense, saveExpense } from './mutations'
 
 const field =
@@ -20,6 +29,8 @@ interface ExpenseSheetProps {
   trip: Trip
   assets: LedgerAsset[]
   expense: TripExpense | null
+  itinerary: ItineraryEntry[]
+  bookings: BookingEntry[]
 }
 
 /**
@@ -34,6 +45,8 @@ export function ExpenseSheet({
   trip,
   assets,
   expense,
+  itinerary,
+  bookings,
 }: ExpenseSheetProps) {
   const currencyChoices = Array.from(
     new Set([trip.destinationCurrency.toUpperCase(), HOUSEHOLD_CURRENCY]),
@@ -51,6 +64,12 @@ export function ExpenseSheet({
   )
   const [date, setDate] = useState(
     (expense?.spentAt ?? trip.startDate + 'T12:00:00Z').slice(0, 10),
+  )
+  const [link, setLink] = useState(
+    expenseLinkValue({
+      itineraryEntryId: expense?.itineraryEntryId ?? null,
+      bookingEntryId: expense?.bookingEntryId ?? null,
+    }),
   )
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -71,6 +90,7 @@ export function ExpenseSheet({
     setSaving(true)
     setError(null)
     try {
+      const linkIds = parseExpenseLink(link)
       const outcome = await saveExpense(
         householdId,
         {
@@ -81,6 +101,7 @@ export function ExpenseSheet({
           currency,
           spentAt: new Date(`${date}T12:00:00Z`).toISOString(),
           description,
+          ...linkIds,
         },
         expense?.revision ?? null,
       )
@@ -210,6 +231,29 @@ export function ExpenseSheet({
             value={date}
             onChange={(e) => setDate(e.target.value)}
           />
+        </div>
+        <div>
+          <label className={label} htmlFor="exp-link">
+            Linked activity (optional)
+          </label>
+          <select
+            id="exp-link"
+            className={field}
+            value={link}
+            onChange={(event) => setLink(event.target.value)}
+          >
+            <option value="standalone">Standalone expense</option>
+            {itinerary.map((entry) => (
+              <option key={entry.id} value={`itinerary:${entry.id}`}>
+                Itinerary · {entry.title}
+              </option>
+            ))}
+            {bookings.map((entry) => (
+              <option key={entry.id} value={`booking:${entry.id}`}>
+                Booking · {entry.title}
+              </option>
+            ))}
+          </select>
         </div>
         {error && <p className="text-sm text-[var(--hh-danger)]">{error}</p>}
         <div className="flex items-center gap-2 pt-1">

@@ -13,7 +13,6 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-import { ChevronLeftIcon } from '@/components/icons'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { ErrorState, LoadingState } from '@/components/states'
 import { useActiveHousehold } from '@/features/household'
@@ -128,11 +127,6 @@ export default function NoteScreen() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
-          <Pressable onPress={() => router.replace('/notes')} style={styles.backRow}>
-            <ChevronLeftIcon size={16} color={tokens.muted} />
-            <Text style={[styles.backLabel, { color: tokens.muted }]}>All notes</Text>
-          </Pressable>
-
           <View style={styles.titleRow}>
             {editing ? (
               <Text style={[styles.pageTitle, { color: tokens.ink }]}>Edit note</Text>
@@ -233,8 +227,6 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   flex: { flex: 1 },
   content: { padding: 20, paddingBottom: 40, flexGrow: 1 },
-  backRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 10 },
-  backLabel: { fontSize: 13, fontWeight: '600' },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -256,7 +248,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 12,
   },
-  editorCard: { flex: 1, minHeight: 360, overflow: 'hidden' },
+  editorCard: { flex: 1, minHeight: 360 },
   readArea: { flex: 1, paddingTop: 4 },
   error: { fontSize: 13, marginTop: 12 },
 })

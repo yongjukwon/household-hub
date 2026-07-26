@@ -12,10 +12,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { Card } from '@/components/Card'
-import { ChevronLeftIcon } from '@/components/icons'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EditableTitle } from '@/components/EditableTitle'
 import { EmptyState, ErrorState, LoadingState } from '@/components/states'
+import { GroceryItemActions } from '@/features/groceries/GroceryItemActions'
 import { useActiveHousehold } from '@/features/household'
 import { centsToInputValue, parseDollarsToCents } from '@/features/moneyInput'
 import {
@@ -30,6 +30,7 @@ import {
 } from '@/features/groceries/data'
 import {
   clearCheckedItems,
+  deleteGroceryItem,
   deleteGroceryList,
   saveGroceryList,
   saveGroceryItem,
@@ -57,6 +58,7 @@ export default function GroceryListScreen() {
   const [historyItem, setHistoryItem] = useState<GroceryItem | null>(null)
   const [confirmClear, setConfirmClear] = useState(false)
   const [confirmDeleteList, setConfirmDeleteList] = useState(false)
+  const [deleteItem, setDeleteItem] = useState<GroceryItem | null>(null)
   const [busy, setBusy] = useState(false)
 
   const items = useMemo(() => query.data?.items ?? [], [query.data?.items])
@@ -129,6 +131,18 @@ export default function GroceryListScreen() {
     }
   }
 
+  async function handleDeleteItem() {
+    if (!householdId || !deleteItem) return
+    setBusy(true)
+    try {
+      await deleteGroceryItem(householdId, deleteItem.id, deleteItem.revision)
+      setDeleteItem(null)
+      if (historyItem?.id === deleteItem.id) setHistoryItem(null)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const rows: Array<{ kind: 'item'; item: GroceryItem } | { kind: 'checkedHeading' }> = [
     ...unchecked.map((item) => ({ kind: 'item' as const, item })),
     ...(checked.length > 0 ? [{ kind: 'checkedHeading' as const }] : []),
@@ -143,15 +157,6 @@ export default function GroceryListScreen() {
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <View>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => router.replace('/groceries')}
-              style={styles.backRow}
-            >
-              <ChevronLeftIcon size={16} color={tokens.muted} />
-              <Text style={[styles.backLabel, { color: tokens.muted }]}>All lists</Text>
-            </Pressable>
-
             <View style={styles.titleRow}>
               {list ? (
                 <EditableTitle
@@ -256,6 +261,7 @@ export default function GroceryListScreen() {
               item={row.item}
               householdId={householdId!}
               onEdit={() => setEditing(row.item)}
+              onDelete={() => setDeleteItem(row.item)}
               onHistory={() => setHistoryItem(row.item)}
             />
           )
@@ -322,6 +328,17 @@ export default function GroceryListScreen() {
         confirmLabel="Delete"
         onConfirm={() => void handleDeleteList()}
       />
+      <ConfirmDialog
+        open={deleteItem !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteItem(null)
+        }}
+        title={`Delete ${deleteItem?.name ?? 'this item'}?`}
+        description="This permanently removes the item from this grocery list."
+        confirmLabel="Delete"
+        confirmDisabled={busy}
+        onConfirm={() => void handleDeleteItem()}
+      />
       {busy ? <Text accessibilityRole="text" style={styles.srOnly}>Working…</Text> : null}
     </SafeAreaView>
   )
@@ -331,11 +348,13 @@ function ItemRow({
   item,
   householdId,
   onEdit,
+  onDelete,
   onHistory,
 }: {
   item: GroceryItem
   householdId: string
   onEdit: () => void
+  onDelete: () => void
   onHistory: () => void
 }) {
   const { tokens } = useTheme()
@@ -384,9 +403,7 @@ function ItemRow({
           </Text>
         ) : null}
       </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${item.name}`} onPress={onEdit} hitSlop={6}>
-        <Text style={[styles.editLink, { color: tokens.muted }]}>Edit</Text>
-      </Pressable>
+      <GroceryItemActions itemName={item.name} onEdit={onEdit} onDelete={onDelete} />
     </Card>
   )
 }
@@ -402,8 +419,6 @@ function formatPurchaseDate(value: string): string {
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   listContent: { padding: 20, paddingBottom: 24 },
-  backRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 10 },
-  backLabel: { fontSize: 13, fontWeight: '600' },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -447,7 +462,6 @@ const styles = StyleSheet.create({
   itemQty: { fontSize: 13, fontWeight: '400' },
   itemPurchased: { fontSize: 11, marginTop: 2 },
   itemPrice: { fontSize: 13, fontWeight: '600' },
-  editLink: { fontSize: 12, fontWeight: '600' },
   historyCard: { marginTop: 8 },
   historyHeader: {
     flexDirection: 'row',

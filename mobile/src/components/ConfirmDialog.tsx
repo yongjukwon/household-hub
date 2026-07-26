@@ -9,6 +9,8 @@ interface ConfirmDialogProps {
   description: string
   confirmLabel: string
   onConfirm: () => void
+  /** Prevents repeat submission while the owning async action is in flight. */
+  confirmDisabled?: boolean
   /** False for a neutral (non-red) confirm action, e.g. "Transfer ownership". */
   destructive?: boolean
 }
@@ -22,6 +24,7 @@ export function ConfirmDialog({
   description,
   confirmLabel,
   onConfirm,
+  confirmDisabled = false,
   destructive = true,
 }: ConfirmDialogProps) {
   const { tokens } = useTheme()
@@ -62,10 +65,13 @@ export function ConfirmDialog({
             </Pressable>
             <Pressable
               accessibilityRole="button"
+              accessibilityState={{ disabled: confirmDisabled }}
+              disabled={confirmDisabled}
               onPress={onConfirm}
               style={[
                 styles.button,
                 { backgroundColor: destructive ? tokens.danger : tokens.accent },
+                confirmDisabled && styles.disabled,
               ]}
             >
               <Text style={[styles.buttonText, { color: destructive ? '#FFFFFF' : tokens.accentContrast }]}>
@@ -98,4 +104,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonText: { fontSize: 14, fontWeight: '700' },
+  disabled: { opacity: 0.5 },
 })

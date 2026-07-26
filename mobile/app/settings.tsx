@@ -29,6 +29,7 @@ import {
 import { saveProfileSettings, useProfile } from '@/features/settings/profile'
 import { useAuth } from '@/lib/auth/AuthContext'
 import type { Appearance } from '@/lib/appearance'
+import { syncPushRegistration } from '@/lib/notificationLifecycle'
 import { supabase } from '@/lib/supabase'
 import { useAppearance } from '@/theme/AppearanceProvider'
 import { useTheme } from '@/theme/tokens'
@@ -107,6 +108,11 @@ export default function SettingsScreen() {
       profile.data.revision,
     )
     void profile.refetch()
+  }
+
+  async function signOut() {
+    await syncPushRegistration(false)
+    await supabase.auth.signOut()
   }
 
   function reportResult(value: unknown, okMessage: string) {
@@ -246,7 +252,7 @@ export default function SettingsScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Sign out"
-            onPress={() => void supabase.auth.signOut()}
+            onPress={() => void signOut()}
             style={styles.signOutRow}
           >
             <Text style={[styles.signOutText, { color: tokens.accent }]}>Sign out</Text>
@@ -320,6 +326,7 @@ export default function SettingsScreen() {
           if (user) {
             const result = await prepareAccountDeletion(user.id)
             if (result.status === 'ok') {
+              await syncPushRegistration(false)
               await supabase.auth.signOut()
             } else {
               setNotice(result.reason)

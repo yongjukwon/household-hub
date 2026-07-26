@@ -46,16 +46,20 @@ export function DonutChart({ slices, size = 72, strokeWidth = 12, emptyLabel = '
     )
   }
 
-  let offsetSoFar = 0
+  const rotations = slices.map((_, index) => {
+    const offset = slices
+      .slice(0, index)
+      .reduce((sum, slice) => sum + slice.value, 0)
+    return (offset / total) * 360 - 90
+  })
 
   return (
     <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      {slices.map((slice) => {
+      {slices.map((slice, index) => {
         const fraction = slice.value / total
         const dash = fraction * circumference
         const gap = circumference - dash
-        const rotation = (offsetSoFar / total) * 360 - 90
-        offsetSoFar += slice.value
+        const rotation = rotations[index]
         return (
           <Circle
             key={slice.key}

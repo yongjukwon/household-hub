@@ -12,7 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { buildOwnerColors } from '@household-hub/domain'
 
 import { Card } from '@/components/Card'
-import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from '@/components/icons'
+import { FloatingActionButton } from '@/components/FloatingActionButton'
+import { ChevronLeftIcon, ChevronRightIcon } from '@/components/icons'
 import { EmptyState, ErrorState, LoadingState } from '@/components/states'
 import { deviceTimeZone, useActiveHousehold } from '@/features/household'
 import { EventSheet } from '@/features/calendar/EventSheet'
@@ -31,6 +32,12 @@ import {
   todayKey,
   type MonthGridCell,
 } from '@/features/calendar/monthGrid'
+import {
+  CALENDAR_DATE_SURFACE_SIZE,
+  CALENDAR_DAY_CELL_HEIGHT,
+  CALENDAR_MONTH_HEADER_BOTTOM_SPACING,
+  CALENDAR_TODAY_RADIUS,
+} from '@/features/calendar/layout'
 import { useCalendarEvents } from '@/features/calendar/useCalendarEvents'
 import { useTheme } from '@/theme/tokens'
 
@@ -133,14 +140,20 @@ export default function CalendarScreen() {
         accessibilityLabel={cell.date}
         accessibilityState={{ selected: isSelected }}
         onPress={() => setSelected(cell.date)}
-        style={[
-          styles.cell,
-          isSelected && { backgroundColor: tokens.accent },
-        ]}
+        style={styles.cell}
       >
         <View
           style={[
-            isToday && !isSelected && [styles.todayRing, { borderColor: tokens.accent }],
+            styles.dateSurface,
+            isSelected && {
+              backgroundColor: tokens.accent,
+              borderRadius: isToday ? CALENDAR_TODAY_RADIUS : 10,
+            },
+            isToday &&
+              !isSelected && [
+                styles.todayRing,
+                { borderColor: tokens.accent },
+              ],
           ]}
         >
           <Text
@@ -179,17 +192,6 @@ export default function CalendarScreen() {
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <View>
-            <View style={styles.titleRow}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="New event"
-                onPress={openNew}
-                style={[styles.addButton, { backgroundColor: tokens.accent }]}
-              >
-                <PlusIcon size={18} color={tokens.accentContrast} />
-              </Pressable>
-            </View>
-
             {household.isError ? (
               <ErrorState message="Could not load your household." />
             ) : (
@@ -283,6 +285,8 @@ export default function CalendarScreen() {
         )}
       />
 
+      <FloatingActionButton accessibilityLabel="New event" onPress={openNew} />
+
       {householdId ? (
         <EventSheet
           open={sheetOpen}
@@ -312,25 +316,12 @@ function formatDayHeading(dateKey: string): string {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  listContent: { padding: 20, paddingBottom: 24 },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginBottom: 10,
-  },
-  addButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  listContent: { padding: 20, paddingBottom: 90 },
   monthRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: CALENDAR_MONTH_HEADER_BOTTOM_SPACING,
   },
   monthCard: { padding: 14 },
   monthLabel: { fontSize: 14, fontWeight: '800' },
@@ -350,21 +341,24 @@ const styles = StyleSheet.create({
   // than aspectRatio:1) keeps rows compact regardless of screen width.
   cell: {
     flex: 1,
-    height: 38,
+    height: CALENDAR_DAY_CELL_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 10,
+  },
+  dateSurface: {
+    width: CALENDAR_DATE_SURFACE_SIZE,
+    height: CALENDAR_DATE_SURFACE_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   todayRing: {
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
+    borderRadius: CALENDAR_TODAY_RADIUS,
   },
   cellDay: { fontSize: 12 },
   dot: {
     position: 'absolute',
-    bottom: 4,
+    bottom: 3,
     width: 4,
     height: 4,
     borderRadius: 2,

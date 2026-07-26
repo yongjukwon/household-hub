@@ -15,7 +15,7 @@ export function createYear(
     entityId: yearId,
     baseRevision: null,
     payload,
-    optimistic: payload,
+    optimistic: { ...payload, revision: 1 },
   })
 }
 

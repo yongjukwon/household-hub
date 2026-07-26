@@ -26,6 +26,13 @@ vi.mock('@/features/trips/mutations', () => ({
   deleteTrip: vi.fn().mockResolvedValue({ status: 'queued', operationId: 'op' }),
   saveExpense: vi.fn().mockResolvedValue({ status: 'queued', operationId: 'op' }),
   deleteExpense: vi.fn().mockResolvedValue({ status: 'queued', operationId: 'op' }),
+  saveItineraryEntry: vi.fn().mockResolvedValue({ status: 'queued', operationId: 'op' }),
+  deleteItineraryEntry: vi.fn().mockResolvedValue({ status: 'queued', operationId: 'op' }),
+  saveBookingEntry: vi.fn().mockResolvedValue({ status: 'queued', operationId: 'op' }),
+  deleteBookingEntry: vi.fn().mockResolvedValue({ status: 'queued', operationId: 'op' }),
+  saveChecklistEntry: vi.fn().mockResolvedValue({ status: 'queued', operationId: 'op' }),
+  toggleChecklistEntry: vi.fn().mockResolvedValue({ status: 'queued', operationId: 'op' }),
+  deleteChecklistEntry: vi.fn().mockResolvedValue({ status: 'queued', operationId: 'op' }),
 }))
 
 const HH = '11111111-1111-1111-1111-111111111111'
@@ -51,6 +58,8 @@ function expense(over: Partial<TripExpense>): TripExpense {
     currencyCode: 'JPY',
     description: 'Ramen',
     spentAt: '2026-09-02T12:00:00Z',
+    itineraryEntryId: null,
+    bookingEntryId: null,
     revision: 1,
     ...over,
   }
@@ -71,7 +80,7 @@ beforeEach(() => {
 
 function setTrip(expenses: TripExpense[]) {
   vi.mocked(data.useTrip).mockReturnValue({
-    data: { trip, expenses },
+    data: { trip, expenses, itinerary: [], bookings: [], checklist: [] },
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
@@ -89,34 +98,40 @@ function renderScreen() {
 }
 
 describe('TripScreen', () => {
-  it('shows the trip header and defaults to the Expenses tab', () => {
+  it('shows the trip header and defaults to the Itinerary tab', () => {
     setTrip([expense({ currencyCode: 'JPY', amountCents: 3000_00, description: 'Ramen' })])
     renderScreen()
     expect(screen.getByText('Tokyo, Japan')).toBeInTheDocument()
-    expect(screen.getByText('Ramen')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Itinerary' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getByText('No itinerary yet')).toBeInTheDocument()
   })
 
-  it('shows separate per-currency totals without converting', () => {
+  it('shows separate per-currency totals without converting', async () => {
     setTrip([
       expense({ currencyCode: 'JPY', amountCents: 3000_00 }),
       expense({ currencyCode: 'CAD', amountCents: 40_00 }),
     ])
     renderScreen()
+    await userEvent.click(screen.getByRole('button', { name: 'Expenses' }))
     // Both currency buckets appear; neither is converted into the other.
     expect(screen.getByText('JPY')).toBeInTheDocument()
     expect(screen.getByText('CAD')).toBeInTheDocument()
   })
 
-  it('shows a coming-soon state for the Itinerary tab', async () => {
-    setTrip([])
+  it('shows expenses on the Expenses tab', async () => {
+    setTrip([expense({ currencyCode: 'JPY', amountCents: 3000_00, description: 'Ramen' })])
     renderScreen()
-    await userEvent.click(screen.getByRole('button', { name: 'Itinerary' }))
-    expect(screen.getByText('Itinerary coming soon')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Expenses' }))
+    expect(screen.getByText('Ramen')).toBeInTheDocument()
   })
 
   it('opens the new-expense sheet', async () => {
     setTrip([])
     renderScreen()
+    await userEvent.click(screen.getByRole('button', { name: 'Expenses' }))
     await userEvent.click(screen.getByLabelText('New expense'))
     const dialog = await screen.findByRole('dialog')
     expect(dialog).toBeInTheDocument()

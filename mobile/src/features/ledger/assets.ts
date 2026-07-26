@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { queryKeys } from '@household-hub/domain'
 import { supabase } from '@/lib/supabase'
+import { withOptimisticOverlay } from '@/lib/operations'
 import type { Tables } from '@/types/database'
 
 export type AssetKind =
@@ -61,7 +62,7 @@ export function useLedgerAssets(householdId: string | undefined) {
         .order('sort_order', { ascending: true })
         .returns<Tables<'ledger_asset_balances'>[]>()
       if (error) throw error
-      return (data ?? [])
+      return withOptimisticOverlay((data ?? [])
         .filter((r) => r.id)
         .map((r) => ({
           id: r.id!,
@@ -71,7 +72,7 @@ export function useLedgerAssets(householdId: string | undefined) {
           balanceCents: r.balance_cents ?? 0,
           sortOrder: r.sort_order ?? 0,
           revision: r.revision ?? 1,
-        }))
+        })), 'ledger_asset')
     },
   })
 }
@@ -91,7 +92,7 @@ export function useLedgerTransfers(householdId: string | undefined) {
         .limit(50)
         .returns<Tables<'ledger_transfers'>[]>()
       if (error) throw error
-      return (data ?? []).map((r) => ({
+      return withOptimisticOverlay((data ?? []).map((r) => ({
         id: r.id,
         fromAssetId: r.from_asset_id,
         toAssetId: r.to_asset_id,
@@ -100,7 +101,7 @@ export function useLedgerTransfers(householdId: string | undefined) {
         note: r.note,
         scheduleId: r.schedule_id,
         revision: r.revision,
-      }))
+      })), 'ledger_transfer')
     },
   })
 }
@@ -119,7 +120,7 @@ export function useTransferSchedules(householdId: string | undefined) {
         .order('created_at', { ascending: true })
         .returns<Tables<'ledger_transfer_schedules'>[]>()
       if (error) throw error
-      return (data ?? []).map((r) => ({
+      return withOptimisticOverlay((data ?? []).map((r) => ({
         id: r.id,
         fromAssetId: r.from_asset_id,
         toAssetId: r.to_asset_id,
@@ -129,7 +130,7 @@ export function useTransferSchedules(householdId: string | undefined) {
         timezone: r.timezone,
         active: r.active,
         revision: r.revision,
-      }))
+      })), 'ledger_schedule')
     },
   })
 }

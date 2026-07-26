@@ -12,7 +12,7 @@ import { supabase } from '@/lib/supabase'
 
 export interface AuthState {
   session: Session | null
-  /** True once the initial session load has resolved (from AsyncStorage). */
+  /** True once the initial session load has resolved from secure storage. */
   isReady: boolean
 }
 

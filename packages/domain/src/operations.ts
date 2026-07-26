@@ -36,6 +36,12 @@ export const operationTypes = [
   'trip.delete',
   'trip.expense.upsert',
   'trip.expense.delete',
+  'trip.itinerary.upsert',
+  'trip.itinerary.delete',
+  'trip.booking.upsert',
+  'trip.booking.delete',
+  'trip.checklist.upsert',
+  'trip.checklist.delete',
   'notification.read',
   'settings.update',
 ] as const

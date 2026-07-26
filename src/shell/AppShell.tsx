@@ -7,6 +7,8 @@ import { startSyncManager } from '@/lib/offline/syncManager'
 import { cn } from '@/lib/utils'
 import { PRIMARY_DESTINATIONS, type IconComponent } from './destinations'
 import { SyncStatus } from './ui/SyncStatus'
+import { useActiveHousehold } from '@/features/household'
+import { useHouseholdRealtime } from '@/lib/operations'
 
 const WORDMARK = '🐰&🐧'
 
@@ -16,6 +18,8 @@ export function AppShell() {
 
   // The durable operation queue is the rebuilt clients' only write path.
   const queryClient = useQueryClient()
+  const household = useActiveHousehold()
+  useHouseholdRealtime(household.data?.id ?? '')
   useEffect(() => {
     setOperationQueryClient(queryClient)
     const stop = startOperationSync()

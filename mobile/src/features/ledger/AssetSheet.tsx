@@ -5,6 +5,7 @@ import { BottomSheet } from '@/components/BottomSheet'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { SelectField } from '@/components/SelectField'
 import { centsToInputValue, parseDollarsToCents } from '@/features/moneyInput'
+import { operationOutcomeError } from '@/lib/operations'
 import { newUuid } from '@/lib/uuid'
 import { useTheme } from '@/theme/tokens'
 import { HOUSEHOLD_CURRENCY, type AssetKind, type LedgerAsset } from './assets'
@@ -25,10 +26,18 @@ interface AssetSheetProps {
   householdId: string
   asset: LedgerAsset | null
   sortOrder: number
+  onSaved?: () => void
 }
 
 /** Create or edit an asset (name, kind, currency, current balance). */
-export function AssetSheet({ open, onOpenChange, householdId, asset, sortOrder }: AssetSheetProps) {
+export function AssetSheet({
+  open,
+  onOpenChange,
+  householdId,
+  asset,
+  sortOrder,
+  onSaved,
+}: AssetSheetProps) {
   const { tokens } = useTheme()
   const [name, setName] = useState(asset?.name ?? '')
   const [kind, setKind] = useState<AssetKind>(asset?.kind ?? 'checking')
@@ -36,13 +45,15 @@ export function AssetSheet({ open, onOpenChange, householdId, asset, sortOrder }
   const [balance, setBalance] = useState(centsToInputValue(asset?.balanceCents ?? 0))
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const currencyLocked = !!asset
 
   async function handleSave() {
     if (name.trim().length === 0) return
     setSaving(true)
+    setError(null)
     try {
-      await saveAsset(
+      const outcome = await saveAsset(
         householdId,
         {
           id: asset?.id ?? newUuid(),
@@ -54,6 +65,12 @@ export function AssetSheet({ open, onOpenChange, householdId, asset, sortOrder }
         },
         asset?.revision ?? null,
       )
+      const outcomeError = operationOutcomeError(outcome)
+      if (outcomeError) {
+        setError(outcomeError)
+        return
+      }
+      onSaved?.()
       onOpenChange(false)
     } finally {
       setSaving(false)
@@ -63,8 +80,15 @@ export function AssetSheet({ open, onOpenChange, householdId, asset, sortOrder }
   async function handleDelete() {
     if (!asset) return
     setSaving(true)
+    setError(null)
     try {
-      await deleteAsset(householdId, asset.id, asset.revision)
+      const outcome = await deleteAsset(householdId, asset.id, asset.revision)
+      const outcomeError = operationOutcomeError(outcome)
+      if (outcomeError) {
+        setConfirmDelete(false)
+        setError(outcomeError)
+        return
+      }
       setConfirmDelete(false)
       onOpenChange(false)
     } finally {
@@ -125,6 +149,7 @@ export function AssetSheet({ open, onOpenChange, householdId, asset, sortOrder }
           ]}
         />
       </View>
+      {error ? <Text style={[styles.error, { color: tokens.danger }]}>{error}</Text> : null}
       <View style={styles.actions}>
         <Pressable
           accessibilityRole="button"
@@ -168,6 +193,7 @@ const styles = StyleSheet.create({
   rowField: { flex: 1 },
   label: { fontSize: 12.5, fontWeight: '600', marginBottom: 6 },
   input: { borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15 },
+  error: { fontSize: 13, marginBottom: 10 },
   actions: { flexDirection: 'row', gap: 10 },
   saveButton: { flex: 1, paddingVertical: 13, alignItems: 'center' },
   saveButtonText: { fontSize: 15, fontWeight: '700' },

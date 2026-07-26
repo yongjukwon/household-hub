@@ -67,7 +67,22 @@ export function saveCalendarEvent(
     entityId: form.id,
     baseRevision,
     payload,
-    optimistic: payload,
+    optimistic: {
+      title: payload.title,
+      note: payload.note,
+      ownerId: form.ownerId,
+      allDay: form.allDay,
+      startsAt: form.allDay ? null : form.startAt,
+      endsAt: form.allDay ? null : form.endAt,
+      startDate: form.allDay ? form.startDate : null,
+      endDate: form.allDay ? form.endDate : null,
+      timeZone: form.timezone,
+      recurrenceFrequency: form.recurrenceFrequency,
+      recurrenceUntil:
+        form.recurrenceFrequency === 'none' ? null : form.recurrenceUntil,
+      reminders: form.reminders,
+      revision: baseRevision ?? 1,
+    },
   })
 }
 

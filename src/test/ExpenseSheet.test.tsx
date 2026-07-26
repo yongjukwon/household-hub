@@ -37,6 +37,8 @@ function renderSheet(sourceAssets = assets, sourceTrip = trip) {
         trip={sourceTrip}
         assets={sourceAssets}
         expense={null}
+        itinerary={[]}
+        bookings={[]}
       />
     </MemoryRouter>,
   )

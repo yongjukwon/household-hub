@@ -1,6 +1,11 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, type QueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@household-hub/domain'
 import { supabase } from '@/lib/supabase'
+import {
+  getOperationStore,
+  withOptimisticOverlay,
+  type QueuedOperation,
+} from '@/lib/operations'
 import type { Tables } from '@/types/database'
 
 export interface LedgerYear {
@@ -54,6 +59,191 @@ export interface LedgerYearData {
   transactions: LedgerTransaction[]
 }
 
+export type TransactionPrerequisite = 'asset' | 'category'
+
+/** Returns the first unmet requirement for a CAD Ledger transaction. */
+export function resolveTransactionPrerequisite(
+  kind: CategoryKind,
+  hasCadAsset: boolean,
+  categories: MonthCategory[],
+): TransactionPrerequisite | null {
+  if (!hasCadAsset) return 'asset'
+  return categories.some((category) => category.kind === kind)
+    ? null
+    : 'category'
+}
+
+/**
+ * Projects queued category and limit commands into the month-shaped Budget
+ * read model. The server stores the propagation rule on the year/category
+ * entities, while the UI reads per-month rows, so the generic entity overlay
+ * cannot represent these commands by itself.
+ */
+export function applyLedgerConfigurationOverlay(
+  data: LedgerYearData,
+  operations: QueuedOperation[],
+  yearId: string,
+): LedgerYearData {
+  let categories = [...data.categories]
+  let limits = [...data.limits]
+  const months = [...data.months].sort((left, right) => left.month - right.month)
+
+  for (const operation of [...operations].sort(
+    (left, right) => left.localSequence - right.localSequence,
+  )) {
+    const payload = operation.command.payload
+    const fromMonth =
+      typeof payload.fromMonth === 'number' ? payload.fromMonth : null
+    if (!fromMonth || fromMonth < 1 || fromMonth > 12) continue
+
+    if (operation.entityType === 'ledger_category') {
+      const categoryId = operation.entityId
+
+      if (operation.optimistic === null) {
+        const belongsToYear = categories.some(
+          (category) => category.categoryId === categoryId,
+        )
+        if (!belongsToYear) continue
+        const affectedMonthIds = new Set(
+          months
+            .filter((month) => month.month >= fromMonth)
+            .map((month) => month.id),
+        )
+        categories = categories.filter(
+          (category) =>
+            category.categoryId !== categoryId ||
+            !affectedMonthIds.has(category.monthId),
+        )
+        limits = limits.filter(
+          (limit) =>
+            limit.categoryId !== categoryId ||
+            !affectedMonthIds.has(limit.monthId),
+        )
+        continue
+      }
+
+      if (payload.yearId !== yearId) continue
+      if (
+        typeof payload.name !== 'string' ||
+        (payload.kind !== 'income' && payload.kind !== 'spending') ||
+        typeof payload.sortOrder !== 'number'
+      ) {
+        continue
+      }
+
+      for (const month of months) {
+        if (month.month < fromMonth) continue
+        const index = categories.findIndex(
+          (category) =>
+            category.categoryId === categoryId &&
+            category.monthId === month.id,
+        )
+        const current = index >= 0 ? categories[index] : null
+        const next: MonthCategory = {
+          id: current?.id ?? `${categoryId}:${month.id}`,
+          categoryId,
+          monthId: month.id,
+          name: payload.name,
+          kind: payload.kind,
+          sortOrder: payload.sortOrder,
+          revision: current?.revision ?? operation.command.baseRevision ?? 1,
+        }
+        if (index >= 0) categories[index] = next
+        else categories.push(next)
+      }
+      continue
+    }
+
+    if (operation.entityType !== 'ledger_limit') continue
+    const categoryId =
+      typeof payload.categoryId === 'string' ? payload.categoryId : null
+    if (!categoryId) continue
+    const belongsToYear = categories.some(
+      (category) => category.categoryId === categoryId,
+    )
+    if (!belongsToYear) continue
+    const affectedMonths = months.filter((month) => month.month >= fromMonth)
+
+    if (operation.optimistic === null) {
+      const affectedMonthIds = new Set(affectedMonths.map((month) => month.id))
+      limits = limits.filter(
+        (limit) =>
+          limit.categoryId !== categoryId ||
+          !affectedMonthIds.has(limit.monthId),
+      )
+      continue
+    }
+
+    const amountCents =
+      payload.amountCents === null || typeof payload.amountCents === 'number'
+        ? payload.amountCents
+        : null
+    for (const month of affectedMonths) {
+      const index = limits.findIndex(
+        (limit) =>
+          limit.categoryId === categoryId && limit.monthId === month.id,
+      )
+      const current = index >= 0 ? limits[index] : null
+      const next: MonthLimit = {
+        categoryId,
+        monthId: month.id,
+        amountCents,
+        limitEntityId: current?.limitEntityId ?? operation.entityId,
+        revision: current?.revision ?? operation.command.baseRevision ?? 1,
+      }
+      if (index >= 0) limits[index] = next
+      else limits.push(next)
+    }
+  }
+
+  return { ...data, categories, limits }
+}
+
+/**
+ * A newly queued year is visible through the optimistic year overlay before
+ * Supabase can return its server-created month rows. Supply the known
+ * twelve-month shell so its Budget page is immediately usable offline.
+ */
+export function ensureLedgerYearMonths(
+  yearId: string,
+  data: LedgerYearData,
+): LedgerYearData {
+  if (data.months.length > 0) return data
+  return {
+    ...data,
+    months: Array.from({ length: 12 }, (_, index) => ({
+      id: `${yearId}:month:${index + 1}`,
+      month: index + 1,
+    })),
+  }
+}
+
+/** Seed both Ledger caches when a new Statement is durably queued offline. */
+export function seedPendingLedgerYear(
+  client: QueryClient,
+  householdId: string,
+  yearId: string,
+  year: number,
+): void {
+  const yearsKey = queryKeys.ledger.years(householdId)
+  client.setQueryData<LedgerYear[]>(yearsKey, (current = []) => {
+    if (current.some((entry) => entry.id === yearId)) return current
+    return [{ id: yearId, year, revision: 1 }, ...current].sort(
+      (a, b) => b.year - a.year,
+    )
+  })
+  client.setQueryData<LedgerYearData>(
+    [...yearsKey, yearId],
+    (current) =>
+      ensureLedgerYearMonths(yearId, current ?? {
+        months: [],
+        categories: [],
+        limits: [],
+        transactions: [],
+      }),
+  )
+}
+
 /** All Ledger years in the household, newest first. */
 export function useLedgerYears(householdId: string | undefined) {
   return useQuery({
@@ -66,7 +256,10 @@ export function useLedgerYears(householdId: string | undefined) {
         .order('year', { ascending: false })
         .returns<Pick<Tables<'ledger_years'>, 'id' | 'year' | 'revision'>[]>()
       if (error) throw error
-      return (data ?? []).map((r) => ({ id: r.id, year: r.year, revision: r.revision }))
+      return withOptimisticOverlay(
+        (data ?? []).map((r) => ({ id: r.id, year: r.year, revision: r.revision })),
+        'ledger_year',
+      )
     },
   })
 }
@@ -133,7 +326,7 @@ export function useLedgerYearData(
       const kindById = new Map<string, CategoryKind>()
       for (const c of kinds.data ?? []) kindById.set(c.id, c.kind as CategoryKind)
 
-      return {
+      const authoritative = ensureLedgerYearMonths(yearId!, {
         months: months.data ?? [],
         categories: (categories.data ?? []).map((c) => ({
           id: c.id,
@@ -162,7 +355,13 @@ export function useLedgerYearData(
           description: t.description,
           revision: t.revision,
         })),
-      }
+      })
+      const operations = await getOperationStore().listOperations()
+      return applyLedgerConfigurationOverlay(
+        authoritative,
+        operations,
+        yearId!,
+      )
     },
   })
 }

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Pressable, StyleSheet, Text } from 'react-native'
+import { useQueryClient } from '@tanstack/react-query'
 
 import { BottomSheet } from '@/components/BottomSheet'
 import { SelectField } from '@/components/SelectField'
@@ -7,7 +8,7 @@ import { operationOutcomeError } from '@/lib/operations'
 import { newUuid } from '@/lib/uuid'
 import { useTheme } from '@/theme/tokens'
 import { createYear } from './statementMutations'
-import type { LedgerYear } from './statements'
+import { seedPendingLedgerYear, type LedgerYear } from './statements'
 
 function candidateYears(existing: number[]): number[] {
   const current = new Date().getFullYear()
@@ -27,6 +28,7 @@ export function NewYearSheet({
   years: LedgerYear[]
 }) {
   const { tokens } = useTheme()
+  const queryClient = useQueryClient()
   const existingYears = useMemo(() => years.map((entry) => entry.year), [years])
   const options = useMemo(
     () =>
@@ -56,11 +58,15 @@ export function NewYearSheet({
     setSaving(true)
     setError(null)
     try {
-      const outcome = await createYear(householdId, newUuid(), year)
+      const yearId = newUuid()
+      const outcome = await createYear(householdId, yearId, year)
       const outcomeError = operationOutcomeError(outcome)
       if (outcomeError) {
         setError(outcomeError)
         return
+      }
+      if (outcome.status === 'queued') {
+        seedPendingLedgerYear(queryClient, householdId, yearId, year)
       }
       onOpenChange(false)
     } finally {

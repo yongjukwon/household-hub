@@ -9,6 +9,8 @@ function expense(over: Partial<TripExpense>): TripExpense {
     currencyCode: 'CAD',
     description: '',
     spentAt: '2026-07-10T12:00:00Z',
+    itineraryEntryId: null,
+    bookingEntryId: null,
     revision: 1,
     ...over,
   }

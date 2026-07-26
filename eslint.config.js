@@ -7,7 +7,7 @@ import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config([
-  globalIgnores(['dist', 'dev-dist']),
+  globalIgnores(['dist', 'dev-dist', 'mobile/.expo/**']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -19,6 +19,15 @@ export default tseslint.config([
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
+    },
+  },
+  {
+    files: [
+      'mobile/src/lib/auth/AuthContext.tsx',
+      'mobile/src/theme/AppearanceProvider.tsx',
+    ],
+    rules: {
+      'react-refresh/only-export-components': 'off',
     },
   },
   {

@@ -6,17 +6,20 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { BottomSheet } from '@/components/BottomSheet'
-import { Card } from '@/components/Card'
-import { ChevronRightIcon, PlusIcon } from '@/components/icons'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { DetailListRow } from '@/components/DetailListRow'
+import { FloatingActionButton } from '@/components/FloatingActionButton'
 import { EmptyState, ErrorState, LoadingState } from '@/components/states'
 import { useActiveHousehold } from '@/features/household'
 import { useGroceryLists, type GroceryList } from '@/features/groceries/data'
-import { saveGroceryList } from '@/features/groceries/mutations'
+import {
+  deleteGroceryList,
+  saveGroceryList,
+} from '@/features/groceries/mutations'
 import { newUuid } from '@/lib/uuid'
 import { useTheme } from '@/theme/tokens'
 
@@ -30,6 +33,7 @@ export default function GroceriesScreen() {
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState<GroceryList | null>(null)
 
   async function addList() {
     if (!householdId || name.trim().length === 0) return
@@ -48,24 +52,18 @@ export default function GroceriesScreen() {
     router.push({ pathname: '/groceries/[listId]', params: { listId: list.id } })
   }
 
+  async function confirmDelete() {
+    if (!householdId || !deleting) return
+    await deleteGroceryList(householdId, deleting.id, deleting.revision)
+    setDeleting(null)
+  }
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tokens.canvas }]} edges={['bottom']}>
       <FlatList
         data={lists.data ?? []}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
-        ListHeaderComponent={
-          <View style={styles.titleRow}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="New list"
-              onPress={() => setAdding(true)}
-              style={[styles.addButton, { backgroundColor: tokens.accent }]}
-            >
-              <PlusIcon size={18} color={tokens.accentContrast} />
-            </Pressable>
-          </View>
-        }
         ListEmptyComponent={
           lists.isLoading ? (
             <LoadingState />
@@ -76,14 +74,18 @@ export default function GroceriesScreen() {
           )
         }
         renderItem={({ item }) => (
-          <Pressable onPress={() => openList(item)} style={styles.rowWrap}>
-            <Card style={styles.row}>
-              <Text style={[styles.rowLabel, { color: tokens.ink }]}>{item.name}</Text>
-              <ChevronRightIcon size={18} color={tokens.muted} />
-            </Card>
-          </Pressable>
+          <DetailListRow
+            title={item.name}
+            openLabel={`Open ${item.name}`}
+            deleteLabel={`Delete ${item.name}`}
+            onOpen={() => openList(item)}
+            onDelete={() => setDeleting(item)}
+          />
         )}
+        ItemSeparatorComponent={() => <Text style={styles.separator} />}
       />
+
+      <FloatingActionButton accessibilityLabel="New list" onPress={() => setAdding(true)} />
 
       <BottomSheet open={adding} onOpenChange={setAdding} title="New list">
         <TextInput
@@ -112,34 +114,25 @@ export default function GroceriesScreen() {
           <Text style={[styles.createButtonText, { color: tokens.accentContrast }]}>Create</Text>
         </Pressable>
       </BottomSheet>
+
+      <ConfirmDialog
+        open={!!deleting}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null)
+        }}
+        title={`Delete ${deleting?.name ?? 'list'}?`}
+        description="This permanently removes the list and all of its items."
+        confirmLabel="Delete"
+        onConfirm={() => void confirmDelete()}
+      />
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  listContent: { padding: 20, paddingBottom: 24, flexGrow: 1 },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginBottom: 14,
-  },
-  addButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowWrap: { marginBottom: 8 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-  },
-  rowLabel: { fontSize: 15, fontWeight: '600' },
+  listContent: { padding: 20, paddingBottom: 90, flexGrow: 1 },
+  separator: { height: 8 },
   input: { borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, marginBottom: 12 },
   createButton: { paddingVertical: 13, alignItems: 'center' },
   createButtonText: { fontSize: 15, fontWeight: '700' },

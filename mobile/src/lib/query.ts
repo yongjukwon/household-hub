@@ -9,6 +9,7 @@ export function createQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
       queries: {
+        gcTime: Number.POSITIVE_INFINITY,
         staleTime: 30_000,
         retry: 1,
         refetchOnWindowFocus: false,

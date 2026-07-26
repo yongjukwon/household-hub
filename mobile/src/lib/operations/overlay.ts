@@ -4,7 +4,6 @@ import type { QueuedOperation } from './types'
 /** Any server row the overlay can address. */
 export interface EntityRow {
   id: string
-  [key: string]: unknown
 }
 
 /**

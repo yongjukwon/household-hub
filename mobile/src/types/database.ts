@@ -2025,6 +2025,75 @@ export type Database = {
           },
         ]
       }
+      trip_booking_entries: {
+        Row: {
+          address: string | null
+          confirmation_number: string | null
+          created_at: string
+          created_by: string
+          ends_at: string | null
+          household_id: string
+          id: string
+          kind: string
+          notes: string | null
+          revision: number
+          sort_order: number
+          starts_at: string | null
+          title: string
+          trip_id: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          confirmation_number?: string | null
+          created_at?: string
+          created_by: string
+          ends_at?: string | null
+          household_id: string
+          id: string
+          kind: string
+          notes?: string | null
+          revision?: number
+          sort_order?: number
+          starts_at?: string | null
+          title: string
+          trip_id: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          confirmation_number?: string | null
+          created_at?: string
+          created_by?: string
+          ends_at?: string | null
+          household_id?: string
+          id?: string
+          kind?: string
+          notes?: string | null
+          revision?: number
+          sort_order?: number
+          starts_at?: string | null
+          title?: string
+          trip_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_booking_entries_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_booking_entries_trip_id_household_id_fkey"
+            columns: ["trip_id", "household_id"]
+            isOneToOne: false
+            referencedRelation: "household_trips"
+            referencedColumns: ["id", "household_id"]
+          },
+        ]
+      }
       trip_bookings: {
         Row: {
           address: string | null
@@ -2091,6 +2160,60 @@ export type Database = {
           },
         ]
       }
+      trip_checklist_entries: {
+        Row: {
+          checked: boolean
+          created_at: string
+          created_by: string
+          household_id: string
+          id: string
+          label: string
+          revision: number
+          sort_order: number
+          trip_id: string
+          updated_at: string
+        }
+        Insert: {
+          checked?: boolean
+          created_at?: string
+          created_by: string
+          household_id: string
+          id: string
+          label: string
+          revision?: number
+          sort_order?: number
+          trip_id: string
+          updated_at?: string
+        }
+        Update: {
+          checked?: boolean
+          created_at?: string
+          created_by?: string
+          household_id?: string
+          id?: string
+          label?: string
+          revision?: number
+          sort_order?: number
+          trip_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_checklist_entries_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_checklist_entries_trip_id_household_id_fkey"
+            columns: ["trip_id", "household_id"]
+            isOneToOne: false
+            referencedRelation: "household_trips"
+            referencedColumns: ["id", "household_id"]
+          },
+        ]
+      }
       trip_checklist_items: {
         Row: {
           checked: boolean
@@ -2143,6 +2266,7 @@ export type Database = {
         Row: {
           amount_cents: number
           asset_id: string
+          booking_entry_id: string | null
           created_at: string
           created_by: string
           currency_code: string
@@ -2150,6 +2274,7 @@ export type Database = {
           household_id: string
           id: string
           ledger_transaction_id: string | null
+          itinerary_entry_id: string | null
           revision: number
           spent_at: string
           trip_id: string
@@ -2158,6 +2283,7 @@ export type Database = {
         Insert: {
           amount_cents: number
           asset_id: string
+          booking_entry_id?: string | null
           created_at?: string
           created_by: string
           currency_code: string
@@ -2165,6 +2291,7 @@ export type Database = {
           household_id: string
           id: string
           ledger_transaction_id?: string | null
+          itinerary_entry_id?: string | null
           revision?: number
           spent_at: string
           trip_id: string
@@ -2173,6 +2300,7 @@ export type Database = {
         Update: {
           amount_cents?: number
           asset_id?: string
+          booking_entry_id?: string | null
           created_at?: string
           created_by?: string
           currency_code?: string
@@ -2180,12 +2308,27 @@ export type Database = {
           household_id?: string
           id?: string
           ledger_transaction_id?: string | null
+          itinerary_entry_id?: string | null
           revision?: number
           spent_at?: string
           trip_id?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "trip_expenses_booking_entry_id_fkey"
+            columns: ["booking_entry_id"]
+            isOneToOne: false
+            referencedRelation: "trip_booking_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_expenses_itinerary_entry_id_fkey"
+            columns: ["itinerary_entry_id"]
+            isOneToOne: false
+            referencedRelation: "trip_itinerary_entries"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "trip_expenses_asset_id_household_id_fkey"
             columns: ["asset_id", "household_id"]
@@ -2216,6 +2359,66 @@ export type Database = {
           },
           {
             foreignKeyName: "trip_expenses_trip_id_household_id_fkey"
+            columns: ["trip_id", "household_id"]
+            isOneToOne: false
+            referencedRelation: "household_trips"
+            referencedColumns: ["id", "household_id"]
+          },
+        ]
+      }
+      trip_itinerary_entries: {
+        Row: {
+          created_at: string
+          created_by: string
+          household_id: string
+          id: string
+          item_date: string
+          notes: string | null
+          revision: number
+          sort_order: number
+          start_time: string | null
+          title: string
+          trip_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          household_id: string
+          id: string
+          item_date: string
+          notes?: string | null
+          revision?: number
+          sort_order?: number
+          start_time?: string | null
+          title: string
+          trip_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          household_id?: string
+          id?: string
+          item_date?: string
+          notes?: string | null
+          revision?: number
+          sort_order?: number
+          start_time?: string | null
+          title?: string
+          trip_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_itinerary_entries_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_itinerary_entries_trip_id_household_id_fkey"
             columns: ["trip_id", "household_id"]
             isOneToOne: false
             referencedRelation: "household_trips"
@@ -2699,4 +2902,3 @@ export const Constants = {
     },
   },
 } as const
-

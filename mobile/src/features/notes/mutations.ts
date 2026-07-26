@@ -15,7 +15,11 @@ export function saveNote(
     entityId: note.id,
     baseRevision,
     payload,
-    optimistic: payload,
+    optimistic: {
+      ...payload,
+      updatedAt: new Date().toISOString(),
+      revision: baseRevision ?? 1,
+    },
   })
 }
 

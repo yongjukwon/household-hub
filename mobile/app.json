@@ -11,6 +11,7 @@
       "bundleIdentifier": "com.conlegs.householdhub",
       "supportsTablet": false,
       "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
         "UISupportedInterfaceOrientations": [
           "UIInterfaceOrientationPortrait"
         ]

@@ -1,11 +1,71 @@
 import {
+  applyLedgerConfigurationOverlay,
   categoryProgress,
+  ensureLedgerYearMonths,
   hasSpendingFromMonth,
   monthSummaries,
+  resolveTransactionPrerequisite,
   spendingCategoryTotals,
   statementTotals,
   type LedgerYearData,
 } from '@/features/ledger/statements'
+import { QueryClient } from '@tanstack/react-query'
+import {
+  queryKeys,
+  type OperationCommand,
+  type OperationType,
+} from '@household-hub/domain'
+import { seedPendingLedgerYear } from '@/features/ledger/statements'
+import type { QueuedOperation } from '@/lib/operations'
+
+describe('ensureLedgerYearMonths', () => {
+  it('supplies a usable twelve-month shell while a new year is still queued', () => {
+    const result = ensureLedgerYearMonths(
+      '11111111-1111-4111-8111-111111111111',
+      { months: [], categories: [], limits: [], transactions: [] },
+    )
+
+    expect(result.months).toHaveLength(12)
+    expect(result.months.map((entry) => entry.month)).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+    ])
+    expect(result.months[0].id).toBe(
+      '11111111-1111-4111-8111-111111111111:month:1',
+    )
+  })
+
+  it('preserves authoritative server months', () => {
+    const data = {
+      months: [{ id: 'server-month', month: 1 }],
+      categories: [],
+      limits: [],
+      transactions: [],
+    }
+
+    expect(ensureLedgerYearMonths('year-id', data)).toBe(data)
+  })
+})
+
+describe('seedPendingLedgerYear', () => {
+  it('puts an offline-created year and its twelve-month Budget shell in cache', () => {
+    const client = new QueryClient()
+    const householdId = '11111111-1111-4111-8111-111111111111'
+    const yearId = '22222222-2222-4222-8222-222222222222'
+
+    seedPendingLedgerYear(client, householdId, yearId, 2027)
+
+    expect(client.getQueryData(queryKeys.ledger.years(householdId))).toEqual([
+      { id: yearId, year: 2027, revision: 1 },
+    ])
+    expect(
+      client.getQueryData<LedgerYearData>([
+        ...queryKeys.ledger.years(householdId),
+        yearId,
+      ])?.months,
+    ).toHaveLength(12)
+    client.clear()
+  })
+})
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => ({
   id: `m${i + 1}`,
@@ -21,6 +81,191 @@ function data(over: Partial<LedgerYearData>): LedgerYearData {
     ...over,
   }
 }
+
+function queued(input: {
+  localSequence: number
+  entityType: string
+  entityId: string
+  type: OperationType
+  payload: Record<string, unknown>
+  optimistic?: Record<string, unknown> | null
+}): QueuedOperation {
+  const operationId = `00000000-0000-4000-8000-${String(input.localSequence).padStart(12, '0')}`
+  const enqueuedAt = '2026-07-26T00:00:00.000Z'
+  return {
+    operationId,
+    localSequence: input.localSequence,
+    householdId: '11111111-1111-4111-8111-111111111111',
+    entityType: input.entityType,
+    entityId: input.entityId,
+    command: {
+      schemaVersion: 1,
+      operationId,
+      deviceId: '22222222-2222-4222-8222-222222222222',
+      localSequence: input.localSequence,
+      householdId: '11111111-1111-4111-8111-111111111111',
+      type: input.type,
+      entityType: input.entityType,
+      entityId: input.entityId,
+      baseRevision: null,
+      enqueuedAt,
+      payload: input.payload,
+    } as OperationCommand,
+    optimistic:
+      input.optimistic === undefined ? input.payload : input.optimistic,
+    enqueuedAt,
+    attempts: 0,
+    lastError: null,
+  }
+}
+
+describe('applyLedgerConfigurationOverlay', () => {
+  it('shows a queued category and limit from the selected month through December', () => {
+    const result = applyLedgerConfigurationOverlay(
+      data({}),
+      [
+        queued({
+          localSequence: 1,
+          entityType: 'ledger_category',
+          entityId: 'food',
+          type: 'ledger.category.upsert',
+          payload: {
+            yearId: 'year',
+            fromMonth: 7,
+            name: 'Food',
+            kind: 'spending',
+            sortOrder: 0,
+          },
+        }),
+        queued({
+          localSequence: 2,
+          entityType: 'ledger_limit',
+          entityId: 'food',
+          type: 'ledger.limit.upsert',
+          payload: {
+            categoryId: 'food',
+            fromMonth: 7,
+            amountCents: 40_000,
+          },
+        }),
+      ],
+      'year',
+    )
+
+    expect(result.categories.map((row) => row.monthId)).toEqual([
+      'm7',
+      'm8',
+      'm9',
+      'm10',
+      'm11',
+      'm12',
+    ])
+    expect(categoryProgress(result, 'm7')[0]).toMatchObject({
+      name: 'Food',
+      limitCents: 40_000,
+    })
+  })
+
+  it('applies queued edits and deletes in FIFO order', () => {
+    const initial = data({
+      categories: MONTHS.slice(6).map((month) => ({
+        id: `food:${month.id}`,
+        categoryId: 'food',
+        monthId: month.id,
+        name: 'Food',
+        kind: 'spending' as const,
+        sortOrder: 0,
+        revision: 1,
+      })),
+    })
+    const result = applyLedgerConfigurationOverlay(
+      initial,
+      [
+        queued({
+          localSequence: 2,
+          entityType: 'ledger_category',
+          entityId: 'food',
+          type: 'ledger.category.upsert',
+          payload: {
+            yearId: 'year',
+            fromMonth: 7,
+            name: 'Dining',
+            kind: 'spending',
+            sortOrder: 0,
+          },
+        }),
+        queued({
+          localSequence: 3,
+          entityType: 'ledger_category',
+          entityId: 'food',
+          type: 'ledger.category.delete',
+          payload: { fromMonth: 10 },
+          optimistic: null,
+        }),
+      ],
+      'year',
+    )
+
+    expect(result.categories.map((row) => [row.monthId, row.name])).toEqual([
+      ['m7', 'Dining'],
+      ['m8', 'Dining'],
+      ['m9', 'Dining'],
+    ])
+  })
+
+  it('ignores configuration commands belonging to another year', () => {
+    const initial = data({})
+    const result = applyLedgerConfigurationOverlay(
+      initial,
+      [
+        queued({
+          localSequence: 1,
+          entityType: 'ledger_category',
+          entityId: 'food',
+          type: 'ledger.category.upsert',
+          payload: {
+            yearId: 'other-year',
+            fromMonth: 1,
+            name: 'Food',
+            kind: 'spending',
+            sortOrder: 0,
+          },
+        }),
+      ],
+      'year',
+    )
+
+    expect(result).toEqual(initial)
+  })
+})
+
+describe('resolveTransactionPrerequisite', () => {
+  const income = {
+    id: 'income-row',
+    categoryId: 'income',
+    monthId: 'm7',
+    name: 'Salary',
+    kind: 'income' as const,
+    sortOrder: 0,
+    revision: 1,
+  }
+
+  it('requires a CAD Asset before checking categories', () => {
+    expect(resolveTransactionPrerequisite('income', false, [income])).toBe(
+      'asset',
+    )
+  })
+
+  it('requires a matching category after an Asset exists', () => {
+    expect(resolveTransactionPrerequisite('spending', true, [income])).toBe(
+      'category',
+    )
+  })
+
+  it('allows the transaction when both prerequisites exist', () => {
+    expect(resolveTransactionPrerequisite('income', true, [income])).toBeNull()
+  })
+})
 
 describe('monthSummaries', () => {
   it('sums income and spending per month and computes net', () => {

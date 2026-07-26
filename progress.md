@@ -25,12 +25,65 @@ task's diff passed an independent spec-compliance + code-quality review).
 Task 9 is cleared to start per explicit user approval ("move to Task 9 if the
 manual-test findings are all fixed").
 
+A follow-up native UI correction pass was completed on 2026-07-26:
+
+- Calendar date rows are now 48 points tall.
+- Calendar, Groceries, Notes, and Trips use one bottom-right floating add
+  action above the docked navigation.
+- Grocery items have separate pencil and confirmed trash actions.
+- Optimistic/new Ledger years immediately expose all twelve Budget months
+  from the persisted query cache instead of falling into `Statement not
+  found`, including while offline.
+- the restricted Notes editor now uses the shared card, toolbar, control,
+  color, radius, and shadow system.
+
+A second native UI consistency pass was completed on 2026-07-26:
+
+- page titles are centered in the shared header, including `Budget` on a
+  Statement detail route;
+- Calendar date numbers and event dots use fixed geometry, and only today's
+  date has the persistent circular marker;
+- Groceries, Notes, Trips, and Statement years use the same tap-to-open row
+  with a separate confirmed trash action;
+- Ledger's Statement add action is now a bottom-right `+`; a Statement row
+  opens Budget, its graph icon expands the annual report, and its trash icon
+  owns typed-year deletion;
+- Budget defaults to one month with previous/next arrows and expands the
+  twelve-month grid only when the month label is tapped;
+- optimistic Ledger category/limit commands now remain visible through
+  December while offline;
+- `+ Income` and `+ Spending` now guide the user through creating a missing
+  CAD Asset or category, then resume the intended transaction.
+
+A final header and spacing refinement was completed on 2026-07-26:
+
+- the Calendar month/year row now uses the same 14-point bottom spacing as
+  the card inset;
+- the collapsed Budget month selector is 48 points tall with smaller
+  typography and chevrons while retaining 44-point controls;
+- Grocery, Budget, Note, and Trip detail routes now use one icon-only back
+  action in the shared header, aligned with the centered title and right-side
+  actions;
+- the old text back rows were removed from detail content.
+
+Design and execution notes:
+
+- `docs/superpowers/specs/2026-07-26-native-ui-correction-design.md`
+- `docs/superpowers/plans/2026-07-26-native-ui-correction.md`
+- `docs/superpowers/2026-07-26-mobile-ui-correction-design.md`
+- `docs/superpowers/plans/2026-07-26-mobile-ui-consistency-pass.md`
+- `docs/superpowers/specs/2026-07-26-native-header-spacing-design.md`
+- `docs/superpowers/plans/2026-07-26-native-header-spacing-refinement.md`
+
 | Work | Status |
 | --- | --- |
 | Tasks 1–6: foundation, backend, queue, web shell/features | Complete |
 | Task 7: Expo foundation and offline layer | Complete and accepted |
 | Task 8: native parity plus completion correction | Complete |
 | Manual-test correction pass | Complete and reviewed (2026-07-26) |
+| Follow-up native UI correction | Complete and verified (2026-07-26) |
+| Native UI consistency pass | Complete and verified; device review pending (2026-07-26) |
+| Header and spacing refinement | Complete and verified; device review pending (2026-07-26) |
 | Task 9: reset, E2E acceptance, release handoff | Cleared to start |
 
 ## Resume checklist
@@ -274,9 +327,9 @@ flowchart LR
 | --- | --- |
 | ESLint | Pass |
 | Web TypeScript and production PWA build | Pass |
-| Web Vitest | 398/398 |
+| Web Vitest | 405/405 |
 | Native TypeScript | Pass |
-| Native Jest | 100/100 |
+| Native Jest | 132/132 |
 | Database pgTAP | 343/343 |
 | Edge Functions | 73/73 |
 | Supabase schema lint | No errors |
@@ -324,9 +377,16 @@ correction pass to pick up before/during Task 9's device and release work:
   finding 2 note above).
 - Do a quick visual pass on a real device/simulator for: the calendar
   dot alignment and owner-color rows, the docked tab bar, the route-aware
-  header, the new year-list picker, and `SelectField`/`DateTimeField`'s
-  tap-to-open behavior — none of these had a live UI check during this
-  pass (no browser/Simulator access from the implementing subagents).
+  centered header title, the taller date rows, today's circular marker, the
+  shared detail-route back button, the balanced Calendar month header, the
+  compact Budget month selector,
+  four root-page floating add actions, the shared list-row/delete pattern,
+  the Statement graph/delete actions, the collapsed and expanded Budget
+  month selector, the prerequisite-guided Ledger transaction flow, Grocery
+  pencil/trash controls, the pending-year Budget surface, the Notes editor
+  toolbar, the new year-list picker, and
+  `SelectField`/`DateTimeField`'s tap-to-open behavior — none of these had a
+  live UI check during this pass.
   **Priority check flagged by the final whole-pass review:** `SelectField`
   now opens its own `Modal` while nested inside a sheet's `BottomSheet`
   `Modal` (e.g. the category/asset picker inside `TransactionSheet` or

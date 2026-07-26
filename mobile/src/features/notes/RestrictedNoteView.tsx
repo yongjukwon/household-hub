@@ -29,7 +29,7 @@ function InlineChildren({ node }: { node: RichNoteNode }) {
   const { tokens } = useTheme()
   return (
     <Text style={[styles.paragraphText, { color: tokens.ink }]}>
-      {node.content?.map((child, index) =>
+      {node.content?.map((child) =>
         child.type === 'hardBreak' ? '\n' : child.text ?? '',
       )}
     </Text>

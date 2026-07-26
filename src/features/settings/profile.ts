@@ -1,7 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
-import { enqueueOperation, type EnqueueOutcome } from '@/lib/operations'
+import {
+  enqueueOperation,
+  withOptimisticOverlay,
+  type EnqueueOutcome,
+} from '@/lib/operations'
 import type { Tables } from '@/types/database'
 import type { Appearance } from '@/lib/appearance'
 
@@ -31,13 +35,15 @@ export function useProfile() {
         > | null>()
       if (error) throw error
       if (!data) return null
-      return {
+      const [profile] = await withOptimisticOverlay([{
         userId: data.user_id,
         displayName: data.display_name,
         appearance: data.appearance as Appearance,
         notificationsEnabled: data.notifications_enabled,
         revision: data.revision,
-      }
+        id: data.user_id,
+      }], 'settings')
+      return profile
     },
   })
 }

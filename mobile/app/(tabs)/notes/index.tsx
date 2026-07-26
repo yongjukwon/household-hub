@@ -1,15 +1,16 @@
 import { useRouter } from 'expo-router'
 import { useState } from 'react'
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { FlatList, Pressable, StyleSheet, Text, TextInput } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { BottomSheet } from '@/components/BottomSheet'
-import { Card } from '@/components/Card'
-import { ChevronRightIcon, PlusIcon } from '@/components/icons'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { DetailListRow } from '@/components/DetailListRow'
+import { FloatingActionButton } from '@/components/FloatingActionButton'
 import { EmptyState, ErrorState, LoadingState } from '@/components/states'
 import { useActiveHousehold } from '@/features/household'
 import { emptyNoteDocument, useNotes, type NoteSummary } from '@/features/notes/data'
-import { saveNote } from '@/features/notes/mutations'
+import { deleteNote, saveNote } from '@/features/notes/mutations'
 import { newUuid } from '@/lib/uuid'
 import { useTheme } from '@/theme/tokens'
 
@@ -23,6 +24,7 @@ export default function NotesScreen() {
   const [adding, setAdding] = useState(false)
   const [title, setTitle] = useState('')
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState<NoteSummary | null>(null)
 
   async function addNote() {
     if (!householdId || title.trim().length === 0) return
@@ -40,24 +42,18 @@ export default function NotesScreen() {
     router.push({ pathname: '/notes/[noteId]', params: { noteId: note.id } })
   }
 
+  async function confirmDelete() {
+    if (!householdId || !deleting) return
+    await deleteNote(householdId, deleting.id, deleting.revision)
+    setDeleting(null)
+  }
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tokens.canvas }]} edges={['bottom']}>
       <FlatList
         data={notes.data ?? []}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
-        ListHeaderComponent={
-          <View style={styles.titleRow}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="New note"
-              onPress={() => setAdding(true)}
-              style={[styles.addButton, { backgroundColor: tokens.accent }]}
-            >
-              <PlusIcon size={18} color={tokens.accentContrast} />
-            </Pressable>
-          </View>
-        }
         ListEmptyComponent={
           notes.isLoading ? (
             <LoadingState />
@@ -68,16 +64,18 @@ export default function NotesScreen() {
           )
         }
         renderItem={({ item }) => (
-          <Pressable onPress={() => openNote(item)} style={styles.rowWrap}>
-            <Card style={styles.row}>
-              <Text style={[styles.rowLabel, { color: tokens.ink }]} numberOfLines={1}>
-                {item.title}
-              </Text>
-              <ChevronRightIcon size={18} color={tokens.muted} />
-            </Card>
-          </Pressable>
+          <DetailListRow
+            title={item.title}
+            openLabel={`Open ${item.title}`}
+            deleteLabel={`Delete ${item.title}`}
+            onOpen={() => openNote(item)}
+            onDelete={() => setDeleting(item)}
+          />
         )}
+        ItemSeparatorComponent={() => <Text style={styles.separator} />}
       />
+
+      <FloatingActionButton accessibilityLabel="New note" onPress={() => setAdding(true)} />
 
       <BottomSheet open={adding} onOpenChange={setAdding} title="New note">
         <TextInput
@@ -106,35 +104,25 @@ export default function NotesScreen() {
           <Text style={[styles.createButtonText, { color: tokens.accentContrast }]}>Create</Text>
         </Pressable>
       </BottomSheet>
+
+      <ConfirmDialog
+        open={!!deleting}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null)
+        }}
+        title={`Delete ${deleting?.title ?? 'note'}?`}
+        description="This permanently removes the note."
+        confirmLabel="Delete"
+        onConfirm={() => void confirmDelete()}
+      />
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  listContent: { padding: 20, paddingBottom: 24, flexGrow: 1 },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginBottom: 14,
-  },
-  addButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowWrap: { marginBottom: 8 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    gap: 8,
-  },
-  rowLabel: { fontSize: 15, fontWeight: '600', flex: 1 },
+  listContent: { padding: 20, paddingBottom: 90, flexGrow: 1 },
+  separator: { height: 8 },
   input: { borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, marginBottom: 12 },
   createButton: { paddingVertical: 13, alignItems: 'center' },
   createButtonText: { fontSize: 15, fontWeight: '700' },

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { queryKeys } from '@household-hub/domain'
 import { supabase } from '@/lib/supabase'
+import { withOptimisticOverlay } from '@/lib/operations'
 import type { Tables } from '@/types/database'
 
 export interface LedgerYear {
@@ -66,7 +67,10 @@ export function useLedgerYears(householdId: string | undefined) {
         .order('year', { ascending: false })
         .returns<Pick<Tables<'ledger_years'>, 'id' | 'year' | 'revision'>[]>()
       if (error) throw error
-      return (data ?? []).map((r) => ({ id: r.id, year: r.year, revision: r.revision }))
+      return withOptimisticOverlay(
+        (data ?? []).map((r) => ({ id: r.id, year: r.year, revision: r.revision })),
+        'ledger_year',
+      )
     },
   })
 }

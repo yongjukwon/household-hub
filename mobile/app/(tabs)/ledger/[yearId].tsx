@@ -1,36 +1,37 @@
 import { formatMoney } from '@household-hub/domain'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { Card } from '@/components/Card'
-import { ChevronLeftIcon } from '@/components/icons'
 import { EmptyState, ErrorState, LoadingState } from '@/components/states'
 import { useActiveHousehold } from '@/features/household'
 import { HOUSEHOLD_CURRENCY, useLedgerAssets } from '@/features/ledger/assets'
+import { BudgetMonthSelector } from '@/features/ledger/BudgetMonthSelector'
 import { CategorySheet } from '@/features/ledger/CategorySheet'
-import { ClearYearSheet } from '@/features/ledger/ClearYearSheet'
 import { StatementCharts } from '@/features/ledger/StatementCharts'
 import {
   categoryProgress,
+  resolveTransactionPrerequisite,
   statementTotals,
   useLedgerYearData,
   useLedgerYears,
   type CategoryKind,
   type CategoryProgress,
   type LedgerTransaction,
+  type TransactionPrerequisite,
 } from '@/features/ledger/statements'
+import { TransactionPrerequisiteDialog } from '@/features/ledger/TransactionPrerequisiteDialog'
 import { TransactionList } from '@/features/ledger/TransactionList'
 import { TransactionSheet } from '@/features/ledger/TransactionSheet'
 import { useTheme } from '@/theme/tokens'
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
 export default function StatementMonthScreen() {
   const { tokens } = useTheme()
   const router = useRouter()
-  const { yearId } = useLocalSearchParams<{ yearId: string }>()
+  const { yearId, transactionKind: requestedTransactionKindParam } =
+    useLocalSearchParams<{ yearId: string; transactionKind?: string }>()
   const household = useActiveHousehold()
   const householdId = household.data?.id
   const years = useLedgerYears(householdId)
@@ -42,7 +43,15 @@ export default function StatementMonthScreen() {
   const [editingTransaction, setEditingTransaction] = useState<LedgerTransaction | null>(null)
   const [categoryOpen, setCategoryOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<CategoryProgress | null>(null)
-  const [clearOpen, setClearOpen] = useState(false)
+  const [prerequisite, setPrerequisite] = useState<{
+    kind: CategoryKind
+    prerequisite: TransactionPrerequisite
+  } | null>(null)
+  const [categoryCreationKind, setCategoryCreationKind] =
+    useState<CategoryKind | null>(null)
+  const [resumeTransactionKind, setResumeTransactionKind] =
+    useState<CategoryKind | null>(null)
+  const categorySavedForTransaction = useRef(false)
 
   const monthRow = query.data?.months.find((entry) => entry.month === month)
   const categories = useMemo(
@@ -58,6 +67,46 @@ export default function StatementMonthScreen() {
     [monthRow?.id, query.data?.transactions],
   )
   const totals = query.data && monthRow ? statementTotals(query.data, monthRow.id) : null
+  const cadAssets = useMemo(
+    () =>
+      (assets.data ?? []).filter(
+        (asset) => asset.currencyCode === HOUSEHOLD_CURRENCY,
+      ),
+    [assets.data],
+  )
+  const requestedTransactionKind: CategoryKind | null =
+    requestedTransactionKindParam === 'income' ||
+    requestedTransactionKindParam === 'spending'
+      ? requestedTransactionKindParam
+      : null
+  const requestedPrerequisite = requestedTransactionKind
+    ? resolveTransactionPrerequisite(
+        requestedTransactionKind,
+        cadAssets.length > 0,
+        monthCategories,
+      )
+    : null
+  const resumeReady =
+    resumeTransactionKind !== null &&
+    resolveTransactionPrerequisite(
+      resumeTransactionKind,
+      cadAssets.length > 0,
+      monthCategories,
+    ) === null
+  const activeTransactionKind =
+    transactionKind ??
+    (resumeReady ? resumeTransactionKind : null) ??
+    (requestedTransactionKind && requestedPrerequisite === null
+      ? requestedTransactionKind
+      : null)
+  const visiblePrerequisite =
+    prerequisite ??
+    (requestedTransactionKind && requestedPrerequisite
+      ? {
+          kind: requestedTransactionKind,
+          prerequisite: requestedPrerequisite,
+        }
+      : null)
 
   if (household.isLoading || years.isLoading || query.isLoading || assets.isLoading) {
     return (
@@ -66,7 +115,12 @@ export default function StatementMonthScreen() {
       </SafeAreaView>
     )
   }
-  if (!householdId || household.isError || query.isError || years.isError) {
+  if (
+    !householdId ||
+    household.isError ||
+    (query.isError && !query.data) ||
+    (years.isError && !years.data)
+  ) {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: tokens.canvas }]}>
         <ErrorState message="Could not load this statement." />
@@ -79,26 +133,28 @@ export default function StatementMonthScreen() {
         <EmptyState
           title="Statement not found"
           hint="This year may have been removed, or the link is out of date."
-          action={
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => router.replace('/ledger')}
-              style={[styles.notFoundButton, { backgroundColor: tokens.accent, borderRadius: tokens.radiusControl }]}
-            >
-              <Text style={[styles.notFoundButtonText, { color: tokens.accentContrast }]}>
-                Back to Ledger
-              </Text>
-            </Pressable>
-          }
         />
       </SafeAreaView>
     )
   }
 
-  const canAddTransaction = (assets.data ?? []).length > 0
   const utilization = totals?.utilization
 
   function openTransaction(kind: CategoryKind, transaction: LedgerTransaction | null = null) {
+    if (!transaction) {
+      const missing = resolveTransactionPrerequisite(
+        kind,
+        cadAssets.length > 0,
+        monthCategories,
+      )
+      if (missing) {
+        setPrerequisite({ kind, prerequisite: missing })
+        return
+      }
+      setEditingTransaction(null)
+      setTransactionKind(kind)
+      return
+    }
     setEditingTransaction(transaction)
     setTransactionKind(kind)
   }
@@ -106,39 +162,7 @@ export default function StatementMonthScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tokens.canvas }]} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Pressable onPress={() => router.replace('/ledger')} style={styles.backRow}>
-          <ChevronLeftIcon size={16} color={tokens.muted} />
-          <Text style={[styles.backLabel, { color: tokens.muted }]}>Ledger</Text>
-        </Pressable>
-
-        <View style={styles.titleRow}>
-          <Text style={[styles.pageTitle, { color: tokens.ink }]}>Budget {year.year}</Text>
-          <Pressable accessibilityRole="button" onPress={() => setClearOpen(true)}>
-            <Text style={[styles.clearLink, { color: tokens.danger }]}>Clear year</Text>
-          </Pressable>
-        </View>
-
-        <Card style={styles.monthGrid}>
-          {MONTHS.map((label, index) => {
-            const active = month === index + 1
-            return (
-              <Pressable
-                key={label}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                onPress={() => setMonth(index + 1)}
-                style={[
-                  styles.monthCell,
-                  { backgroundColor: active ? tokens.ink : tokens.cardAlt, borderRadius: tokens.radiusControl },
-                ]}
-              >
-                <Text style={[styles.monthCellText, { color: active ? tokens.canvas : tokens.ink }]}>
-                  {label}
-                </Text>
-              </Pressable>
-            )
-          })}
-        </Card>
+        <BudgetMonthSelector month={month} onChange={setMonth} />
 
         <View style={styles.section}>
           <StatementCharts data={query.data} monthId={monthRow.id} />
@@ -179,6 +203,7 @@ export default function StatementMonthScreen() {
               accessibilityRole="button"
               onPress={() => {
                 setEditingCategory(null)
+                setCategoryCreationKind(null)
                 setCategoryOpen(true)
               }}
             >
@@ -228,16 +253,9 @@ export default function StatementMonthScreen() {
             <Text style={[styles.sectionTitle, { color: tokens.muted }]}>Income</Text>
             <Pressable
               accessibilityRole="button"
-              disabled={!canAddTransaction}
               onPress={() => openTransaction('income')}
             >
-              <Text
-                style={[
-                  styles.sectionAction,
-                  { color: tokens.accent },
-                  !canAddTransaction && styles.disabled,
-                ]}
-              >
+              <Text style={[styles.sectionAction, { color: tokens.accent }]}>
                 + Income
               </Text>
             </Pressable>
@@ -246,7 +264,7 @@ export default function StatementMonthScreen() {
             householdId={householdId}
             transactions={transactions.filter((entry) => entry.kind === 'income')}
             categories={monthCategories}
-            assets={assets.data ?? []}
+            assets={cadAssets}
             onEdit={(transaction) => openTransaction('income', transaction)}
           />
         </View>
@@ -256,16 +274,9 @@ export default function StatementMonthScreen() {
             <Text style={[styles.sectionTitle, { color: tokens.muted }]}>Spending</Text>
             <Pressable
               accessibilityRole="button"
-              disabled={!canAddTransaction}
               onPress={() => openTransaction('spending')}
             >
-              <Text
-                style={[
-                  styles.sectionAction,
-                  { color: tokens.accent },
-                  !canAddTransaction && styles.disabled,
-                ]}
-              >
+              <Text style={[styles.sectionAction, { color: tokens.accent }]}>
                 + Spending
               </Text>
             </Pressable>
@@ -274,47 +285,110 @@ export default function StatementMonthScreen() {
             householdId={householdId}
             transactions={transactions.filter((entry) => entry.kind === 'spending')}
             categories={monthCategories}
-            assets={assets.data ?? []}
+            assets={cadAssets}
             onEdit={(transaction) => openTransaction('spending', transaction)}
           />
         </View>
       </ScrollView>
 
-      {transactionKind ? (
+      {activeTransactionKind ? (
         <TransactionSheet
-          key={`${transactionKind}:${editingTransaction?.id ?? 'new'}`}
+          key={`${activeTransactionKind}:${editingTransaction?.id ?? 'new'}`}
           open
           onOpenChange={(open) => {
             if (!open) {
               setTransactionKind(null)
+              setResumeTransactionKind(null)
               setEditingTransaction(null)
+              if (requestedTransactionKind) {
+                router.setParams({ transactionKind: undefined })
+              }
             }
           }}
           householdId={householdId}
           yearId={year.id}
           month={month}
-          kind={transactionKind}
+          kind={activeTransactionKind}
           categories={monthCategories}
-          assets={assets.data ?? []}
+          assets={cadAssets}
           transaction={editingTransaction}
         />
       ) : null}
       {categoryOpen ? (
         <CategorySheet
-          key={editingCategory ? `${editingCategory.categoryId}:${editingCategory.revision}` : 'new'}
+          key={
+            editingCategory
+              ? `${editingCategory.categoryId}:${editingCategory.revision}`
+              : `new:${categoryCreationKind ?? 'manual'}`
+          }
           open
           onOpenChange={(open) => {
             setCategoryOpen(open)
-            if (!open) setEditingCategory(null)
+            if (!open) {
+              if (
+                categoryCreationKind &&
+                !categorySavedForTransaction.current
+              ) {
+                setResumeTransactionKind(null)
+              }
+              categorySavedForTransaction.current = false
+              setEditingCategory(null)
+              setCategoryCreationKind(null)
+            }
           }}
           householdId={householdId}
           yearId={year.id}
           month={month}
           existing={editingCategory}
           nextSortOrder={categories.length}
+          initialKind={categoryCreationKind ?? undefined}
+          onSaved={(kind) => {
+            if (categoryCreationKind) {
+              categorySavedForTransaction.current = true
+              setResumeTransactionKind(kind)
+            }
+          }}
         />
       ) : null}
-      <ClearYearSheet open={clearOpen} onOpenChange={setClearOpen} householdId={householdId} year={year} />
+      {visiblePrerequisite ? (
+        <TransactionPrerequisiteDialog
+          open
+          prerequisite={visiblePrerequisite.prerequisite}
+          kind={visiblePrerequisite.kind}
+          onOpenChange={(open) => {
+            if (!open) {
+              setPrerequisite(null)
+              if (requestedTransactionKind) {
+                router.setParams({ transactionKind: undefined })
+              }
+            }
+          }}
+          onContinue={() => {
+            const pending = visiblePrerequisite
+            setPrerequisite(null)
+            if (pending.prerequisite === 'asset') {
+              router.push({
+                pathname: '/ledger',
+                params: {
+                  segment: 'assets',
+                  newAsset: '1',
+                  returnYearId: year.id,
+                  returnTransactionKind: pending.kind,
+                },
+              })
+              return
+            }
+            if (requestedTransactionKind) {
+              router.setParams({ transactionKind: undefined })
+            }
+            categorySavedForTransaction.current = false
+            setEditingCategory(null)
+            setCategoryCreationKind(pending.kind)
+            setResumeTransactionKind(pending.kind)
+            setCategoryOpen(true)
+          }}
+        />
+      ) : null}
     </SafeAreaView>
   )
 }
@@ -334,24 +408,6 @@ function BudgetMetric({ label, value }: { label: string; value: number }) {
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   content: { padding: 20, paddingBottom: 24 },
-  backRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 10 },
-  backLabel: { fontSize: 13, fontWeight: '600' },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  pageTitle: { fontSize: 22, fontWeight: '800' },
-  clearLink: { fontSize: 13, fontWeight: '600' },
-  monthGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    padding: 10,
-  },
-  monthCell: { width: '23%', paddingVertical: 12, alignItems: 'center' },
-  monthCellText: { fontSize: 13, fontWeight: '700' },
   section: { marginTop: 16 },
   budgetCard: { marginTop: 16 },
   budgetRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -387,6 +443,4 @@ const styles = StyleSheet.create({
   categoryAmount: { fontSize: 12 },
   progressTrack: { height: 6, borderRadius: 3, marginTop: 8, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 3 },
-  notFoundButton: { paddingHorizontal: 16, paddingVertical: 10, alignItems: 'center' },
-  notFoundButtonText: { fontSize: 14, fontWeight: '700' },
 })

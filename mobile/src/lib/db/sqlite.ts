@@ -4,7 +4,8 @@ import type { OperationStore } from '../operations/store'
 import type { DiscardedOperation, QueuedOperation } from '../operations/types'
 
 const DATABASE_NAME = 'household-hub.db'
-const SCHEMA_VERSION = 1
+const SCHEMA_VERSION = 2
+let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null
 
 /**
  * Creates the durable query-cache / operation-queue database. Mirrors the web
@@ -14,16 +15,9 @@ const SCHEMA_VERSION = 1
  * that a cold start can replay.
  */
 export function createSqliteOperationStore(): OperationStore {
-  let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null
-
-  async function db(): Promise<SQLite.SQLiteDatabase> {
-    if (!dbPromise) dbPromise = open()
-    return dbPromise
-  }
-
   return {
     async addOperation(op) {
-      const database = await db()
+      const database = await openHouseholdDatabase()
       await database.runAsync(
         `INSERT INTO operations
            (operation_id, local_sequence, household_id, entity_type, entity_id,
@@ -43,7 +37,7 @@ export function createSqliteOperationStore(): OperationStore {
     },
 
     async listOperations() {
-      const database = await db()
+      const database = await openHouseholdDatabase()
       const rows = await database.getAllAsync<OperationRow>(
         'SELECT * FROM operations ORDER BY local_sequence ASC',
       )
@@ -51,7 +45,7 @@ export function createSqliteOperationStore(): OperationStore {
     },
 
     async countOperations() {
-      const database = await db()
+      const database = await openHouseholdDatabase()
       const row = await database.getFirstAsync<{ n: number }>(
         'SELECT COUNT(*) AS n FROM operations',
       )
@@ -59,7 +53,7 @@ export function createSqliteOperationStore(): OperationStore {
     },
 
     async countOperationsForEntity(entityType, entityId) {
-      const database = await db()
+      const database = await openHouseholdDatabase()
       const row = await database.getFirstAsync<{ n: number }>(
         'SELECT COUNT(*) AS n FROM operations WHERE entity_type = ? AND entity_id = ?',
         entityType,
@@ -69,7 +63,7 @@ export function createSqliteOperationStore(): OperationStore {
     },
 
     async updateOperationAttempt(operationId, attempts, lastError) {
-      const database = await db()
+      const database = await openHouseholdDatabase()
       await database.runAsync(
         'UPDATE operations SET attempts = ?, last_error = ? WHERE operation_id = ?',
         attempts,
@@ -79,7 +73,7 @@ export function createSqliteOperationStore(): OperationStore {
     },
 
     async deleteOperation(operationId) {
-      const database = await db()
+      const database = await openHouseholdDatabase()
       await database.runAsync(
         'DELETE FROM operations WHERE operation_id = ?',
         operationId,
@@ -87,7 +81,7 @@ export function createSqliteOperationStore(): OperationStore {
     },
 
     async discardOperation(record, operationId) {
-      const database = await db()
+      const database = await openHouseholdDatabase()
       await database.withExclusiveTransactionAsync(async (txn) => {
         await txn.runAsync(
           `INSERT OR REPLACE INTO discarded_operations
@@ -113,7 +107,7 @@ export function createSqliteOperationStore(): OperationStore {
     },
 
     async getDiscarded(operationId) {
-      const database = await db()
+      const database = await openHouseholdDatabase()
       const row = await database.getFirstAsync<DiscardRow>(
         'SELECT * FROM discarded_operations WHERE operation_id = ?',
         operationId,
@@ -122,7 +116,7 @@ export function createSqliteOperationStore(): OperationStore {
     },
 
     async listDiscarded() {
-      const database = await db()
+      const database = await openHouseholdDatabase()
       const rows = await database.getAllAsync<DiscardRow>(
         'SELECT * FROM discarded_operations',
       )
@@ -130,7 +124,7 @@ export function createSqliteOperationStore(): OperationStore {
     },
 
     async acknowledgeDiscarded(operationId, acknowledgedAt) {
-      const database = await db()
+      const database = await openHouseholdDatabase()
       await database.runAsync(
         'UPDATE discarded_operations SET acknowledged_at = ? WHERE operation_id = ?',
         acknowledgedAt,
@@ -139,7 +133,7 @@ export function createSqliteOperationStore(): OperationStore {
     },
 
     async nextSequence(key) {
-      const database = await db()
+      const database = await openHouseholdDatabase()
       let next = 1
       await database.withExclusiveTransactionAsync(async (txn) => {
         const row = await txn.getFirstAsync<{ value: number }>(
@@ -158,12 +152,18 @@ export function createSqliteOperationStore(): OperationStore {
     },
 
     async clear() {
-      const database = await db()
+      const database = await openHouseholdDatabase()
       await database.execAsync(
-        'DELETE FROM operations; DELETE FROM discarded_operations; DELETE FROM kv;',
+        'DELETE FROM operations; DELETE FROM discarded_operations; DELETE FROM kv; DELETE FROM query_cache;',
       )
     },
   }
+}
+
+export async function openHouseholdDatabase(): Promise<SQLite.SQLiteDatabase> {
+  if (databasePromise) return databasePromise
+  databasePromise = open()
+  return databasePromise
 }
 
 async function open(): Promise<SQLite.SQLiteDatabase> {
@@ -202,9 +202,50 @@ async function open(): Promise<SQLite.SQLiteDatabase> {
       warnings TEXT NOT NULL,
       acknowledged_at TEXT
     );
+    CREATE TABLE IF NOT EXISTS query_cache (
+      key TEXT PRIMARY KEY NOT NULL,
+      value TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
     PRAGMA user_version = ${SCHEMA_VERSION};
   `)
   return database
+}
+
+export interface QueryCacheStore {
+  get(key: string): Promise<string | null>
+  set(key: string, value: string): Promise<void>
+  remove(key: string): Promise<void>
+}
+
+/** Durable JSON storage used by React Query's persisted-client adapter. */
+export function createSqliteQueryCacheStore(): QueryCacheStore {
+  return {
+    async get(key) {
+      const database = await openHouseholdDatabase()
+      const row = await database.getFirstAsync<{ value: string }>(
+        'SELECT value FROM query_cache WHERE key = ?',
+        key,
+      )
+      return row?.value ?? null
+    },
+    async set(key, value) {
+      const database = await openHouseholdDatabase()
+      await database.runAsync(
+        `INSERT INTO query_cache (key, value, updated_at) VALUES (?, ?, ?)
+           ON CONFLICT(key) DO UPDATE SET
+             value = excluded.value,
+             updated_at = excluded.updated_at`,
+        key,
+        value,
+        new Date().toISOString(),
+      )
+    },
+    async remove(key) {
+      const database = await openHouseholdDatabase()
+      await database.runAsync('DELETE FROM query_cache WHERE key = ?', key)
+    },
+  }
 }
 
 interface OperationRow {

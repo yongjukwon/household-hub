@@ -15,7 +15,7 @@ export function saveGroceryList(
     entityId: list.id,
     baseRevision,
     payload,
-    optimistic: payload,
+    optimistic: { ...payload, revision: baseRevision ?? 1 },
   })
 }
 
@@ -67,7 +67,11 @@ export function saveGroceryItem(
     entityId: item.id,
     baseRevision,
     payload,
-    optimistic: payload,
+    optimistic: {
+      ...payload,
+      checkedAt: item.checked ? new Date().toISOString() : null,
+      revision: baseRevision ?? 1,
+    },
   })
 }
 

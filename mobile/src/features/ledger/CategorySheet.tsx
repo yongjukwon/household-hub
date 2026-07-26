@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { BottomSheet } from '@/components/BottomSheet'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { centsToInputValue, parseDollarsToCents } from '@/features/moneyInput'
+import { operationOutcomeError } from '@/lib/operations'
 import { newUuid } from '@/lib/uuid'
 import { useTheme } from '@/theme/tokens'
 import type { CategoryKind, CategoryProgress } from './statements'
@@ -19,6 +20,10 @@ interface CategorySheetProps {
   existing: CategoryProgress | null
   /** Next sort order to use for a new category. */
   nextSortOrder: number
+  /** Preselects the kind when category creation begins from a transaction. */
+  initialKind?: CategoryKind
+  /** Called only after every required operation is accepted. */
+  onSaved?: (kind: CategoryKind) => void
 }
 
 /**
@@ -34,20 +39,26 @@ export function CategorySheet({
   month,
   existing,
   nextSortOrder,
+  initialKind,
+  onSaved,
 }: CategorySheetProps) {
   const { tokens } = useTheme()
   const [name, setName] = useState(existing?.name ?? '')
-  const [kind, setKind] = useState<CategoryKind>(existing?.kind ?? 'spending')
+  const [kind, setKind] = useState<CategoryKind>(
+    existing?.kind ?? initialKind ?? 'spending',
+  )
   const [limit, setLimit] = useState(centsToInputValue(existing?.limitCents ?? null))
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleSave() {
     if (name.trim().length === 0) return
     setSaving(true)
+    setError(null)
     try {
       const categoryId = existing?.categoryId ?? newUuid()
-      await saveCategory(
+      const categoryOutcome = await saveCategory(
         householdId,
         {
           id: categoryId,
@@ -59,10 +70,28 @@ export function CategorySheet({
         },
         existing?.revision ?? null,
       )
+      const categoryError = operationOutcomeError(categoryOutcome)
+      if (categoryError) {
+        setError(categoryError)
+        return
+      }
       if (kind === 'spending') {
         const cents = parseDollarsToCents(limit)
-        await saveLimit(householdId, categoryId, categoryId, month, cents, null)
+        const limitOutcome = await saveLimit(
+          householdId,
+          categoryId,
+          categoryId,
+          month,
+          cents,
+          null,
+        )
+        const limitError = operationOutcomeError(limitOutcome)
+        if (limitError) {
+          setError(limitError)
+          return
+        }
       }
+      onSaved?.(kind)
       onOpenChange(false)
     } finally {
       setSaving(false)
@@ -72,8 +101,20 @@ export function CategorySheet({
   async function handleDelete() {
     if (!existing) return
     setSaving(true)
+    setError(null)
     try {
-      await deleteCategory(householdId, existing.categoryId, month, existing.revision)
+      const outcome = await deleteCategory(
+        householdId,
+        existing.categoryId,
+        month,
+        existing.revision,
+      )
+      const outcomeError = operationOutcomeError(outcome)
+      if (outcomeError) {
+        setConfirmDelete(false)
+        setError(outcomeError)
+        return
+      }
       setConfirmDelete(false)
       onOpenChange(false)
     } finally {
@@ -137,6 +178,7 @@ export function CategorySheet({
         </View>
       ) : null}
       <Text style={[styles.hint, { color: tokens.muted }]}>Applies from this month forward.</Text>
+      {error ? <Text style={[styles.error, { color: tokens.danger }]}>{error}</Text> : null}
       <View style={styles.actions}>
         <Pressable
           accessibilityRole="button"
@@ -182,6 +224,7 @@ const styles = StyleSheet.create({
   kindChip: { flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center' },
   kindText: { fontSize: 13, fontWeight: '600' },
   hint: { fontSize: 12, marginBottom: 14 },
+  error: { fontSize: 13, marginBottom: 10 },
   actions: { flexDirection: 'row', gap: 10 },
   saveButton: { flex: 1, paddingVertical: 13, alignItems: 'center' },
   saveButtonText: { fontSize: 15, fontWeight: '700' },

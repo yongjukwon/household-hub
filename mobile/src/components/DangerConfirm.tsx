@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Pressable, StyleSheet, Text, TextInput } from 'react-native'
 
 import { useTheme } from '@/theme/tokens'
 import { BottomSheet } from './BottomSheet'

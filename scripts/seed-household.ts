@@ -118,7 +118,21 @@ async function findOrCreateUser(
       (user) => user.email?.toLowerCase() === member.email.toLowerCase(),
     )
     if (match) {
-      console.log(`Reusing existing auth user ${member.email} (${match.id})`)
+      const { error: updateError } = await admin.auth.admin.updateUserById(
+        match.id,
+        {
+          password: member.password,
+          email_confirm: true,
+        },
+      )
+      if (updateError) {
+        fail(
+          `Failed to refresh credentials for ${member.email}: ${updateError.message}`,
+        )
+      }
+      console.log(
+        `Reusing existing auth user ${member.email} (${match.id}); refreshed its test password`,
+      )
       return match.id
     }
     if (listed.users.length < 200) break

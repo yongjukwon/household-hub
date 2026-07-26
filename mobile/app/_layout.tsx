@@ -1,17 +1,21 @@
-import { QueryClientProvider } from '@tanstack/react-query'
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
-import { useRef } from 'react'
+import { useState } from 'react'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import { AuthProvider } from '@/lib/auth/AuthContext'
 import { useAuthGate, useSupabaseAutoRefresh } from '@/lib/auth/gate'
 import { useOAuthDeepLinks } from '@/lib/auth/useOAuthDeepLinks'
+import { HouseholdRuntime } from '@/lib/HouseholdRuntime'
 import { useOperationSync } from '@/lib/operations/useOperationSync'
 import { createQueryClient } from '@/lib/query'
+import { createQueryPersister } from '@/lib/queryPersister'
+import { useQueryEnvironment } from '@/lib/useQueryEnvironment'
 import { AppearanceProvider } from '@/theme/AppearanceProvider'
 
 function RootNavigator() {
+  useQueryEnvironment()
   useSupabaseAutoRefresh()
   useOAuthDeepLinks()
   useOperationSync()
@@ -31,18 +35,28 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
-  const queryClient = useRef(createQueryClient()).current
+  const [queryClient] = useState(createQueryClient)
+  const [persister] = useState(createQueryPersister)
 
   return (
     <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={{
+          buster: 'mobile-v1',
+          maxAge: Number.POSITIVE_INFINITY,
+          persister,
+        }}
+      >
         <AppearanceProvider>
           <AuthProvider>
-            <StatusBar style="auto" />
-            <RootNavigator />
+            <HouseholdRuntime>
+              <StatusBar style="auto" />
+              <RootNavigator />
+            </HouseholdRuntime>
           </AuthProvider>
         </AppearanceProvider>
-      </QueryClientProvider>
+      </PersistQueryClientProvider>
     </SafeAreaProvider>
   )
 }

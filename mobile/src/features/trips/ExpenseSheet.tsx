@@ -11,8 +11,17 @@ import { centsToInputValue, parseDollarsToCents } from '@/features/moneyInput'
 import { newUuid } from '@/lib/uuid'
 import { operationOutcomeError } from '@/lib/operations'
 import { useTheme } from '@/theme/tokens'
-import type { Trip, TripExpense } from './data'
-import { compatibleExpenseAssets } from './forms'
+import type {
+  BookingEntry,
+  ItineraryEntry,
+  Trip,
+  TripExpense,
+} from './data'
+import {
+  compatibleExpenseAssets,
+  expenseLinkValue,
+  parseExpenseLink,
+} from './forms'
 import { deleteExpense, saveExpense } from './mutations'
 
 function dateKey(date: Date): string {
@@ -29,6 +38,8 @@ interface ExpenseSheetProps {
   trip: Trip
   assets: LedgerAsset[]
   expense: TripExpense | null
+  itinerary: ItineraryEntry[]
+  bookings: BookingEntry[]
 }
 
 /**
@@ -36,7 +47,16 @@ interface ExpenseSheetProps {
  * currency but can be the household currency (CAD) for at-home spending; the
  * server links a CAD expense into the Ledger and debits the chosen asset.
  */
-export function ExpenseSheet({ open, onOpenChange, householdId, trip, assets, expense }: ExpenseSheetProps) {
+export function ExpenseSheet({
+  open,
+  onOpenChange,
+  householdId,
+  trip,
+  assets,
+  expense,
+  itinerary,
+  bookings,
+}: ExpenseSheetProps) {
   const { tokens } = useTheme()
   const router = useRouter()
   const currencyChoices = Array.from(new Set([trip.destinationCurrency.toUpperCase(), HOUSEHOLD_CURRENCY]))
@@ -53,6 +73,12 @@ export function ExpenseSheet({ open, onOpenChange, householdId, trip, assets, ex
   const [date, setDate] = useState(
     new Date(`${(expense?.spentAt ?? trip.startDate + 'T12:00:00Z').slice(0, 10)}T00:00:00`),
   )
+  const [link, setLink] = useState(
+    expenseLinkValue({
+      itineraryEntryId: expense?.itineraryEntryId ?? null,
+      bookingEntryId: expense?.bookingEntryId ?? null,
+    }),
+  )
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -67,6 +93,7 @@ export function ExpenseSheet({ open, onOpenChange, householdId, trip, assets, ex
     setSaving(true)
     setError(null)
     try {
+      const linkIds = parseExpenseLink(link)
       const outcome = await saveExpense(
         householdId,
         {
@@ -77,6 +104,7 @@ export function ExpenseSheet({ open, onOpenChange, householdId, trip, assets, ex
           currency,
           spentAt: new Date(`${dateKey(date)}T12:00:00Z`).toISOString(),
           description,
+          ...linkIds,
         },
         expense?.revision ?? null,
       )
@@ -178,6 +206,24 @@ export function ExpenseSheet({ open, onOpenChange, householdId, trip, assets, ex
       </View>
       <View style={styles.field}>
         <DateTimeField label="Date" value={date} mode="date" onChange={setDate} />
+      </View>
+      <View style={styles.field}>
+        <SelectField
+          label="Linked activity (optional)"
+          value={link}
+          onChange={setLink}
+          options={[
+            { value: 'standalone', label: 'Standalone expense' },
+            ...itinerary.map((entry) => ({
+              value: `itinerary:${entry.id}`,
+              label: `Itinerary · ${entry.title}`,
+            })),
+            ...bookings.map((entry) => ({
+              value: `booking:${entry.id}`,
+              label: `Booking · ${entry.title}`,
+            })),
+          ]}
+        />
       </View>
       {error ? <Text style={[styles.error, { color: tokens.danger }]}>{error}</Text> : null}
       <View style={styles.actions}>

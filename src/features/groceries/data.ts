@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { queryKeys } from '@household-hub/domain'
 import { supabase } from '@/lib/supabase'
+import { withOptimisticOverlay } from '@/lib/operations'
 import type { Tables } from '@/types/database'
 
 export interface GroceryList {
@@ -71,7 +72,7 @@ export function useGroceryLists(householdId: string | undefined) {
         .order('created_at', { ascending: true })
         .returns<Tables<'household_grocery_lists'>[]>()
       if (error) throw error
-      return (data ?? []).map(toList)
+      return withOptimisticOverlay((data ?? []).map(toList), 'grocery_list')
     },
   })
 }
@@ -120,8 +121,12 @@ export function useGroceryList(
       if (items.error) throw items.error
       if (history.error) throw history.error
       if (knowledge.error) throw knowledge.error
+      const overlaidItems = await withOptimisticOverlay(
+        (items.data ?? []).map(toItem),
+        'grocery_item',
+      )
       return {
-        items: (items.data ?? []).map(toItem),
+        items: overlaidItems,
         history: (history.data ?? []).map((r) => ({
           id: r.id,
           itemNameNormalized: r.item_name_normalized,
@@ -130,7 +135,10 @@ export function useGroceryList(
           recordedAt: r.recorded_at,
           listName: r.household_grocery_lists?.name ?? 'Unknown list',
         })),
-        knowledgeItems: knowledge.data ?? [],
+        knowledgeItems: [
+          ...(knowledge.data ?? []),
+          ...overlaidItems.map((item) => ({ name: item.name })),
+        ],
       }
     },
   })

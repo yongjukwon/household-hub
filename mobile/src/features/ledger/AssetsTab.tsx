@@ -29,14 +29,26 @@ const FREQUENCY_LABEL: Record<TransferSchedule['frequency'], string> = {
 }
 
 /** Assets segment: balances, one-off transfers, and recurring transfers. */
-export function AssetsTab({ householdId }: { householdId: string }) {
+export function AssetsTab({
+  householdId,
+  requestNewAsset = false,
+  onExternalAssetCreated,
+  onExternalAssetClosed,
+}: {
+  householdId: string
+  requestNewAsset?: boolean
+  onExternalAssetCreated?: () => void
+  onExternalAssetClosed?: () => void
+}) {
   const { tokens } = useTheme()
   const assetsQuery = useLedgerAssets(householdId)
   const transfersQuery = useLedgerTransfers(householdId)
   const schedulesQuery = useTransferSchedules(householdId)
 
-  const [assetSheet, setAssetSheet] = useState(false)
+  const [assetSheet, setAssetSheet] = useState(requestNewAsset)
   const [editingAsset, setEditingAsset] = useState<LedgerAsset | null>(null)
+  const [externalAssetCreation, setExternalAssetCreation] =
+    useState(requestNewAsset)
   const [transferSheet, setTransferSheet] = useState(false)
   const [scheduleSheet, setScheduleSheet] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<
@@ -53,6 +65,7 @@ export function AssetsTab({ householdId }: { householdId: string }) {
   const foreign = totals.filter((t) => t.currencyCode !== HOUSEHOLD_CURRENCY)
 
   function openNewAsset() {
+    setExternalAssetCreation(false)
     setEditingAsset(null)
     setAssetSheet(true)
   }
@@ -199,11 +212,18 @@ export function AssetsTab({ householdId }: { householdId: string }) {
           open={assetSheet}
           onOpenChange={(open) => {
             setAssetSheet(open)
-            if (!open) setEditingAsset(null)
+            if (!open) {
+              if (externalAssetCreation) onExternalAssetClosed?.()
+              setEditingAsset(null)
+              setExternalAssetCreation(false)
+            }
           }}
           householdId={householdId}
           asset={editingAsset}
           sortOrder={editingAsset?.sortOrder ?? assets.length}
+          onSaved={
+            externalAssetCreation ? onExternalAssetCreated : undefined
+          }
         />
       ) : null}
       {transferSheet ? (

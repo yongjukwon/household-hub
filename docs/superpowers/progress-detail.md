@@ -1199,3 +1199,496 @@ types, and `git diff --check` passed.
 | Notes read/edit modes | `bfd8d5d feat: add Notes read and explicit edit modes` |
 | Trip currency workflow | `2b18d9e feat: clarify Trip currency expense flow` |
 | Final handoff | `071b43b docs: complete web parity correction handoff` |
+
+## Task 7 — Expo foundation and offline data layer (complete and accepted)
+
+Task 7 replaced the Expo scaffold with the native foundation used by the five
+feature tabs. The accepted native baseline is Expo SDK 57, Expo Router,
+Supabase, TanStack Query, SQLite, SecureStore, Expo Notifications, and the
+shared `@household-hub/domain` package.
+
+### 7A — Router, authentication, and session foundation (`c834135`)
+
+- Added the root Expo Router stack, protected authentication gate, five-tab
+  route group, login, Settings, Notifications, and detail routes.
+- Calendar is the default route; there is no Home destination.
+- Added Google/Apple PKCE callback handling through
+  `householdhub://auth/callback`.
+- Kept email/password visible only when
+  `EXPO_PUBLIC_ENABLE_TEST_AUTH=true`.
+- Added an Expo/Jest/React Native Testing Library harness and pure route/auth
+  tests.
+- Initial verification: 12 tests across 4 suites; TypeScript clean.
+
+### 7B/7C — SQLite operation queue and secure device identity (`ab2f619`)
+
+- Ported the web durable command queue behind a native `OperationStore`.
+- Added the SQLite implementation for production and the in-memory
+  implementation for tests.
+- Preserved the shared queue contract:
+  - durable-first enqueue;
+  - per-device monotonically increasing local sequence;
+  - FIFO replay;
+  - stop replay on transport failure;
+  - remove `applied` and `duplicate` receipts;
+  - permanently discard conflicts/rejections with a user explanation;
+  - retain optimistic overlays until reconciliation.
+- Added NetInfo/AppState reconnect and foreground replay.
+- Stored the per-install device ID in SecureStore.
+- Added the native Realtime invalidation hook.
+- Verification at this checkpoint: 27 tests across 6 suites; TypeScript clean.
+
+### 7D — OAuth deep links, notification registration, and presentation
+
+- Mounted the queue sync lifecycle for the app session.
+- Completed cold-start and warm OAuth callback processing.
+- Added Expo notification permission/token registration helpers and foreground
+  handling.
+- Added shared native currency/timezone formatting.
+- Verification at this checkpoint: 37 tests across 8 suites; TypeScript clean.
+
+### 7E/7F — native configuration and simulator acceptance (`a41c92c`)
+
+- Configured `householdhub` scheme, `com.conlegs.householdhub`, portrait-only
+  phone support, system appearance, typed routes, Expo Notifications, and the
+  EAS project ID.
+- Made Metro workspace-aware and fixed the Expo Router hoisting failure by
+  declaring the matching Router version at the workspace root.
+- Installed CocoaPods and built the real native app with `expo run:ios`.
+- Installed and launched it on an iPhone 17 simulator running iOS 26.5.
+- User signed into the real local Supabase account and accepted navigation
+  through the five-tab shell.
+- Expo Go was not usable because its public SDK version was behind the
+  deliberate SDK 57 baseline; development-client/native builds are the
+  supported path.
+
+## Task 8 — Native feature parity and design implementation (complete)
+
+Task 8 built the feature UI against the mobile reference and the same
+authoritative operation contracts as web.
+
+### 8A — shared native UI and Calendar (`6e0224a`)
+
+- Expanded native semantic tokens to match the web/mobile visual system.
+- Added native Heroicons, cards, segmented controls, states, bottom sheets,
+  confirmations, date/time controls, the floating tab bar, and the shared
+  header.
+- Built the Calendar month grid, selected-date list, recurrence, timezone,
+  reminders, ownership, create/edit/delete sheet, and offline mutation path.
+- Ported the platform-independent Calendar math and operation validation from
+  web.
+
+### 8B — Groceries (`e842444`)
+
+- Built Grocery list index and detail routes.
+- Added list creation/rename/deletion, item create/edit/check, checked sorting,
+  CAD price entry, household-wide name autocomplete, last-price recall, clear
+  checked, and price-history presentation.
+- Prefix-matched nested paths so Grocery detail keeps the Grocery tab active.
+
+### 8C — Ledger and Assets (`72615f3`)
+
+- Built Statements/Assets segmented navigation.
+- Added year summaries, expandable annual charts, 12-month detail, month
+  selection, income/spending/category presentation, budget-limit cards,
+  transaction flows, and typed-year clearing.
+- Added CAD and foreign Asset presentation, one-off transfers, and recurring
+  transfer controls.
+- Added the native SVG donut implementation and native selection control.
+
+### 8D — Notes and restricted TenTap editor (`5619825`)
+
+- Built named-note index, detail read mode, explicit Edit/Save/Cancel behavior,
+  rename, and deletion.
+- Restricted TenTap to the approved JSON contract: body paragraphs, H1–H3,
+  bullets, numbered lists, checklists, hard breaks, undo, and redo.
+- Added a native semantic read renderer for the same node set.
+- Explicitly excluded unsupported Tiptap extensions from the editor bridge.
+
+### 8E — Trips (`55c7091`, later corrected)
+
+- Built Trip index/detail routes, editable title, destination/timezone/currency
+  setup, and separate CAD/destination-currency expense totals.
+- Added matching-currency Asset selection and Ledger/Travel behavior for CAD
+  expenses.
+- The first Task 8 checkpoint incorrectly left Itinerary, Bookings, and
+  Checklist as placeholders. The completion correction below supersedes that
+  incomplete checkpoint.
+
+### 8F — Settings and appearance (`e52902a`)
+
+- Added real Light/Dark/System persistence.
+- Added profile, household members, invites, ownership transfer, member
+  removal, account controls, sign-out, and typed destructive confirmations.
+- The first checkpoint also left Notifications as a placeholder; the
+  completion correction below supersedes that state.
+
+### Original Task 8 verification
+
+- 93 native tests across 18 suites.
+- Native TypeScript clean.
+- iOS and Android production Expo exports succeeded.
+- iPhone 17 simulator boot succeeded.
+- Automated nested-route tap-through was limited by Simulator tooling; this
+  led to the later user manual-test pass.
+
+## Task 7/8 completion correction (complete)
+
+The correction pass completed functionality that the original Task 8
+self-review had incorrectly characterized as out of scope.
+
+### Trip content and expense links
+
+- Added `trip_itinerary_items`, `trip_bookings`, and
+  `trip_checklist_items`.
+- Added household RLS, revisions, tombstones, change logs, and authoritative
+  operation handlers for Trip content.
+- Added create/edit/delete operations for itinerary items and bookings.
+- Added create/edit/check/delete operations for checklist items.
+- Added optional expense links to exactly one itinerary item or booking.
+- Server validation rejects a link from another trip/household or a payload
+  linking both content types.
+- Fixed the Trip-expense deletion tombstone.
+- Added migrations:
+  - `20260725018000_trip_content.sql`
+  - `20260725019000_trip_expense_links.sql`
+- Added pgTAP coverage in `20260726_trip_content.test.sql`.
+- Built functional Itinerary, Bookings, Checklist, and Expenses tabs on both
+  web and native.
+- CAD and destination-currency totals remain separate and unconverted.
+
+### Persisted native queries, optimistic overlays, and Realtime
+
+- Added the SQLite `query_cache` table and schema version 2.
+- Added the TanStack Query persistence adapter.
+- Persisted cached reads and pending optimistic commands across native app
+  restarts.
+- Applied optimistic overlays to Calendar, Groceries, Ledger, Assets,
+  Transfers, Transfer Schedules, Notes, Trips, Notifications, and Profile
+  reads on web/native.
+- Mounted household Realtime once in web `AppShell` and native
+  `HouseholdRuntime`.
+- Realtime invalidation refreshes authoritative queries without erasing pending
+  local overlays.
+
+```mermaid
+flowchart LR
+  UI["Web or native UI"]
+  Cache["Persisted query cache"]
+  Queue["Durable FIFO command queue"]
+  RPC["apply_household_operation"]
+  DB["Supabase tables and revisions"]
+  RT["Realtime"]
+
+  UI -->|"optimistic command"| Queue
+  Queue -->|"FIFO replay"| RPC
+  RPC -->|"transaction and receipt"| DB
+  DB --> RT
+  RT -->|"invalidate and reconcile"| Cache
+  Cache -->|"server rows plus pending overlay"| UI
+```
+
+### Notifications, push lifecycle, and secure sessions
+
+- Replaced web/native Notification placeholders with real inbox screens.
+- Added read actions and notification query invalidation.
+- Registered native Expo push tokens through the server RPC.
+- Unregistered the device on sign-out.
+- Added cold/warm notification response handling and Calendar-event deep links.
+- Moved native Supabase session persistence from AsyncStorage to SecureStore.
+
+### Authentication repair
+
+The local login UI and Supabase endpoint were correct, but the running local
+Auth database no longer contained either documented user.
+
+- Recreated `yongju@test.local` and `claire@test.local`.
+- Created `🐰 & 🐧 Test` through real onboarding and invite redemption.
+- Verified both users authenticate with `household123`.
+- Updated `scripts/seed-household.ts` to refresh an existing test user's
+  supplied password while preserving household membership and feature data.
+- The recreated household starts empty. The seed script does not generate
+  feature fixtures or clear manually entered data.
+
+### Dependency and EAS hardening
+
+- Aligned workspace React/React DOM versions.
+- Installed `expo-dev-client`.
+- Reached Expo Doctor 20/20.
+- Added `development-simulator` EAS profile.
+- Added `ITSAppUsesNonExemptEncryption=false`.
+- Removed unused EAS Update channels because `expo-updates` is not installed.
+- Configured development-only EAS public variables for the current local
+  Supabase LAN endpoint and test-auth flag.
+- Cancelled two builds that lacked those values.
+- Correctly configured builds completed:
+  - iOS Simulator `4b928a60-8652-471f-b695-6ef0658c5b36`; downloaded,
+    installed, and launched.
+  - Android APK `11204ad2-a790-4988-9011-7fdef563a232`.
+
+The development EAS Supabase URL at completion was
+`http://192.168.68.58:55321`. It must be updated and rebuilt if the Mac's LAN
+address changes. Local `expo run:ios` reads `mobile/.env.local`.
+
+### Final Task 7/8 verification
+
+| Gate | Result |
+| --- | --- |
+| ESLint | Pass |
+| Web TypeScript and production PWA build | Pass |
+| Web Vitest | 70 files, 398 tests |
+| Native TypeScript | Pass |
+| Native Jest | 23 suites, 100 tests |
+| Database pgTAP | 6 files, 343 tests |
+| Edge Functions | 73 tests |
+| Supabase schema lint | No errors |
+| Expo Doctor | 20/20 |
+| iOS production export | Pass, 1,820 modules |
+| Android production export | Pass, 1,960 modules |
+| EAS iOS Simulator build | Finished, installed, launched |
+| EAS Android development APK | Finished |
+| Test password grant | Both users returned HTTP 200 |
+
+The initial parallel web-test pass timed out in two unrelated tests while seven
+heavy jobs competed for the machine. Both focused tests passed 11/11, followed
+by a clean full web pass of 398/398. There were no assertion failures.
+
+### Task 9 boundary retained
+
+No production deployment or data reset occurred. Task 9 retains:
+
+- full manual iPhone/Android feature acceptance;
+- physical-device Google/Apple OAuth;
+- Expo push/reminder delivery;
+- two-user/two-device Realtime and offline/reconnect acceptance;
+- production Supabase/Vercel/EAS variables and provider credentials;
+- physical iOS/TestFlight signing;
+- explicit approval before the administrator-only production data reset;
+- final review, branch integration, and release handoff.
+
+## Follow-up native UI correction (2026-07-26)
+
+Plan:
+`docs/superpowers/plans/2026-07-26-native-ui-correction.md`
+
+Design:
+`docs/superpowers/specs/2026-07-26-native-ui-correction-design.md`
+
+### Calendar spacing and shared add action
+
+- Added `CALENDAR_DAY_CELL_HEIGHT = 48` and applied it to all six week rows.
+- Preserved an absolutely positioned event dot, now six points from the cell
+  bottom, so the taller cell does not reintroduce date-number movement.
+- Added a shared 54-point `FloatingActionButton` using the accent, contrast,
+  card border, and floating-shadow tokens.
+- Removed the upper-right add button from Calendar, Groceries, Notes, and
+  Trips.
+- Positioned the shared action at the lower right of each tab's content,
+  directly above the already-docked navigation.
+- Reserved 90 points of list footer space so the action cannot cover the last
+  row.
+
+### Grocery item controls
+
+- Replaced the text `Edit` action with a pencil icon.
+- Added a separate trash icon using the semantic danger color.
+- Added item-specific deletion confirmation before queuing the existing
+  `grocery.item.delete` operation.
+- Disabled the confirmation action while deletion is in flight so repeated
+  taps cannot queue duplicate delete commands.
+- Closing the dialog cancels deletion; successful deletion also closes any
+  price-history panel for that item.
+
+### New Ledger year behavior
+
+- Diagnosed the `Statement not found` state as a timing gap: the optimistic
+  `ledger_year` appears before Supabase returns the twelve month rows created
+  by the authoritative operation.
+- Added `ensureLedgerYearMonths`, which supplies a temporary twelve-month
+  read-model shell only when a known year's server month collection is empty.
+- Added `seedPendingLedgerYear`, which writes the queued year and its
+  twelve-month shell into the persisted TanStack Query cache when creation
+  cannot settle immediately. The detail route accepts that stale cached data
+  while its offline refetch reports an error.
+- The Budget screen, category form, transaction form, charts, and month picker
+  can therefore render immediately for a newly queued year.
+- Real Supabase month rows remain authoritative and replace the shell as soon
+  as they arrive.
+- The true unknown/deleted year path still renders `Statement not found`.
+
+### Notes editor visual correction
+
+- Moved the restricted formatting toolbar above the editing surface.
+- Replaced the wrapped control grid with a compact horizontal toolbar.
+- Styled the editor frame, WebView container, toolbar, dividers, active chips,
+  inactive chips, radii, borders, and shadow from the shared theme tokens.
+- Kept toolbar actions at 44-point targets and separated the outer shadow
+  wrapper from the clipped inner editor frame.
+- Kept the approved editor contract unchanged: Body, Heading 1–3, bullets,
+  numbers, checklist, undo, and redo.
+
+### Tests and verification
+
+- Test-first red run confirmed missing FAB/layout/action/month-hydration
+  behavior before implementation.
+- Added:
+  - `FloatingActionButton.test.tsx`
+  - `ConfirmDialog.test.tsx`
+  - `calendar/layout.test.ts`
+  - `GroceryItemActions.test.tsx`
+  - `RestrictedEditor.test.tsx`
+  - two pending-year hydration cases in `ledger/statements.test.ts`
+- Targeted tests: 5 suites, 13 tests, all pass.
+- Full native Jest: 29 suites, 108 tests, all pass.
+- Native TypeScript: pass.
+- Repository ESLint: pass.
+- Web TypeScript and production PWA build: pass.
+- Expo SDK 57 public configuration resolution: pass.
+- iOS production export: pass, 1,815 modules.
+- Android production export: pass, 1,954 modules.
+- Changed-file whitespace validation: pass.
+- Global `git diff --check` still reports a pre-existing trailing blank line
+  in `.superpowers/sdd/task-1-brief.md`; that unrelated file was deliberately
+  left untouched.
+- An independent scoped review found three Important issues in the first
+  implementation (offline cache seeding, duplicate delete submission, and
+  undersized editor controls) plus two minor target/shadow issues. All five
+  were corrected; the re-review reported no remaining Critical or Important
+  issues.
+
+No database schema, RPC, web behavior, production deployment, or production
+data was changed in this correction.
+
+## Native UI consistency pass (2026-07-26)
+
+Design:
+`docs/superpowers/2026-07-26-mobile-ui-correction-design.md`
+
+Execution plan:
+`docs/superpowers/plans/2026-07-26-mobile-ui-consistency-pass.md`
+
+### Shared header and Calendar geometry
+
+- Centered the current page title independently of the right-side
+  Notifications and Settings controls.
+- Added a route-title helper so Ledger Statement detail routes show `Budget`
+  while the Ledger root continues to show `Ledger`.
+- Gave every Calendar date number the same fixed 32-point surface.
+- Positioned the event dot absolutely so it cannot alter the number's
+  vertical alignment.
+- Kept the persistent circular marker exclusive to today's date; other dates
+  remain unframed unless selected.
+
+### Consistent root list rows
+
+- Added a shared `DetailListRow` with a tap-to-open primary surface and an
+  independent 44-point trash action.
+- Applied it to Groceries, Notes, Trips, and Statement-year rows.
+- Kept deletion behind item-specific confirmations.
+- Added an optional secondary action slot for Statement reports without
+  changing the default row behavior.
+
+### Ledger Statement and Budget navigation
+
+- Replaced the Ledger `+ Year` text control with the same bottom-right
+  floating `+` used by the other root pages.
+- Made the Statement row itself open Budget.
+- Replaced the former overflow action with a graph icon that expands/collapses
+  the annual summary.
+- Replaced the chevron with the typed-year deletion action and removed the
+  duplicate Clear Year control from Budget.
+- Removed the duplicate `Budget <year>` heading from the content area.
+- Added a collapsed Budget month selector with left/right arrows. Tapping the
+  month expands a four-column January-to-December grid; choosing a month
+  collapses it again.
+
+### Ledger offline projection and transaction prerequisites
+
+- Projected pending category and limit operations into the persisted Ledger
+  read model in FIFO order.
+- Category additions and limit changes remain visible from the selected month
+  through December while offline.
+- Edits and deletes reconcile against the same ordered overlay.
+- `+ Income` and `+ Spending` no longer become unexplained disabled controls.
+- When no CAD Asset exists, the app explains the dependency, opens Asset
+  creation, then returns to the requested transaction.
+- When the requested transaction kind lacks a category, the app opens
+  category creation with the correct kind preselected, then resumes the
+  transaction.
+- Category, limit, and Asset sheets now keep rejected/discarded operation
+  errors visible instead of closing as if the command succeeded.
+
+### Verification
+
+| Gate | Result |
+| --- | --- |
+| Repository ESLint | Pass |
+| Web TypeScript and production PWA build | Pass |
+| Web Vitest | 71 suites, 405 tests, all pass |
+| Native TypeScript | Pass |
+| Native Jest | 36 suites, 127 tests, all pass |
+| Edge Functions | 73 tests, all pass |
+| Expo Doctor | 20/20 |
+| iOS production export | Pass |
+| Android production export | Pass |
+
+The native test run still prints React `act()` warnings from the two existing
+authentication-gate suites; all assertions pass, and the newly added suites
+are warning-free.
+
+No database schema, RPC, web feature behavior, deployment, or production data
+was changed in this consistency pass. Physical-device visual and interaction
+acceptance remains part of Task 9.
+
+## Native header and spacing refinement (2026-07-26)
+
+Design:
+`docs/superpowers/specs/2026-07-26-native-header-spacing-design.md`
+
+Execution plan:
+`docs/superpowers/plans/2026-07-26-native-header-spacing-refinement.md`
+
+### Calendar and Budget density
+
+- Matched the Calendar month/year row's bottom spacing to the card's 14-point
+  inset.
+- Preserved weekday, date-cell, event-dot, today-marker, and week-row
+  geometry.
+- Reduced the collapsed Budget month navigator from 58 to 48 points.
+- Reduced its outer padding, month label from 18 to 16 points, and chevrons
+  from 20 to 18 points.
+- Preserved 44-point previous, month-picker, and next controls.
+- Left the expanded twelve-month grid and January/December boundaries
+  unchanged.
+
+### Shared detail back navigation
+
+- Added explicit route-to-parent mapping for Grocery, Budget, Note, and Trip
+  detail routes.
+- Added one 36-point circular chevron surface to the upper-left `AppHeader`
+  position with four points of hit slop.
+- Used route-specific accessible labels and `router.replace` to return to the
+  owning root destination after normal or deep-link entry.
+- Removed `All lists`, `Ledger`, `All notes`, and `All trips` text rows from
+  detail content.
+- Kept the title geometrically centered and retained Notification and
+  Settings actions at the upper right.
+
+### Test-first evidence and verification
+
+- The three focused suites failed first because the route mapping, shared
+  back action, Calendar spacing metric, and compact Budget height were absent.
+- Focused result after implementation: 3 suites, 11 tests, all pass.
+- Full native result: 36 suites, 132 tests, all pass.
+- Web result: 71 suites, 405 tests, all pass.
+- Edge Functions: 73 tests, all pass.
+- Repository ESLint, web production PWA build, native TypeScript, Expo Doctor
+  20/20, iOS export, and Android export all pass.
+- The first parallel web run timed out in three unrelated five-second tests
+  while the web build, native suite, Functions, and Expo Doctor competed for
+  the machine. Each timed-out test passed independently, followed by a clean
+  full sequential web run of 405/405.
+
+Physical-device visual acceptance remains part of Task 9. No database,
+server-operation, web feature, deployment, or production-data behavior
+changed in this refinement.

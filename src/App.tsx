@@ -7,7 +7,6 @@ import {
 import { AuthProvider } from '@/components/auth/AuthProvider'
 import { RequireAuth } from '@/components/auth/RequireAuth'
 import { AppShell } from '@/shell/AppShell'
-import { PlaceholderScreen } from '@/shell/PlaceholderScreen'
 import { CalendarScreen } from '@/features/calendar/CalendarScreen'
 import { GroceriesScreen } from '@/features/groceries/GroceriesScreen'
 import { GroceryListScreen } from '@/features/groceries/GroceryListScreen'
@@ -18,6 +17,7 @@ import { NoteScreen } from '@/features/notes/NoteScreen'
 import { TripsScreen } from '@/features/trips/TripsScreen'
 import { TripScreen } from '@/features/trips/TripScreen'
 import { SettingsScreen } from '@/features/settings/SettingsScreen'
+import { NotificationsScreen } from '@/features/notifications/NotificationsScreen'
 import { setupQueryPersistence } from '@/lib/offline/queryPersister'
 import LoginPage from '@/routes/LoginPage'
 
@@ -56,10 +56,7 @@ const router = createBrowserRouter([
       { path: '/notes/:noteId', element: <NoteScreen /> },
       { path: '/trips', element: <TripsScreen /> },
       { path: '/trips/:tripId', element: <TripScreen /> },
-      {
-        path: '/notifications',
-        element: <PlaceholderScreen title="Notifications" />,
-      },
+      { path: '/notifications', element: <NotificationsScreen /> },
       { path: '/settings', element: <SettingsScreen /> },
       { path: '*', element: <Navigate to="/calendar" replace /> },
     ],

@@ -2,6 +2,7 @@ import { queryKeys, type ReminderPreset } from '@household-hub/domain'
 import { useQuery } from '@tanstack/react-query'
 
 import { supabase } from '@/lib/supabase'
+import { withOptimisticOverlay } from '@/lib/operations'
 import type { Tables } from '@/types/database'
 import type { CalendarEventItem, RecurrenceFrequency } from './events'
 import { reminderFromDatabase } from './reminders'
@@ -65,8 +66,11 @@ export function useCalendarEvents(householdId: string | undefined) {
         byEvent.set(r.event_id, list)
       }
 
-      return (events.data ?? []).map((row) =>
-        toItem(row, byEvent.get(row.id) ?? []),
+      return withOptimisticOverlay(
+        (events.data ?? []).map((row) =>
+          toItem(row, byEvent.get(row.id) ?? []),
+        ),
+        'calendar_event',
       )
     },
   })

@@ -37,7 +37,11 @@ export function saveAsset(
     entityId: input.id,
     baseRevision,
     payload,
-    optimistic: payload,
+    optimistic: {
+      ...payload,
+      currencyCode: payload.currency,
+      revision: baseRevision ?? 1,
+    },
   })
 }
 
@@ -85,7 +89,7 @@ export function saveTransfer(
     entityId: input.id,
     baseRevision,
     payload,
-    optimistic: payload,
+    optimistic: { ...payload, scheduleId: null, revision: baseRevision ?? 1 },
   })
 }
 
@@ -137,7 +141,7 @@ export function saveSchedule(
     entityId: input.id,
     baseRevision,
     payload,
-    optimistic: payload,
+    optimistic: { ...payload, revision: baseRevision ?? 1 },
   })
 }
 

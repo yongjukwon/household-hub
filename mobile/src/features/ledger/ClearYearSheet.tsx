@@ -39,9 +39,10 @@ export function ClearYearSheet({
   }
 
   return (
-    <BottomSheet open={open} onOpenChange={onOpenChange} title={`Clear ${year.year}?`}>
+    <BottomSheet open={open} onOpenChange={onOpenChange} title={`Delete ${year.year}?`}>
       <Text style={[styles.description, { color: tokens.muted }]}>
-        This permanently removes every category, limit, and transaction in{' '}
+        This permanently deletes the statement, all 12 monthly budgets, categories,
+        limits, and transactions in{' '}
         <Text style={{ color: tokens.ink, fontWeight: '700' }}>{year.year}</Text>. Type{' '}
         <Text style={{ color: tokens.ink, fontWeight: '700' }}>{year.year}</Text> to confirm.
       </Text>
@@ -67,7 +68,7 @@ export function ClearYearSheet({
           (!matches || saving) && styles.disabled,
         ]}
       >
-        <Text style={styles.buttonText}>Clear {year.year}</Text>
+        <Text style={styles.buttonText}>Delete {year.year}</Text>
       </Pressable>
     </BottomSheet>
   )
