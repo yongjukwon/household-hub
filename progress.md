@@ -404,7 +404,29 @@ Sub-checkpoints:
   modules, verified via clean JS-reload boot + production `expo export`
   (1738 modules, up from 1732 at 8D, zero errors).
 
-Next: 8F (Settings + Notifications), then 8G final verification.
+- **8F — Settings screen, real appearance (done, `e52902a`).** Notifications
+  inbox stays a placeholder — web's own `/notifications` was never built past
+  a placeholder either (Task 6 scoped Settings only), so there's nothing to
+  port. New `AppearanceProvider` + `lib/appearance.ts` port web's real
+  persisted Light/Dark/System appearance (not the design reference's
+  visual-only version) to AsyncStorage; `useTheme()` now resolves the
+  explicit override before falling back to `useColorScheme()`. `settings/
+  profile.ts` and `settings/household.ts` port web's hooks/mutations
+  (`useProfile` against mobile's own auth context; `useHouseholdMembers`/
+  `useHouseholdInvites`/`createInvite`/`revokeInvite`/`transferOwnership`/
+  `removeMember`/`deleteHousehold`/`prepareAccountDeletion` verbatim). New
+  `DangerConfirm` (typed-phrase destructive gate). Rewrote `app/settings.tsx`
+  to match web's `SettingsScreen` exactly: Profile, Appearance (really wired,
+  synced via `settings.update`), Household (members/roles, invite create+
+  revoke, transfer-ownership+remove-member), Account, Danger zone.
+  `ConfirmDialog` gained an optional `destructive={false}` variant.
+  **Verification:** tsc clean, 93 tests still pass; no new native modules,
+  verified via clean JS-reload boot + production `expo export` (1743 modules,
+  zero errors).
+
+Task 8's five feature tabs + Settings are all complete. Next: 8G — final
+verification (full test/tsc/doctor pass, on-device visual comparison against
+the design reference for every screen, commit, progress.md close-out).
 
 ## Environment, constraints & risks (condensed)
 
