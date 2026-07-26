@@ -4,7 +4,6 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 
 import { BottomSheet } from '@/components/BottomSheet'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
-import { DateTimeField } from '@/components/DateTimeField'
 import { SelectField } from '@/components/SelectField'
 import { deviceTimeZone } from '@/features/household'
 import { newUuid } from '@/lib/uuid'
@@ -14,8 +13,10 @@ import {
 } from '@/lib/operations'
 import { useTheme } from '@/theme/tokens'
 import type { Trip } from './data'
+import { defaultTripDateRange } from './dateRange'
 import { normalizeCurrencyInput } from './forms'
 import { deleteTrip, saveTrip } from './mutations'
+import { TripDateRangeField } from './TripDateRangeField'
 
 // A short curated list; any valid IANA name may still be typed.
 const COMMON_ZONES = [
@@ -40,13 +41,6 @@ function isTimeZone(value: string): boolean {
   }
 }
 
-function dateKey(date: Date): string {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
-}
-
 interface TripSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -57,15 +51,15 @@ interface TripSheetProps {
 /** Create or edit a trip (destination, dates, timezone, currency). */
 export function TripSheet({ open, onOpenChange, householdId, trip }: TripSheetProps) {
   const { tokens } = useTheme()
-  const today = new Date()
+  const initialRange = trip
+    ? { startDate: trip.startDate, endDate: trip.endDate }
+    : defaultTripDateRange()
   const [name, setName] = useState(trip?.name ?? '')
   const [destination, setDestination] = useState(trip?.destination ?? '')
   const [currency, setCurrency] = useState(normalizeCurrencyInput(trip?.destinationCurrency ?? 'CAD'))
   const [timezone, setTimezone] = useState(trip?.destinationTimezone ?? deviceTimeZone())
-  const [startDate, setStartDate] = useState(
-    trip ? new Date(`${trip.startDate}T00:00:00`) : today,
-  )
-  const [endDate, setEndDate] = useState(trip ? new Date(`${trip.endDate}T00:00:00`) : today)
+  const [startDate, setStartDate] = useState(initialRange.startDate)
+  const [endDate, setEndDate] = useState(initialRange.endDate)
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -97,8 +91,8 @@ export function TripSheet({ open, onOpenChange, householdId, trip }: TripSheetPr
           name,
           destination,
           timezone,
-          startDate: dateKey(startDate),
-          endDate: dateKey(endDate),
+          startDate,
+          endDate,
           destinationCurrency: currency,
         },
         trip?.revision ?? null,
@@ -196,21 +190,15 @@ export function TripSheet({ open, onOpenChange, householdId, trip }: TripSheetPr
         ) : null}
       </View>
 
-      <View style={styles.row}>
-        <View style={styles.rowField}>
-          <DateTimeField
-            label="Start"
-            value={startDate}
-            mode="date"
-            onChange={(date) => {
-              setStartDate(date)
-              if (endDate < date) setEndDate(date)
-            }}
-          />
-        </View>
-        <View style={styles.rowField}>
-          <DateTimeField label="End" value={endDate} mode="date" minimumDate={startDate} onChange={setEndDate} />
-        </View>
+      <View style={styles.field}>
+        <TripDateRangeField
+          startDate={startDate}
+          endDate={endDate}
+          onChange={(range) => {
+            setStartDate(range.startDate)
+            setEndDate(range.endDate)
+          }}
+        />
       </View>
 
       {error ? <Text style={[styles.error, { color: tokens.danger }]}>{error}</Text> : null}
@@ -261,8 +249,6 @@ const styles = StyleSheet.create({
   label: { fontSize: 12.5, fontWeight: '600', marginBottom: 6 },
   input: { borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15 },
   preview: { fontSize: 13, fontWeight: '500', marginTop: 2 },
-  row: { flexDirection: 'row', gap: 12, marginBottom: 14 },
-  rowField: { flex: 1 },
   error: { fontSize: 13, marginBottom: 10 },
   actions: { flexDirection: 'row', gap: 10 },
   saveButton: { flex: 1, paddingVertical: 13, alignItems: 'center' },

@@ -25,7 +25,7 @@ export function nextCivilDate(dateKey: string): string {
 
 export function defaultTripDateRange(
   now: Date = new Date(),
-): Required<TripDateRange> {
+): { startDate: string; endDate: string } {
   const startDate = localDateKey(now)
   return {
     startDate,
