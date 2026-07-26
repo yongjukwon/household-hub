@@ -20,8 +20,16 @@ five-tab shell. (Expo Go could not be used: its public build only supports SDK
 54, one behind this project's deliberate SDK 57 baseline — see
 `mobile/AGENTS.md`. EAS dev-client / TestFlight on the user's physical iPhone
 is pending Apple Developer Program enrollment, tracked separately.)
-**Task 8 (Expo feature parity and visual implementation) is now the active
-task** — the user approved starting it.
+**Task 8 (Expo feature parity and visual implementation) is complete
+(self-review), HEAD `3ca6365`.** 8A–8G done: all five feature tabs (Calendar,
+Groceries, Ledger, Notes with a TenTap editor, Trips) plus a fully real
+Settings screen, built against the same operation contracts as web with the
+design reference's visual system applied throughout. 93 tests pass, tsc clean
+at every commit, every checkpoint bundle-verified via production `expo export`
+(iOS and Android). **Known gap:** interactive tap-through beyond the Calendar
+screen wasn't possible in this environment (no synthetic-tap tooling); the
+user should manually verify the other four tabs + Settings, especially the
+Notes editor and Ledger charts, before approving Task 9.
 
 This file is the source of truth for continuing the approved web-first
 Household Hub rebuild. Current Git state and fresh verification results take
@@ -130,7 +138,7 @@ completed web work lives in `docs/superpowers/progress-detail.md`.
 | Pre-7. Authenticated local test setup | Complete | Verified at `c5dc6d3`; real two-member Supabase household |
 | Web parity correction pass (1–6) | Complete & accepted | Final handoff at `edd24dd` era |
 | 7. Expo foundation and offline data layer | Complete & accepted | 7A–7E done; user-accepted on a real iOS Simulator build at `a41c92c` |
-| **8. Expo feature parity and visual implementation** | **In progress** | **Active task** |
+| 8. Expo feature parity and visual implementation | Complete (self-review) | 8A–8G done; awaiting user acceptance |
 | 9. Reset procedure, E2E verification, release handoff | Pending | Not started |
 
 Per-task narratives, sub-checkpoints, and live-evidence logs for Tasks 1–6 and
@@ -424,9 +432,53 @@ Sub-checkpoints:
   verified via clean JS-reload boot + production `expo export` (1743 modules,
   zero errors).
 
-Task 8's five feature tabs + Settings are all complete. Next: 8G — final
-verification (full test/tsc/doctor pass, on-device visual comparison against
-the design reference for every screen, commit, progress.md close-out).
+- **8G — Final verification (done).** Full gate: **93 Jest tests / 18 suites
+  pass, `tsc --noEmit` clean**, `expo-doctor` **19/20** (only the known,
+  in-bundle-mitigated React duplicate from Task 7F plus a new inert
+  `react-dom` duplicate pulled in by `@10play/tentap-editor`'s own web-build
+  tooling — not something that ships in the native bundle, confirmed by every
+  `expo export` throughout Task 8 completing with zero errors). Ran a full
+  production `expo export` for **both** `--platform ios` **and** `--platform
+  android` (1743 / 1881 modules respectively, zero errors on either) — the
+  Android bundle check is new for this checkpoint and gives confidence beyond
+  the iOS Simulator testing that's been possible in this environment.
+  Re-confirmed a clean on-device boot on the iOS Simulator (iPhone 17, iOS
+  26.5). Attempted two further approaches to unblock interactive tap-through
+  to the nested routes (Groceries/Ledger/Notes/Trips detail screens, Settings)
+  that couldn't be reached in earlier checkpoints: `simctl openurl` (hits an
+  untappable iOS "Open in App?" system dialog — confirmed structural, not a
+  one-off) and `simctl launch --terminate-running-process <bundle> <url-as-
+  argv>` (silently ignored — `simctl launch` has no `--url` flag in this
+  Xcode version; confirmed via `simctl launch --help`, not a deep-link bug in
+  the app). Neither unblocks interactive verification; this is a tooling
+  ceiling of the current environment, not a defect found in the app.
+
+**Task 8 is complete (self-review).** All five feature tabs (Calendar,
+Groceries, Ledger, Notes, Trips) plus a fully real Settings screen are built
+against the same shared operation contracts as web, with the design
+reference's visual system (tokens, header, floating tab bar, cards, Heroicons)
+applied throughout. Every checkpoint's pure logic is tested (breadth: month
+grid/recurrence/timezone math, grocery sorting/price-history, ledger
+statement/category/asset math, trip currency bucketing — 93 tests total,
+mirroring the equivalent Vitest suites on web line-for-line), tsc is clean at
+every commit, and every checkpoint was bundle-verified via production `expo
+export` (growing 1283 → 1743 modules across Task 7→8, zero errors at any
+point) in addition to on-device boot checks. **Known gap:** interactive
+tap-through verification (actually opening the Groceries list, tapping a
+Ledger year, typing in the Notes editor, etc.) was not possible in this
+environment beyond the Calendar screen validated in 8A/7F, because `simctl`
+has no synthetic-tap capability here and every deep-link workaround attempted
+hit either a system confirmation dialog or an unsupported flag. This is the
+single most important thing for the user to check by hand before accepting
+Task 8 — particularly the TenTap Notes editor (the newest, highest-risk native
+integration) and the Ledger `DonutChart` (a hand-built react-native-svg
+component with no equivalent tested elsewhere).
+
+**Next gate:** the user should try the app on-device (physical iPhone once
+Apple Developer Program enrollment clears, or continue on the iOS Simulator)
+and confirm the five feature tabs + Settings work end-to-end, then approve
+Task 9 (reset procedure, E2E verification, release handoff) — the final task
+in the plan.
 
 ## Environment, constraints & risks (condensed)
 
