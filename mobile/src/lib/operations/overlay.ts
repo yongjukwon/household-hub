@@ -37,7 +37,10 @@ export function applyOptimisticOverlay<Row extends EntityRow>(
   for (const row of rows) merged.set(row.id, row)
 
   for (const operation of relevant) {
-    if (operation.optimistic === null) {
+    const destructive =
+      operation.optimistic === null ||
+      operation.command.type === 'ledger.year.clear'
+    if (destructive) {
       merged.delete(operation.entityId)
       continue
     }

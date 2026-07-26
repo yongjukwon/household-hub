@@ -34,7 +34,7 @@ export function clearYear(
     entityId: yearId,
     baseRevision,
     payload,
-    optimistic: payload,
+    optimistic: null,
   })
 }
 

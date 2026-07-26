@@ -329,4 +329,36 @@ describe('durable operation queue', () => {
     )
     expect(merged).toEqual([{ id: EVENT_B, title: 'B' }])
   })
+
+  it('treats a legacy queued Statement clear as destructive', () => {
+    const statement = {
+      id: EVENT_A,
+      year: 2026,
+      revision: 1,
+    }
+    const merged = applyOptimisticOverlay(
+      [statement],
+      [
+        {
+          operationId: uuid('55555555-5555-4555-8555-555555555555'),
+          localSequence: 1,
+          householdId: HOUSEHOLD,
+          entityType: 'ledger_year',
+          entityId: EVENT_A,
+          command: {
+            type: 'ledger.year.clear',
+            baseRevision: revision(1),
+          } as never,
+          // Older builds incorrectly persisted the clear payload as an update.
+          optimistic: { year: 2026, confirmation: '2026' },
+          enqueuedAt: '2026-07-25T00:00:00.000Z',
+          attempts: 0,
+          lastError: null,
+        },
+      ],
+      'ledger_year',
+    )
+
+    expect(merged).toEqual([])
+  })
 })
