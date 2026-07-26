@@ -66,6 +66,23 @@ A final header and spacing refinement was completed on 2026-07-26:
   actions;
 - the old text back rows were removed from detail content.
 
+A native operation/form reliability pass was completed on 2026-07-26:
+
+- legacy optimistic entities without a `revision` are repaired to revision 1
+  when projected, while strict validation remains enforced for new commands;
+- the persisted React Query cache buster advanced to `mobile-v2`, so stale
+  cached entities are cleared once without clearing sessions, SQLite commands,
+  or server data;
+- Calendar, Groceries, Ledger, Notes, and Trips operation forms now share the
+  same lifecycle: disable repeated submission, await the operation result,
+  close only when accepted, and remain open with a readable error when
+  rejected or when an exception is thrown;
+- Statement and Trip deletion now report conflicts instead of throwing an
+  unhandled `baseRevision` console error;
+- redundant text Delete controls were removed from Grocery and Note detail
+  screens because those entities already use confirmed trash actions in their
+  root lists.
+
 Design and execution notes:
 
 - `docs/superpowers/specs/2026-07-26-native-ui-correction-design.md`
@@ -74,6 +91,8 @@ Design and execution notes:
 - `docs/superpowers/plans/2026-07-26-mobile-ui-consistency-pass.md`
 - `docs/superpowers/specs/2026-07-26-native-header-spacing-design.md`
 - `docs/superpowers/plans/2026-07-26-native-header-spacing-refinement.md`
+- `docs/superpowers/specs/2026-07-26-native-operation-form-reliability-design.md`
+- `docs/superpowers/plans/2026-07-26-native-operation-form-reliability.md`
 
 | Work | Status |
 | --- | --- |
@@ -84,6 +103,7 @@ Design and execution notes:
 | Follow-up native UI correction | Complete and verified (2026-07-26) |
 | Native UI consistency pass | Complete and verified; device review pending (2026-07-26) |
 | Header and spacing refinement | Complete and verified; device review pending (2026-07-26) |
+| Native operation/form reliability | Complete and verified; device review pending (2026-07-26) |
 | Task 9: reset, E2E acceptance, release handoff | Cleared to start |
 
 ## Resume checklist

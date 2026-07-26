@@ -1692,3 +1692,96 @@ Execution plan:
 Physical-device visual acceptance remains part of Task 9. No database,
 server-operation, web feature, deployment, or production-data behavior
 changed in this refinement.
+
+## Native operation/form reliability pass (2026-07-26)
+
+Design:
+`docs/superpowers/specs/2026-07-26-native-operation-form-reliability-design.md`
+
+Execution plan:
+`docs/superpowers/plans/2026-07-26-native-operation-form-reliability.md`
+
+### Root cause
+
+The native queue correctly requires `baseRevision >= 1`, but entities created
+by older optimistic operations could be restored without a `revision`.
+React Query's persisted cache buster was still `mobile-v1`, so those
+pre-revision projections survived upgrades. Deleting or editing one of those
+entities passed `undefined` to the strict queue boundary, producing the
+unhandled `baseRevision must be a revision of at least 1` error.
+
+Several operation-backed forms also assumed enqueueing could not throw and
+closed themselves without inspecting the operation outcome. This caused a
+mix of unhandled promise errors, forms that remained open after accepted
+submissions, and forms that disappeared even when the server rejected the
+operation.
+
+### Compatibility repair
+
+- Optimistic overlays now normalize a missing or invalid projected revision to
+  the command's valid base revision, or revision 1 for a legacy create.
+- Queue validation remains strict; malformed new commands are still rejected.
+- The React Query cache buster advanced from `mobile-v1` to `mobile-v2`.
+  Restoring an incompatible persisted client removes only that query cache.
+  Secure sessions, SQLite offline commands, and server records remain intact.
+- Added regression coverage for legacy revisionless optimistic creates and
+  stale persisted-cache removal.
+
+### Shared operation failure presentation
+
+- Added a shared thrown-error mapper beside `operationOutcomeError`.
+- Invalid/missing revision errors now present:
+  `This item is out of date. Refresh it and try again.`
+- Confirm dialogs can render an operation error without closing.
+- Unknown exceptions use an action-specific fallback instead of surfacing an
+  unhandled promise rejection.
+
+### Form lifecycle audit
+
+Audited operation-backed create, edit, delete, check/toggle, and transfer
+forms across:
+
+- Calendar events;
+- Grocery lists and items;
+- Ledger years, Assets, categories, limits, income/spending transactions,
+  one-off transfers, recurring transfers, and typed-year deletion;
+- Note creation and saving;
+- Trips, itinerary items, bookings, checklist items, and expenses.
+
+Each audited flow now:
+
+1. enters a busy state and blocks repeated submission;
+2. awaits the queue/RPC-facing operation;
+3. inspects `queued`, `settled`, or `discarded` outcomes;
+4. closes only for an accepted outcome;
+5. remains open and renders the conflict/rejection reason otherwise;
+6. catches thrown errors and restores the controls in `finally`.
+
+Statement and Trip deletion use the same outcome-aware confirmation behavior,
+which removes the screenshot's unhandled revision failure. Toggle/check
+actions that do not open a form now catch and display failures on the owning
+screen.
+
+### Duplicate destructive controls
+
+- Removed the Grocery-list detail header's text Delete control.
+- Removed the Grocery item form's nested text Delete control.
+- Removed the Note-detail text Delete control.
+- Confirmed trash actions remain in the root Grocery/Note lists and Grocery
+  item rows.
+
+### Automated verification
+
+- Native Jest: 42 suites, 147 tests, all pass.
+- Native TypeScript: pass.
+- New focused coverage exercises legacy overlay repair, cache invalidation,
+  thrown operation errors, rejected confirmation behavior, root-list
+  deletion, and accepted/rejected form closing.
+- The full native run still emits existing non-failing React `act()` warnings
+  from authentication-gate tests. The new Trip form tests were updated to
+  await interactions and are warning-free in isolation.
+
+Physical-device confirmation remains for Task 9: relaunch once so the query
+cache rebuilds, then confirm Statement/Trip deletion, accepted form closure,
+and rejected form error retention. No database schema, server operation,
+web behavior, deployment, authentication session, or production data changed.
