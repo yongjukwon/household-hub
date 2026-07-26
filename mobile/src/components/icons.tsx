@@ -30,6 +30,18 @@ function outline(paths: string[]) {
   }
 }
 
+function filled(paths: string[]) {
+  return function HeroIconFilled({ size = 20, color = 'currentColor' }: IconProps) {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+        {paths.map((d) => (
+          <Path key={d} d={d} />
+        ))}
+      </Svg>
+    )
+  }
+}
+
 export const CalendarIcon = outline([
   'M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0V11.25a2.25 2.25 0 0 1 2.25-2.25h13.5a2.25 2.25 0 0 1 2.25 2.25v7.5',
 ])
@@ -48,6 +60,26 @@ export const NotesIcon = outline([
 
 export const TripsIcon = outline([
   'M6 12 3.269 3.126A59.768 59.768 0 0 1 21.485 12 59.77 59.77 0 0 1 3.27 20.874L5.999 12Zm0 0h7.5',
+])
+
+export const CalendarIconFilled = filled([
+  'M3 5a2 2 0 012-2h1v3a1 1 0 002 0V3h8v3a1 1 0 002 0V3h1a2 2 0 012 2v3H3zM3 10h18v11a2 2 0 01-2 2H5a2 2 0 01-2-2z',
+])
+
+export const GroceriesIconFilled = filled([
+  'M2 3h2.2l.4 2H21a1 1 0 01.97 1.24l-1.8 7.2A2 2 0 0118.24 15H8.2a2 2 0 01-1.96-1.6L4.2 5H2zM8 21a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm10 0a1.5 1.5 0 110-3 1.5 1.5 0 010 3z',
+])
+
+export const LedgerIconFilled = filled([
+  'M6 3h11a1 1 0 011 1v16a1 1 0 01-1 1H6a3 3 0 01-3-3V6a3 3 0 013-3zm1 5h4v2H7zm0 4h4v2H7z',
+])
+
+export const NotesIconFilled = filled([
+  'M4 3h16a1 1 0 011 1v14a1 1 0 01-1 1h-.2L16 21.8V19H4a1 1 0 01-1-1V4a1 1 0 011-1zm3.5 5a.8.8 0 000 1.6h9a.8.8 0 000-1.6zm0 4a.8.8 0 000 1.6h6a.8.8 0 000-1.6z',
+])
+
+export const TripsIconFilled = filled([
+  'M2.5 19.5l19-7c1-.4 1-1.6 0-2l-19-7v6.5l11 1.5-11 1.5z',
 ])
 
 export const BellIcon = outline([
