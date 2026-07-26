@@ -121,7 +121,7 @@ export default function GroceriesScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  listContent: { padding: 20, paddingBottom: 120, flexGrow: 1 },
+  listContent: { padding: 20, paddingBottom: 24, flexGrow: 1 },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',

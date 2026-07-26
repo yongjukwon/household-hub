@@ -12,13 +12,13 @@ import {
   type IconProps,
 } from './icons'
 
-interface Destination {
+export interface Destination {
   path: '/' | '/groceries' | '/ledger' | '/notes' | '/trips'
   label: string
   icon: (props: IconProps) => React.JSX.Element
 }
 
-const DESTINATIONS: Destination[] = [
+export const TAB_DESTINATIONS: Destination[] = [
   { path: '/', label: 'Schedule', icon: CalendarIcon },
   { path: '/groceries', label: 'Groceries', icon: GroceriesIcon },
   { path: '/ledger', label: 'Ledger', icon: LedgerIcon },
@@ -26,11 +26,13 @@ const DESTINATIONS: Destination[] = [
   { path: '/trips', label: 'Trips', icon: TripsIcon },
 ]
 
+export function tabActiveForPath(path: Destination['path'], pathname: string): boolean {
+  return path === '/' ? pathname === '/' : pathname === path || pathname.startsWith(`${path}/`)
+}
+
 /**
- * Floating rounded pill bottom nav, per the design reference: white pill on
- * the canvas background, an active item gets a soft accent chip + bold accent
- * label, matching the web `MobileTabBar`'s `bg-accent-soft`/`text-accent`
- * treatment exactly.
+ * Bottom tab bar, docked flush with the bottom safe area (not floating) so
+ * screens recover the vertical space a hovering pill used to cost them.
  */
 export function FloatingTabBar() {
   const { tokens } = useTheme()
@@ -41,24 +43,13 @@ export function FloatingTabBar() {
   return (
     <View
       style={[
-        styles.pill,
-        {
-          backgroundColor: tokens.card,
-          // Sit as low as the safe area allows: the home-indicator gesture
-          // zone is exactly `insets.bottom` tall, so a small fixed margin
-          // above that (not the previous +10 on top of the inset) is the
-          // lowest the bar can go without overlapping it.
-          bottom: Math.max(8, insets.bottom + 4),
-        },
+        styles.bar,
+        { backgroundColor: tokens.card, paddingBottom: insets.bottom + 6 },
         tokens.shadowFloat,
       ]}
     >
-      {DESTINATIONS.map(({ path, label, icon: Icon }) => {
-        // Prefix match for non-root tabs so a detail route (e.g.
-        // /groceries/[listId]) keeps its parent tab highlighted, matching the
-        // web client's NavLink (non-"end") behavior.
-        const active =
-          path === '/' ? pathname === '/' : pathname === path || pathname.startsWith(`${path}/`)
+      {TAB_DESTINATIONS.map(({ path, label, icon: Icon }) => {
+        const active = tabActiveForPath(path, pathname)
         return (
           <Pressable
             key={path}
@@ -93,15 +84,12 @@ function itemLabelStyle(tokens: ThemeTokens, active: boolean) {
 }
 
 const styles = StyleSheet.create({
-  pill: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    borderRadius: 24,
+  bar: {
     flexDirection: 'row',
     alignItems: 'stretch',
     justifyContent: 'space-between',
-    padding: 6,
+    paddingHorizontal: 12,
+    paddingTop: 8,
   },
   item: {
     flex: 1,
@@ -109,6 +97,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 2,
     paddingVertical: 8,
-    borderRadius: 999,
+    borderRadius: 12,
   },
 })

@@ -55,7 +55,7 @@ export default function LedgerScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  content: { padding: 20, paddingBottom: 120 },
+  content: { padding: 20, paddingBottom: 24 },
   pageTitle: { fontSize: 22, fontWeight: '800', letterSpacing: -0.2, marginBottom: 14 },
   segmented: { marginBottom: 16 },
 })

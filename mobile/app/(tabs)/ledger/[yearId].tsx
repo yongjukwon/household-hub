@@ -333,7 +333,7 @@ function BudgetMetric({ label, value }: { label: string; value: number }) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  content: { padding: 20, paddingBottom: 120 },
+  content: { padding: 20, paddingBottom: 24 },
   backRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 10 },
   backLabel: { fontSize: 13, fontWeight: '600' },
   titleRow: {

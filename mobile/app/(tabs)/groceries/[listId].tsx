@@ -401,7 +401,7 @@ function formatPurchaseDate(value: string): string {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  listContent: { padding: 20, paddingBottom: 120 },
+  listContent: { padding: 20, paddingBottom: 24 },
   backRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 10 },
   backLabel: { fontSize: 13, fontWeight: '600' },
   titleRow: {

@@ -318,7 +318,7 @@ function formatDayHeading(dateKey: string): string {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  listContent: { padding: 20, paddingBottom: 120 },
+  listContent: { padding: 20, paddingBottom: 24 },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
