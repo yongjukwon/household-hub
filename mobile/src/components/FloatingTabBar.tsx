@@ -54,7 +54,11 @@ export function FloatingTabBar() {
       ]}
     >
       {DESTINATIONS.map(({ path, label, icon: Icon }) => {
-        const active = pathname === path
+        // Prefix match for non-root tabs so a detail route (e.g.
+        // /groceries/[listId]) keeps its parent tab highlighted, matching the
+        // web client's NavLink (non-"end") behavior.
+        const active =
+          path === '/' ? pathname === '/' : pathname === path || pathname.startsWith(`${path}/`)
         return (
           <Pressable
             key={path}
