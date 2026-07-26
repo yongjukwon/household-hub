@@ -286,9 +286,56 @@ Reference material to build against:
 - `mobile/src/theme/tokens.ts` — light/dark tokens exist but are minimal;
   expect to expand them to match the design reference's full palette/spacing.
 
-Sub-checkpoints will be recorded here as they complete. Device validation
-(iOS Simulator, `npx expo run:ios`) is available now — see Task 7F above for
-the working setup (CocoaPods via Homebrew, EAS project linked).
+Device validation (iOS Simulator, `npx expo run:ios`) is available now — see
+Task 7F above for the working setup (CocoaPods via Homebrew, EAS project
+linked). A native rebuild (not just a JS reload) is required whenever a new
+native module is installed (e.g. this checkpoint added react-native-svg,
+@react-native-community/datetimepicker, @react-native-picker/picker).
+
+Sub-checkpoints:
+
+- **8A — Design tokens, shared UI primitives, Calendar tab (done, `6e0224a`).**
+  `theme/tokens.ts` expanded to the full palette from `src/styles/theme.css`
+  (data colors, card/control radii, shadows, muted-text tiers) — ported values,
+  not reinterpreted. Shared native UI in `mobile/src/components/`: `icons.tsx`
+  (Heroicons via react-native-svg, using the exact path data the web client's
+  `@heroicons/react` package ships and the design HTML embeds — the web
+  package itself only exports DOM components, so this is the RN-appropriate
+  equivalent), `AppHeader` (floating circular bell/gear buttons, no title —
+  matches the design reference exactly; each screen renders its own big page
+  title in-content instead), `FloatingTabBar` (a custom `Slot`-based
+  `(tabs)/_layout.tsx`, **not** expo-router's native `<Tabs>` bar — the design's
+  floating pill + accent-soft active chip doesn't map onto the native tab bar's
+  header/label conventions, and `@react-navigation/bottom-tabs` isn't even
+  resolvable as a direct dependency in this SDK), `Card`, `SegmentedControl`,
+  `states` (Loading/Empty/Error), `BottomSheet`, `ConfirmDialog`,
+  `DateTimeField` (native date/time picker wrapper).
+  Calendar tab (`app/(tabs)/index.tsx` + `src/features/calendar/`): the pure
+  logic (`monthGrid.ts`, `events.ts`, `datetime.ts`, `reminders.ts`,
+  `mutations.ts`) is copied **verbatim** from web — platform-agnostic by
+  design, and their Vitest tests port to Jest unchanged (31 tests, identical
+  assertions). Added a native `useCalendarEvents` hook and `EventSheet` (title,
+  all-day switch, native date/time pickers, recurrence chips, reminder chips,
+  owner chips, note, delete-confirm) against the same `calendar.event.upsert`/
+  `delete` operation contract as web. Copied the web-generated
+  `src/types/database.ts` into `mobile/src/types/` (one shared Supabase
+  backend — same pattern as duplicating the operations layer in Task 7) and
+  wired `supabase.ts`/`queue.ts` to the typed client.
+  **Verification:** 68 mobile tests / 13 suites pass, `tsc --noEmit` clean.
+  **Real-device evidence:** rebuilt and ran on the iOS Simulator (iPhone 17,
+  iOS 26.5) after installing the three new native modules (CocoaPods rebuild
+  required); screenshotted in both light and dark appearance — header, legend
+  (Yongju filled dot / Claire outlined dot / Shared accent dot), month grid
+  with a live seeded event dot on the correct day, selected-day empty state,
+  and the floating tab bar's active-chip treatment all match the design
+  reference. EventSheet's interactive open/save/delete flow was not tap-tested
+  on device this checkpoint (no reliable synthetic-tap tooling in this
+  environment — AppleScript `System Events` clicks land on the real desktop,
+  not the Simulator, and were abandoned after one stray click); it is covered
+  by the same pure-logic tests as web plus manual verification is expected
+  from the user.
+
+Next: 8B (Groceries), then 8C–8F, then 8G final verification.
 
 ## Environment, constraints & risks (condensed)
 
