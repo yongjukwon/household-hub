@@ -1,12 +1,19 @@
-import { useState } from 'react'
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { useMemo, useState } from 'react'
+import { Pressable, StyleSheet, Text } from 'react-native'
 
 import { BottomSheet } from '@/components/BottomSheet'
+import { SelectField } from '@/components/SelectField'
 import { operationOutcomeError } from '@/lib/operations'
 import { newUuid } from '@/lib/uuid'
 import { useTheme } from '@/theme/tokens'
 import { createYear } from './statementMutations'
 import type { LedgerYear } from './statements'
+
+function candidateYears(existing: number[]): number[] {
+  const current = new Date().getFullYear()
+  const range = Array.from({ length: 13 }, (_, i) => current + 2 - i)
+  return Array.from(new Set([...range, ...existing])).sort((a, b) => b - a)
+}
 
 export function NewYearSheet({
   open,
@@ -20,17 +27,29 @@ export function NewYearSheet({
   years: LedgerYear[]
 }) {
   const { tokens } = useTheme()
-  const [value, setValue] = useState(String(new Date().getFullYear()))
+  const existingYears = useMemo(() => years.map((entry) => entry.year), [years])
+  const options = useMemo(
+    () =>
+      candidateYears(existingYears).map((year) => ({
+        value: String(year),
+        label: existingYears.includes(year) ? `${year} (already created)` : String(year),
+        disabled: existingYears.includes(year),
+      })),
+    [existingYears],
+  )
+  const [value, setValue] = useState(
+    () => options.find((option) => !option.disabled)?.value ?? options[0]?.value ?? '',
+  )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function handleSave() {
     const year = Number(value)
-    if (!/^\d{4}$/.test(value.trim()) || year < 1900 || year > 9999) {
+    if (!/^\d{4}$/.test(value) || year < 1900 || year > 9999) {
       setError('Enter a four-digit year.')
       return
     }
-    if (years.some((entry) => entry.year === year)) {
+    if (existingYears.includes(year)) {
       setError(`${year} already exists.`)
       return
     }
@@ -51,19 +70,7 @@ export function NewYearSheet({
 
   return (
     <BottomSheet open={open} onOpenChange={onOpenChange} title="New statement year">
-      <Text style={[styles.label, { color: tokens.muted }]}>Year</Text>
-      <TextInput
-        accessibilityLabel="Year"
-        keyboardType="number-pad"
-        maxLength={4}
-        value={value}
-        onChangeText={(text) => setValue(text.replace(/\D/g, '').slice(0, 4))}
-        autoFocus
-        style={[
-          styles.input,
-          { borderColor: tokens.line, borderRadius: tokens.radiusControl, color: tokens.ink },
-        ]}
-      />
+      <SelectField label="Year" value={value} options={options} onChange={setValue} />
       {error ? <Text style={[styles.error, { color: tokens.danger }]}>{error}</Text> : null}
       <Pressable
         accessibilityRole="button"
@@ -82,10 +89,8 @@ export function NewYearSheet({
 }
 
 const styles = StyleSheet.create({
-  label: { fontSize: 12.5, fontWeight: '600', marginBottom: 6 },
-  input: { borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, marginBottom: 10 },
-  error: { fontSize: 13, marginBottom: 10 },
-  button: { paddingVertical: 13, alignItems: 'center' },
+  error: { fontSize: 13, marginTop: 8, marginBottom: 10 },
+  button: { paddingVertical: 13, alignItems: 'center', marginTop: 12 },
   buttonText: { fontSize: 15, fontWeight: '700' },
   disabled: { opacity: 0.6 },
 })

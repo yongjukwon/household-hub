@@ -46,23 +46,22 @@ describe('StatementsTab', () => {
     )
   })
 
-  it('rejects an existing year locally without enqueueing it', async () => {
+  it('shows existing years as disabled in the year picker and cannot enqueue them', async () => {
     render(<MemoryRouter><StatementsTab householdId={HH} /></MemoryRouter>)
     await userEvent.click(screen.getByRole('button', { name: '+ Year' }))
-    const input = screen.getByLabelText('Year')
-    await userEvent.clear(input)
-    await userEvent.type(input, '2026')
-    await userEvent.click(screen.getByRole('button', { name: 'Create year' }))
-    expect(screen.getByText('2026 already exists.')).toBeInTheDocument()
+    const select = screen.getByLabelText('Year') as HTMLSelectElement
+    const opt2026 = Array.from(select.options).find((o) => o.value === '2026')
+    const opt2025 = Array.from(select.options).find((o) => o.value === '2025')
+    expect(opt2026?.disabled).toBe(true)
+    expect(opt2025?.disabled).toBe(true)
     expect(mutations.createYear).not.toHaveBeenCalled()
   })
 
   it('enqueues a fresh UUID for a new year', async () => {
     render(<MemoryRouter><StatementsTab householdId={HH} /></MemoryRouter>)
     await userEvent.click(screen.getByRole('button', { name: '+ Year' }))
-    const input = screen.getByLabelText('Year')
-    await userEvent.clear(input)
-    await userEvent.type(input, '2027')
+    const select = screen.getByLabelText('Year')
+    await userEvent.selectOptions(select, '2027')
     await userEvent.click(screen.getByRole('button', { name: 'Create year' }))
     expect(mutations.createYear).toHaveBeenCalledWith(
       HH,
