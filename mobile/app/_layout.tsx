@@ -9,6 +9,7 @@ import { useAuthGate, useSupabaseAutoRefresh } from '@/lib/auth/gate'
 import { useOAuthDeepLinks } from '@/lib/auth/useOAuthDeepLinks'
 import { useOperationSync } from '@/lib/operations/useOperationSync'
 import { createQueryClient } from '@/lib/query'
+import { AppearanceProvider } from '@/theme/AppearanceProvider'
 
 function RootNavigator() {
   useSupabaseAutoRefresh()
@@ -35,10 +36,12 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <StatusBar style="auto" />
-          <RootNavigator />
-        </AuthProvider>
+        <AppearanceProvider>
+          <AuthProvider>
+            <StatusBar style="auto" />
+            <RootNavigator />
+          </AuthProvider>
+        </AppearanceProvider>
       </QueryClientProvider>
     </SafeAreaProvider>
   )

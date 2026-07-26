@@ -9,9 +9,12 @@ interface ConfirmDialogProps {
   description: string
   confirmLabel: string
   onConfirm: () => void
+  /** False for a neutral (non-red) confirm action, e.g. "Transfer ownership". */
+  destructive?: boolean
 }
 
-/** Centered destructive-confirmation dialog (delete, sign out, etc). */
+/** Centered confirmation dialog; the confirm button reads as destructive
+ * (red) by default — pass `destructive={false}` for a neutral action. */
 export function ConfirmDialog({
   open,
   onOpenChange,
@@ -19,6 +22,7 @@ export function ConfirmDialog({
   description,
   confirmLabel,
   onConfirm,
+  destructive = true,
 }: ConfirmDialogProps) {
   const { tokens } = useTheme()
 
@@ -59,9 +63,12 @@ export function ConfirmDialog({
             <Pressable
               accessibilityRole="button"
               onPress={onConfirm}
-              style={[styles.button, { backgroundColor: tokens.danger }]}
+              style={[
+                styles.button,
+                { backgroundColor: destructive ? tokens.danger : tokens.accent },
+              ]}
             >
-              <Text style={[styles.buttonText, { color: '#FFFFFF' }]}>
+              <Text style={[styles.buttonText, { color: destructive ? '#FFFFFF' : tokens.accentContrast }]}>
                 {confirmLabel}
               </Text>
             </Pressable>

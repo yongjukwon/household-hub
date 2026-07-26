@@ -1,5 +1,7 @@
 import { useColorScheme } from 'react-native'
 
+import { useAppearance } from './AppearanceProvider'
+
 /**
  * Semantic design tokens, ported from the web app's `--hh-*` CSS variables
  * (`src/styles/theme.css`) and the mobile design reference
@@ -130,6 +132,8 @@ export const darkTokens: ThemeTokens = {
 
 /** Resolves tokens from the OS light/dark setting (`userInterfaceStyle`). */
 export function useTheme(): { tokens: ThemeTokens; scheme: 'light' | 'dark' } {
-  const scheme = useColorScheme() === 'dark' ? 'dark' : 'light'
+  const systemScheme = useColorScheme() === 'dark' ? 'dark' : 'light'
+  const { appearance } = useAppearance()
+  const scheme = appearance === 'system' ? systemScheme : appearance
   return { tokens: scheme === 'dark' ? darkTokens : lightTokens, scheme }
 }
