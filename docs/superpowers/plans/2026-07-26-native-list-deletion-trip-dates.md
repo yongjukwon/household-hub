@@ -26,7 +26,7 @@
 **Files:**
 - Create: `mobile/src/features/ledger/statementMutations.test.ts`
 - Modify: `mobile/src/features/ledger/statementMutations.ts`
-- Modify: `mobile/src/lib/operations/overlay.test.ts`
+- Modify: `mobile/src/lib/operations/queue.test.ts`
 - Modify: `mobile/src/lib/operations/overlay.ts`
 
 **Interfaces:**
@@ -72,7 +72,7 @@ Run:
 ```bash
 npm --prefix mobile test -- --runInBand \
   src/features/ledger/statementMutations.test.ts \
-  src/lib/operations/overlay.test.ts
+  src/lib/operations/queue.test.ts
 ```
 
 Expected: both new assertions fail because `clearYear()` supplies a non-null
@@ -108,7 +108,7 @@ Run the same focused command. Expected: all tests pass.
 git add mobile/src/features/ledger/statementMutations.ts \
   mobile/src/features/ledger/statementMutations.test.ts \
   mobile/src/lib/operations/overlay.ts \
-  mobile/src/lib/operations/overlay.test.ts
+  mobile/src/lib/operations/queue.test.ts
 git commit -m "fix(mobile): remove cleared statements optimistically"
 ```
 
