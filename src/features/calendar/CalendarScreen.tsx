@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from '@heroicons/react/24/outline'
+import { buildOwnerColors } from '@household-hub/domain'
 import { Screen } from '@/shell/Screen'
 import { EmptyState, ErrorState, LoadingState } from '@/shell/ui/states'
 import { useActiveHousehold, deviceTimeZone } from '@/features/household'
+import { useAuth } from '@/hooks/useAuth'
 import { useCalendarEvents } from './useCalendarEvents'
 import {
   buildMonthGrid,
@@ -37,6 +39,12 @@ export function CalendarScreen() {
   const [editing, setEditing] = useState<CalendarEventItem | null>(null)
 
   const events = useCalendarEvents(householdId)
+
+  const { user } = useAuth()
+  const ownerColors = useMemo(
+    () => buildOwnerColors(household.data?.members ?? [], user?.id ?? null),
+    [household.data?.members, user?.id],
+  )
 
   // Deep-link target from a notification: ?event=<id> opens that event.
   const deepLinkId = params.get('event')
@@ -221,6 +229,17 @@ export function CalendarScreen() {
                       </span>
                       <span className="flex-1 font-medium text-[var(--hh-ink)]">
                         {event.title}
+                      </span>
+                      <span
+                        className="flex shrink-0 items-center gap-1.5 text-xs font-semibold"
+                        style={{ color: ownerColors.colorFor(event.ownerId) }}
+                      >
+                        <span
+                          aria-hidden
+                          className="h-2 w-2 rounded-full"
+                          style={{ backgroundColor: ownerColors.colorFor(event.ownerId) }}
+                        />
+                        {ownerColors.labelFor(event.ownerId)}
                       </span>
                     </button>
                   </li>

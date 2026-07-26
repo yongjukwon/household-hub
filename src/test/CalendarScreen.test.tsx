@@ -9,6 +9,7 @@ import { useCalendarEvents } from '@/features/calendar/useCalendarEvents'
 import type { CalendarEventItem } from '@/features/calendar/events'
 import { saveCalendarEvent } from '@/features/calendar/mutations'
 import type { EnqueueOutcome } from '@/lib/operations'
+import { useAuth } from '@/hooks/useAuth'
 
 vi.mock('@/features/household', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/features/household')>()
@@ -30,10 +31,15 @@ vi.mock('@/features/calendar/mutations', async (importOriginal) => {
     saveCalendarEvent: vi.fn(),
   }
 })
+vi.mock('@/hooks/useAuth', () => ({ useAuth: vi.fn() }))
 
 const mockHousehold = vi.mocked(useActiveHousehold)
 const mockEvents = vi.mocked(useCalendarEvents)
 const mockSaveEvent = vi.mocked(saveCalendarEvent)
+const mockAuth = vi.mocked(useAuth)
+
+const ME = '22222222-2222-2222-2222-222222222222'
+const PARTNER = '33333333-3333-3333-3333-333333333333'
 
 function uuid(value: string): UUID {
   if (!isUuid(value)) throw new Error(`not a UUID: ${value}`)
@@ -68,6 +74,9 @@ beforeEach(() => {
     status: 'queued',
     operationId: OPERATION_ID,
   })
+  mockAuth.mockReturnValue({
+    user: { id: ME },
+  } as unknown as ReturnType<typeof useAuth>)
   mockHousehold.mockReturnValue({
     data: { id: '11111111-1111-1111-1111-111111111111', name: 'Home', members: [] },
     isError: false,
@@ -178,5 +187,56 @@ describe('CalendarScreen', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('shows each event owner as a colored label in the selected-day list', async () => {
+    mockHousehold.mockReturnValue({
+      data: {
+        id: '11111111-1111-1111-1111-111111111111',
+        name: 'Home',
+        members: [
+          { userId: ME, displayName: 'Yongju' },
+          { userId: PARTNER, displayName: 'Claire' },
+        ],
+      },
+      isError: false,
+      isLoading: false,
+    } as unknown as ReturnType<typeof useActiveHousehold>)
+    mockEvents.mockReturnValue({
+      data: [
+        timedEvent({ id: 'evt-owned', title: 'Dentist', ownerId: PARTNER }),
+        timedEvent({
+          id: 'evt-shared',
+          title: 'Groceries run',
+          ownerId: null,
+          startsAt: '2026-07-15T20:00:00.000Z',
+          endsAt: '2026-07-15T21:00:00.000Z',
+        }),
+      ],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useCalendarEvents>)
+
+    renderScreen()
+    await userEvent.click(screen.getByLabelText('2026-07-15'))
+
+    const dentistRow = screen.getByText('Dentist').closest('button')
+    const groceriesRow = screen.getByText('Groceries run').closest('button')
+    expect(dentistRow).not.toBeNull()
+    expect(groceriesRow).not.toBeNull()
+
+    // Owned event shows the other member's display name, not "Shared".
+    const ownerLabel = within(dentistRow!).getByText('Claire')
+    expect(ownerLabel).toBeInTheDocument()
+
+    // Shared event (ownerId: null) shows "Shared".
+    const sharedLabel = within(groceriesRow!).getByText('Shared')
+    expect(sharedLabel).toBeInTheDocument()
+
+    // Each gets a real, distinct owner color, not just text.
+    expect(ownerLabel.style.color).toBeTruthy()
+    expect(sharedLabel.style.color).toBeTruthy()
+    expect(ownerLabel.style.color).not.toBe(sharedLabel.style.color)
   })
 })
