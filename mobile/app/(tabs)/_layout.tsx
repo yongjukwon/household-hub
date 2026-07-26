@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { AppHeader } from '@/components/AppHeader'
+import { GradientBackground } from '@/components/GradientBackground'
 import {
   FloatingTabBar,
   TAB_BAR_FLOAT_OFFSET,
@@ -23,6 +24,7 @@ export default function TabsLayout() {
 
   return (
     <View style={styles.root}>
+      <GradientBackground />
       <AppHeader />
       <View
         style={[

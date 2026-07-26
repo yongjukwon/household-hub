@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { DangerConfirm } from '@/components/DangerConfirm'
+import { GradientBackground } from '@/components/GradientBackground'
 import { SegmentedControl } from '@/components/SegmentedControl'
 import { useActiveHousehold } from '@/features/household'
 import {
@@ -136,7 +137,8 @@ export default function SettingsScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: tokens.canvas }]} edges={['bottom']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['bottom']}>
+      <GradientBackground />
       <Stack.Screen options={{ headerShown: true, title: 'Settings' }} />
       <ScrollView contentContainerStyle={styles.content}>
         {notice ? (

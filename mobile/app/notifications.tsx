@@ -2,6 +2,7 @@ import { Stack, useRouter } from 'expo-router'
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
+import { GradientBackground } from '@/components/GradientBackground'
 import { ListCard } from '@/components/ListCard'
 import { EmptyState, ErrorState, LoadingState } from '@/components/states'
 import { useActiveHousehold } from '@/features/household'
@@ -45,9 +46,10 @@ export default function NotificationsScreen() {
 
   return (
     <SafeAreaView
-      style={[styles.safe, { backgroundColor: tokens.canvas }]}
+      style={[styles.safe, { backgroundColor: 'transparent' }]}
       edges={['bottom']}
     >
+      <GradientBackground />
       <Stack.Screen options={{ headerShown: true, title: 'Notifications' }} />
       <FlatList
         data={query.data ?? []}

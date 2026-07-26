@@ -8,6 +8,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
+import { GradientBackground } from '@/components/GradientBackground'
 import { signInWithProvider, type OAuthProvider } from '@/lib/auth/oauth'
 import { supabase } from '@/lib/supabase'
 import { useTheme } from '@/theme/tokens'
@@ -48,7 +49,8 @@ export default function LoginScreen() {
     })
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: tokens.canvas }]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]}>
+      <GradientBackground />
       <View style={styles.body}>
         <Text style={styles.mark}>🐰🐧</Text>
         <Text
