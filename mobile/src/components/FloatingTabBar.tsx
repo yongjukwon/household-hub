@@ -44,7 +44,11 @@ export function FloatingTabBar() {
         styles.pill,
         {
           backgroundColor: tokens.card,
-          bottom: Math.max(22, insets.bottom + 10),
+          // Sit as low as the safe area allows: the home-indicator gesture
+          // zone is exactly `insets.bottom` tall, so a small fixed margin
+          // above that (not the previous +10 on top of the inset) is the
+          // lowest the bar can go without overlapping it.
+          bottom: Math.max(8, insets.bottom + 4),
         },
         tokens.shadowFloat,
       ]}

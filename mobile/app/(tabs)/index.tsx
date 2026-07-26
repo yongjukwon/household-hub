@@ -69,6 +69,15 @@ export default function CalendarScreen() {
   }
 
   const grid = useMemo(() => buildMonthGrid(cursor.year, cursor.month1), [cursor])
+  // Chunked into 7-day rows and rendered as explicit `flex:1` rows rather
+  // than one flex-wrapped 42-cell grid: `${100 / 7}%` is a repeating decimal,
+  // and summing seven of those percentage widths can round just over 100%,
+  // which silently wraps the 7th (Saturday) column into the next row.
+  const weeks = useMemo(() => {
+    const rows: MonthGridCell[][] = []
+    for (let i = 0; i < grid.length; i += 7) rows.push(grid.slice(i, i + 7))
+    return rows
+  }, [grid])
 
   const daysWithEvents = useMemo(() => {
     const rangeStart = grid[0].date
@@ -187,7 +196,7 @@ export default function CalendarScreen() {
             {household.isError ? (
               <ErrorState message="Could not load your household." />
             ) : (
-              <Card>
+              <Card style={styles.monthCard}>
                 <View style={styles.monthRow}>
                   <Pressable
                     accessibilityRole="button"
@@ -221,7 +230,13 @@ export default function CalendarScreen() {
                   ))}
                 </View>
 
-                <View style={styles.grid}>{grid.map(renderCell)}</View>
+                <View style={styles.grid}>
+                  {weeks.map((week, i) => (
+                    <View key={i} style={styles.weekRow}>
+                      {week.map(renderCell)}
+                    </View>
+                  ))}
+                </View>
               </Card>
             )}
 
@@ -342,6 +357,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 10,
   },
+  monthCard: { padding: 14 },
   monthLabel: { fontSize: 14, fontWeight: '800' },
   weekdayRow: { flexDirection: 'row', marginBottom: 2 },
   weekdayLabel: {
@@ -351,13 +367,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     paddingBottom: 4,
   },
-  grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  grid: { flexDirection: 'column' },
+  weekRow: { flexDirection: 'row' },
+  // flex:1 cells (not a `${100/7}%` width) — percentage widths that don't
+  // divide evenly can round over 100% when summed across a row, which
+  // silently wraps the 7th column into the next line. A fixed height (rather
+  // than aspectRatio:1) keeps rows compact regardless of screen width.
   cell: {
-    width: `${100 / 7}%`,
-    aspectRatio: 1,
+    flex: 1,
+    height: 38,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
+    gap: 2,
     borderRadius: 10,
   },
   todayRing: {
