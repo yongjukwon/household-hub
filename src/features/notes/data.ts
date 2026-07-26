@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { queryKeys, type RichNoteDocument } from '@household-hub/domain'
 import { supabase } from '@/lib/supabase'
+import { withOptimisticOverlay } from '@/lib/operations'
 import type { Tables } from '@/types/database'
 
 export interface NoteSummary {
@@ -38,7 +39,7 @@ export function useNotes(householdId: string | undefined) {
         .order('updated_at', { ascending: false })
         .returns<Pick<Tables<'household_notes'>, 'id' | 'title' | 'revision' | 'updated_at'>[]>()
       if (error) throw error
-      return (data ?? []).map(toSummary)
+      return withOptimisticOverlay((data ?? []).map(toSummary), 'note')
     },
   })
 }
@@ -49,19 +50,23 @@ export function useNote(householdId: string | undefined, noteId: string | undefi
     queryKey:
       householdId && noteId ? queryKeys.notes.note(householdId, noteId) : ['notes', 'note', 'off'],
     enabled: !!householdId && !!noteId,
-    queryFn: async (): Promise<Note> => {
+    queryFn: async (): Promise<Note | null> => {
       const { data, error } = await supabase
         .from('household_notes')
         .select('id, title, document, revision')
         .eq('id', noteId!)
-        .single<Pick<Tables<'household_notes'>, 'id' | 'title' | 'document' | 'revision'>>()
+        .maybeSingle<Pick<Tables<'household_notes'>, 'id' | 'title' | 'document' | 'revision'>>()
       if (error) throw error
-      return {
-        id: data.id,
-        title: data.title,
-        document: data.document as unknown as RichNoteDocument,
-        revision: data.revision,
-      }
+      const rows = data
+        ? [{
+            id: data.id,
+            title: data.title,
+            document: data.document as unknown as RichNoteDocument,
+            revision: data.revision,
+          }]
+        : []
+      const [note] = await withOptimisticOverlay(rows, 'note')
+      return note ?? null
     },
   })
 }
