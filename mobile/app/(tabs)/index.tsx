@@ -9,11 +9,14 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
+import { buildOwnerColors } from '@household-hub/domain'
+
 import { Card } from '@/components/Card'
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from '@/components/icons'
 import { EmptyState, ErrorState, LoadingState } from '@/components/states'
 import { deviceTimeZone, useActiveHousehold } from '@/features/household'
 import { EventSheet } from '@/features/calendar/EventSheet'
+import { useAuth } from '@/lib/auth/AuthContext'
 import {
   eventDatesInRange,
   eventOccursOn,
@@ -51,6 +54,12 @@ export default function CalendarScreen() {
 
   const events = useCalendarEvents(householdId)
   const eventList = useMemo(() => events.data ?? [], [events.data])
+
+  const { session } = useAuth()
+  const ownerColors = useMemo(
+    () => buildOwnerColors(household.data?.members ?? [], session?.user.id ?? null),
+    [household.data?.members, session?.user.id],
+  )
 
   // Deep-link target from a notification: ?event=<id> opens that event.
   const deepLinkId = typeof params.event === 'string' ? params.event : null
@@ -187,12 +196,6 @@ export default function CalendarScreen() {
               </Pressable>
             </View>
 
-            <View style={styles.legend}>
-              <LegendItem color={tokens.ink} outline label="Yongju" tokens={tokens} />
-              <LegendItem color={tokens.ink} label="Claire" outlineCircle tokens={tokens} />
-              <LegendItem color={tokens.accent} label="Shared" tokens={tokens} />
-            </View>
-
             {household.isError ? (
               <ErrorState message="Could not load your household." />
             ) : (
@@ -270,6 +273,17 @@ export default function CalendarScreen() {
               <Text style={[styles.eventTitle, { color: tokens.ink }]}>
                 {item.title}
               </Text>
+              <View style={styles.ownerBadge}>
+                <View
+                  style={[
+                    styles.ownerDot,
+                    { backgroundColor: ownerColors.colorFor(item.ownerId) },
+                  ]}
+                />
+                <Text style={[styles.ownerLabel, { color: ownerColors.colorFor(item.ownerId) }]}>
+                  {ownerColors.labelFor(item.ownerId)}
+                </Text>
+              </View>
             </Card>
           </Pressable>
         )}
@@ -289,34 +303,6 @@ export default function CalendarScreen() {
         />
       ) : null}
     </SafeAreaView>
-  )
-}
-
-function LegendItem({
-  color,
-  label,
-  outline,
-  outlineCircle,
-  tokens,
-}: {
-  color: string
-  label: string
-  outline?: boolean
-  outlineCircle?: boolean
-  tokens: ReturnType<typeof useTheme>['tokens']
-}) {
-  return (
-    <View style={styles.legendItem}>
-      <View
-        style={[
-          styles.legendDot,
-          outlineCircle
-            ? { borderWidth: 2, borderColor: color, backgroundColor: 'transparent' }
-            : { backgroundColor: color },
-        ]}
-      />
-      <Text style={[styles.legendLabel, { color: tokens.muted }]}>{label}</Text>
-    </View>
   )
 }
 
@@ -347,10 +333,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  legend: { flexDirection: 'row', gap: 14, marginBottom: 14 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendLabel: { fontSize: 11, fontWeight: '600' },
   monthRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -378,7 +360,6 @@ const styles = StyleSheet.create({
     height: 38,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
     borderRadius: 10,
   },
   todayRing: {
@@ -388,7 +369,13 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
   },
   cellDay: { fontSize: 12 },
-  dot: { width: 4, height: 4, borderRadius: 2 },
+  dot: {
+    position: 'absolute',
+    bottom: 4,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+  },
   dayHeading: {
     fontSize: 13,
     fontWeight: '700',
@@ -400,4 +387,7 @@ const styles = StyleSheet.create({
   eventRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },
   eventTime: { fontSize: 13, fontWeight: '600' },
   eventTitle: { flex: 1, fontSize: 14, fontWeight: '600' },
+  ownerBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
+  ownerDot: { width: 6, height: 6, borderRadius: 3 },
+  ownerLabel: { fontSize: 11, fontWeight: '700' },
 })
