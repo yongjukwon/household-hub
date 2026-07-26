@@ -7,7 +7,7 @@ import { useTheme } from '@/theme/tokens'
 interface DateTimeFieldProps {
   label: string
   value: Date
-  mode: 'date' | 'datetime'
+  mode: 'date' | 'time' | 'datetime'
   minimumDate?: Date
   onChange: (date: Date) => void
 }
@@ -50,7 +50,7 @@ export function DateTimeField({
           value={value}
           mode={mode}
           minimumDate={minimumDate}
-          display={Platform.OS === 'ios' ? 'inline' : 'default'}
+          display={Platform.OS === 'ios' ? 'compact' : 'default'}
           onChange={(event, date) => {
             if (Platform.OS === 'android') setOpen(false)
             if (event.type === 'dismissed') return
@@ -62,12 +62,18 @@ export function DateTimeField({
   )
 }
 
-function formatValue(value: Date, mode: 'date' | 'datetime'): string {
+function formatValue(value: Date, mode: 'date' | 'time' | 'datetime'): string {
   if (mode === 'date') {
     return new Intl.DateTimeFormat('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
+    }).format(value)
+  }
+  if (mode === 'time') {
+    return new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
     }).format(value)
   }
   return new Intl.DateTimeFormat('en-US', {
