@@ -1,56 +1,32 @@
-import { Tabs, useRouter } from 'expo-router'
-import { Pressable, StyleSheet, Text } from 'react-native'
+import { Slot } from 'expo-router'
+import { StyleSheet, View } from 'react-native'
 
+import { AppHeader } from '@/components/AppHeader'
+import { FloatingTabBar } from '@/components/FloatingTabBar'
 import { useTheme } from '@/theme/tokens'
 
 /**
- * Five primary destinations, Calendar first and default (`index`). The
- * persistent header carries the identity mark plus the Notifications and
- * Settings actions; the reference visual system (Heroicons, floating bar) is
- * implemented in Task 8 — this is the navigational skeleton.
+ * Five primary destinations, Calendar first and default (`index`). Renders
+ * the persistent header and floating tab bar as chrome around whichever route
+ * is active — a custom layout (not expo-router's built-in `<Tabs>` bar)
+ * because the design reference's floating pill and title-less header don't
+ * map onto the native tab bar's header/label conventions.
  */
 export default function TabsLayout() {
   const { tokens } = useTheme()
-  const router = useRouter()
 
   return (
-    <Tabs
-      screenOptions={{
-        headerStyle: { backgroundColor: tokens.canvas },
-        headerTitleStyle: { color: tokens.ink },
-        headerTintColor: tokens.ink,
-        tabBarActiveTintColor: tokens.accent,
-        tabBarInactiveTintColor: tokens.tabInactive,
-        tabBarStyle: {
-          backgroundColor: tokens.card,
-          borderTopColor: tokens.border,
-        },
-        headerLeft: () => <Text style={styles.mark}>🐰🐧</Text>,
-        headerRight: () => (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Settings"
-            onPress={() => router.push('/settings')}
-            style={styles.headerAction}
-          >
-            <Text style={[styles.headerActionText, { color: tokens.ink }]}>
-              ⚙
-            </Text>
-          </Pressable>
-        ),
-      }}
-    >
-      <Tabs.Screen name="index" options={{ title: 'Calendar' }} />
-      <Tabs.Screen name="groceries" options={{ title: 'Groceries' }} />
-      <Tabs.Screen name="ledger" options={{ title: 'Ledger' }} />
-      <Tabs.Screen name="notes" options={{ title: 'Notes' }} />
-      <Tabs.Screen name="trips" options={{ title: 'Trips' }} />
-    </Tabs>
+    <View style={[styles.root, { backgroundColor: tokens.canvas }]}>
+      <AppHeader />
+      <View style={styles.content}>
+        <Slot />
+      </View>
+      <FloatingTabBar />
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
-  mark: { fontSize: 18, marginLeft: 16 },
-  headerAction: { paddingHorizontal: 16, paddingVertical: 4 },
-  headerActionText: { fontSize: 20 },
+  root: { flex: 1 },
+  content: { flex: 1 },
 })

@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createClient } from '@supabase/supabase-js'
 
 import { supabaseAnonKey, supabaseUrl } from './env'
+import type { Database } from '@/types/database'
 
 /**
  * Native Supabase client.
@@ -16,7 +17,7 @@ import { supabaseAnonKey, supabaseUrl } from './env'
  * a backgrounded app does not burn refreshes, matching Supabase's documented
  * React Native pattern.
  */
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: AsyncStorage,
     autoRefreshToken: true,

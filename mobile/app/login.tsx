@@ -63,7 +63,7 @@ export default function LoginScreen() {
           accessibilityLabel="Continue with Google"
           disabled={busy}
           onPress={() => onProvider('google')}
-          style={[styles.provider, { borderColor: tokens.border }]}
+          style={[styles.provider, { borderColor: tokens.line }]}
         >
           <Text style={[styles.providerText, { color: tokens.ink }]}>
             Continue with Google
@@ -75,7 +75,7 @@ export default function LoginScreen() {
           accessibilityLabel="Continue with Apple"
           disabled={busy}
           onPress={() => onProvider('apple')}
-          style={[styles.provider, { borderColor: tokens.border }]}
+          style={[styles.provider, { borderColor: tokens.line }]}
         >
           <Text style={[styles.providerText, { color: tokens.ink }]}>
             Continue with Apple
@@ -84,13 +84,13 @@ export default function LoginScreen() {
 
         {testAuthEnabled ? (
           <View style={styles.testBlock}>
-            <Text style={[styles.testLabel, { color: tokens.mutedInk }]}>
+            <Text style={[styles.testLabel, { color: tokens.muted }]}>
               Local test sign-in
             </Text>
             <TextInput
               accessibilityLabel="Email"
               placeholder="email"
-              placeholderTextColor={tokens.tabInactive}
+              placeholderTextColor={tokens.muted3}
               autoCapitalize="none"
               autoComplete="email"
               keyboardType="email-address"
@@ -98,19 +98,19 @@ export default function LoginScreen() {
               onChangeText={setEmail}
               style={[
                 styles.input,
-                { borderColor: tokens.border, color: tokens.ink },
+                { borderColor: tokens.line, color: tokens.ink },
               ]}
             />
             <TextInput
               accessibilityLabel="Password"
               placeholder="password"
-              placeholderTextColor={tokens.tabInactive}
+              placeholderTextColor={tokens.muted3}
               secureTextEntry
               value={password}
               onChangeText={setPassword}
               style={[
                 styles.input,
-                { borderColor: tokens.border, color: tokens.ink },
+                { borderColor: tokens.line, color: tokens.ink },
               ]}
             />
             <Pressable
@@ -120,7 +120,7 @@ export default function LoginScreen() {
               onPress={onPassword}
               style={[styles.primary, { backgroundColor: tokens.accent }]}
             >
-              <Text style={[styles.primaryText, { color: tokens.accentInk }]}>
+              <Text style={[styles.primaryText, { color: tokens.accentContrast }]}>
                 Sign in
               </Text>
             </Pressable>

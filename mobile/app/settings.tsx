@@ -14,7 +14,7 @@ export default function SettingsScreen() {
     <SafeAreaView style={[styles.safe, { backgroundColor: tokens.canvas }]}>
       <Stack.Screen options={{ headerShown: true, title: 'Settings' }} />
       <View style={styles.body}>
-        <Text style={[styles.label, { color: tokens.mutedInk }]}>
+        <Text style={[styles.label, { color: tokens.muted }]}>
           Signed in as
         </Text>
         <Text style={[styles.value, { color: tokens.ink }]}>
@@ -25,7 +25,7 @@ export default function SettingsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Sign out"
           onPress={() => void supabase.auth.signOut()}
-          style={[styles.signOut, { borderColor: tokens.border }]}
+          style={[styles.signOut, { borderColor: tokens.line }]}
         >
           <Text style={[styles.signOutText, { color: tokens.accent }]}>
             Sign out

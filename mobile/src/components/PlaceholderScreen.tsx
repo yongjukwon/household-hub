@@ -25,7 +25,7 @@ export function PlaceholderScreen({
         >
           {title}
         </Text>
-        <Text style={[styles.subtitle, { color: tokens.mutedInk }]}>
+        <Text style={[styles.subtitle, { color: tokens.muted }]}>
           {subtitle ?? 'Coming soon.'}
         </Text>
       </View>

@@ -15,6 +15,7 @@ import { AppState, type AppStateStatus } from 'react-native'
 import { isOnline, onReconnect } from '@/lib/net'
 import { supabase } from '@/lib/supabase'
 import { newUuid } from '@/lib/uuid'
+import type { Json } from '@/types/database'
 import { getDeviceId, nextLocalSequence } from './device'
 import { getOperationStore } from './store'
 import type { DiscardedOperation, QueuedOperation } from './types'
@@ -227,8 +228,9 @@ async function applyCommand(
   command: OperationCommand,
 ): Promise<OperationResult> {
   const { data, error } = await supabase.rpc('apply_household_operation', {
-    // The command is JSON by construction; the RPC parameter is an open jsonb.
-    command: command as unknown as never,
+    // The command is JSON by construction; `payload` is only typed as an open
+    // record, which the generated Json type cannot prove.
+    command: command as unknown as Json,
   })
 
   if (error)
