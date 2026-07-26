@@ -76,7 +76,21 @@ export default function StatementMonthScreen() {
   if (!year || !query.data || !monthRow) {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: tokens.canvas }]}>
-        <EmptyState title="Statement not found" />
+        <EmptyState
+          title="Statement not found"
+          hint="This year may have been removed, or the link is out of date."
+          action={
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.replace('/ledger')}
+              style={[styles.notFoundButton, { backgroundColor: tokens.accent, borderRadius: tokens.radiusControl }]}
+            >
+              <Text style={[styles.notFoundButtonText, { color: tokens.accentContrast }]}>
+                Back to Ledger
+              </Text>
+            </Pressable>
+          }
+        />
       </SafeAreaView>
     )
   }
@@ -373,4 +387,6 @@ const styles = StyleSheet.create({
   categoryAmount: { fontSize: 12 },
   progressTrack: { height: 6, borderRadius: 3, marginTop: 8, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 3 },
+  notFoundButton: { paddingHorizontal: 16, paddingVertical: 10, alignItems: 'center' },
+  notFoundButtonText: { fontSize: 14, fontWeight: '700' },
 })

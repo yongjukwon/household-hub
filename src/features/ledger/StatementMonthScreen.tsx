@@ -70,7 +70,18 @@ export function StatementMonthScreen() {
   if (!year || !query.data || !monthRow) {
     return (
       <Screen title="Ledger">
-        <EmptyState title="Statement not found" />
+        <EmptyState
+          title="Statement not found"
+          hint="This year may have been removed, or the link is out of date."
+          action={
+            <Link
+              to="/ledger"
+              className="inline-flex items-center gap-1 rounded-[var(--hh-radius-control)] bg-[var(--hh-accent)] px-4 py-2 text-sm font-semibold text-white"
+            >
+              Back to Ledger
+            </Link>
+          }
+        />
       </Screen>
     )
   }

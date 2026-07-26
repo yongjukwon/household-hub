@@ -127,4 +127,17 @@ describe('StatementMonthScreen', () => {
     expect(screen.getByText('Market')).toBeInTheDocument()
     expect(screen.getAllByText('$233.00').length).toBeGreaterThan(0)
   })
+
+  it('offers a way back to the Ledger from the Statement-not-found state', () => {
+    render(
+      <MemoryRouter initialEntries={['/ledger/does-not-exist']}>
+        <Routes>
+          <Route path="/ledger/:yearId" element={<StatementMonthScreen />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(screen.getByText('Statement not found')).toBeInTheDocument()
+    const backLink = screen.getByRole('link', { name: 'Back to Ledger' })
+    expect(backLink).toHaveAttribute('href', '/ledger')
+  })
 })
