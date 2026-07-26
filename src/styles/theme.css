@@ -9,9 +9,9 @@
  * data-appearance="light" always stays light.
  */
 :root {
-  --hh-canvas: #eff0f2;
-  --hh-surface: #ffffff;
-  --hh-surface-2: #f6f7f9;
+  --hh-canvas: #ffffff;
+  --hh-surface: #f6f7f9;
+  --hh-surface-2: #eff0f2;
   --hh-ink: #14151a;
   --hh-muted: rgba(20, 21, 26, 0.5);
   --hh-muted-2: rgba(20, 21, 26, 0.45);
@@ -48,14 +48,14 @@
 /* Dark tokens: shared by system-dark (no explicit choice) and forced dark. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-appearance='light']) {
-    --hh-canvas: #101116;
-    --hh-surface: #1b1d24;
-    --hh-surface-2: #22242c;
+    --hh-canvas: #0f1014;
+    --hh-surface: #191b22;
+    --hh-surface-2: #242731;
     --hh-ink: #f4f5f8;
     --hh-muted: rgba(244, 245, 248, 0.55);
     --hh-muted-2: rgba(244, 245, 248, 0.48);
     --hh-muted-3: rgba(244, 245, 248, 0.4);
-    --hh-line: rgba(244, 245, 248, 0.1);
+    --hh-line: rgba(255, 255, 255, 0.09);
     --hh-accent: #ff7a45;
     --hh-accent-contrast: #14151a;
     --hh-accent-soft: rgba(255, 122, 69, 0.22);
@@ -74,17 +74,17 @@
 }
 
 [data-appearance='dark'] {
-  --hh-canvas: #101116;
-  --hh-surface: #1b1d24;
-  --hh-surface-2: #22242c;
+  --hh-canvas: #0f1014;
+  --hh-surface: #191b22;
+  --hh-surface-2: #242731;
   --hh-ink: #f4f5f8;
   --hh-muted: rgba(244, 245, 248, 0.55);
   --hh-muted-2: rgba(244, 245, 248, 0.48);
   --hh-muted-3: rgba(244, 245, 248, 0.4);
-  --hh-line: rgba(244, 245, 248, 0.1);
+  --hh-line: rgba(255, 255, 255, 0.09);
   --hh-accent: #ff7a45;
   --hh-accent-contrast: #14151a;
-    --hh-accent-soft: rgba(255, 122, 69, 0.22);
+  --hh-accent-soft: rgba(255, 122, 69, 0.22);
   --hh-danger: #ef6f83;
 
   --hh-blue-bg: rgba(90, 115, 232, 0.2);

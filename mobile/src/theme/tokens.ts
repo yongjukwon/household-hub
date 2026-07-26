@@ -65,9 +65,9 @@ function shadow(opacity: number, radius: number, elevation: number): ShadowStyle
 }
 
 export const lightTokens: ThemeTokens = {
-  canvas: '#EFF0F2',
-  card: '#FFFFFF',
-  cardAlt: '#F6F7F9',
+  canvas: '#FFFFFF',
+  card: '#F6F7F9',
+  cardAlt: '#EFF0F2',
   ink: '#14151A',
   muted: 'rgba(20, 21, 26, 0.5)',
   muted2: 'rgba(20, 21, 26, 0.45)',
@@ -98,14 +98,14 @@ export const lightTokens: ThemeTokens = {
 }
 
 export const darkTokens: ThemeTokens = {
-  canvas: '#101116',
-  card: '#1B1D24',
-  cardAlt: '#22242C',
+  canvas: '#0F1014',
+  card: '#191B22',
+  cardAlt: '#242731',
   ink: '#F4F5F8',
   muted: 'rgba(244, 245, 248, 0.55)',
   muted2: 'rgba(244, 245, 248, 0.48)',
   muted3: 'rgba(244, 245, 248, 0.4)',
-  line: 'rgba(244, 245, 248, 0.1)',
+  line: 'rgba(255, 255, 255, 0.09)',
   accent: '#FF7A45',
   accentContrast: '#14151A',
   accentSoft: 'rgba(255, 122, 69, 0.22)',
