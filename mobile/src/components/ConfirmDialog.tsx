@@ -7,6 +7,7 @@ interface ConfirmDialogProps {
   onOpenChange: (open: boolean) => void
   title: string
   description: string
+  error?: string | null
   confirmLabel: string
   onConfirm: () => void
   /** Prevents repeat submission while the owning async action is in flight. */
@@ -22,6 +23,7 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
+  error = null,
   confirmLabel,
   onConfirm,
   confirmDisabled = false,
@@ -53,6 +55,9 @@ export function ConfirmDialog({
           <Text style={[styles.description, { color: tokens.muted }]}>
             {description}
           </Text>
+          {error ? (
+            <Text style={[styles.error, { color: tokens.danger }]}>{error}</Text>
+          ) : null}
           <View style={styles.actions}>
             <Pressable
               accessibilityRole="button"
@@ -96,6 +101,7 @@ const styles = StyleSheet.create({
   card: { width: '100%', maxWidth: 340, padding: 20 },
   title: { fontSize: 16, fontWeight: '800', marginBottom: 6 },
   description: { fontSize: 13.5, lineHeight: 19 },
+  error: { fontSize: 13, lineHeight: 18, marginTop: 10 },
   actions: { flexDirection: 'row', gap: 10, marginTop: 18 },
   button: {
     flex: 1,

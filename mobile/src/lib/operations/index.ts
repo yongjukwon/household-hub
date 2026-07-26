@@ -1,5 +1,5 @@
 export { explainDiscard, type DiscardExplanation } from './explain'
-export { operationOutcomeError } from './outcome'
+export { operationOutcomeError, operationThrownError } from './outcome'
 export { useHouseholdRealtime } from './realtime'
 export {
   getDeviceId,

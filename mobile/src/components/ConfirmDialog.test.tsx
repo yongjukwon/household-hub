@@ -20,4 +20,22 @@ describe('ConfirmDialog', () => {
     await fireEvent.press(screen.getByText('Delete'))
     expect(onConfirm).not.toHaveBeenCalled()
   })
+
+  it('keeps a failed destructive action visible in the confirmation dialog', async () => {
+    await render(
+      <ConfirmDialog
+        open
+        onOpenChange={jest.fn()}
+        title="Delete London?"
+        description="This permanently removes the trip."
+        error="This item is out of date. Refresh it and try again."
+        confirmLabel="Delete"
+        onConfirm={jest.fn()}
+      />,
+    )
+
+    expect(
+      screen.getByText('This item is out of date. Refresh it and try again.'),
+    ).toBeOnTheScreen()
+  })
 })

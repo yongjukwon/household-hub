@@ -9,3 +9,20 @@ export function operationOutcomeError(outcome: EnqueueOutcome): string | null {
     ? outcome.discarded.explanation
     : null
 }
+
+/** Converts a thrown local/transport failure into text a form can safely show. */
+export function operationThrownError(
+  error: unknown,
+  fallback: string,
+): string {
+  if (!(error instanceof Error) || error.message.trim().length === 0) {
+    return fallback
+  }
+  if (
+    error.message.includes('baseRevision must be a revision') ||
+    error.message.includes('revision must be a revision')
+  ) {
+    return 'This item is out of date. Refresh it and try again.'
+  }
+  return error.message
+}
