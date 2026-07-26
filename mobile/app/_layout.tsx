@@ -6,10 +6,14 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import { AuthProvider } from '@/lib/auth/AuthContext'
 import { useAuthGate, useSupabaseAutoRefresh } from '@/lib/auth/gate'
+import { useOAuthDeepLinks } from '@/lib/auth/useOAuthDeepLinks'
+import { useOperationSync } from '@/lib/operations/useOperationSync'
 import { createQueryClient } from '@/lib/query'
 
 function RootNavigator() {
   useSupabaseAutoRefresh()
+  useOAuthDeepLinks()
+  useOperationSync()
   useAuthGate()
 
   return (
