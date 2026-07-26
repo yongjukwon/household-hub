@@ -61,6 +61,8 @@ export const CogIcon = outline([
 
 export const ChevronLeftIcon = outline(['M15.75 19.5 8.25 12l7.5-7.5'])
 export const ChevronRightIcon = outline(['m8.25 4.5 7.5 7.5-7.5 7.5'])
+export const ChevronDownIcon = outline(['m19.5 8.25-7.5 7.5-7.5-7.5'])
+export const ArrowRightIcon = outline(['M17.25 8.25 21 12m0 0-3.75 3.75M21 12H3'])
 export const PlusIcon = outline(['M12 4.5v15m7.5-7.5h-15'])
 export const XIcon = outline(['M6 18 18 6M6 6l12 12'])
 export const CheckIcon = outline(['m4.5 12.75 6 6 9-13.5'])
