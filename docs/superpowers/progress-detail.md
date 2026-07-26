@@ -1785,3 +1785,98 @@ Physical-device confirmation remains for Task 9: relaunch once so the query
 cache rebuilds, then confirm Statement/Trip deletion, accepted form closure,
 and rejected form error retention. No database schema, server operation,
 web behavior, deployment, authentication session, or production data changed.
+
+## Native list, Statement deletion, and Trip-date correction (2026-07-26)
+
+Design:
+`docs/superpowers/specs/2026-07-26-native-list-deletion-trip-dates-design.md`
+
+Execution plan:
+`docs/superpowers/plans/2026-07-26-native-list-deletion-trip-dates.md`
+
+### Statement deletion
+
+The server's typed-year clear behavior was already correct and covered by
+database tests. The remaining native failure was the client projection:
+`clearYear()` stored its payload as optimistic entity data, so the generic
+overlay treated the clear as an update and kept the Statement visible while
+the durable command was queued.
+
+The mutation now uses `optimistic: null`, matching every other destructive
+command. The overlay also recognizes `ledger.year.clear` itself as
+destructive, so clear operations persisted by older builds are repaired
+without deleting or rewriting the SQLite queue. Typed-year confirmation,
+strict revision validation, conflict restoration, Asset-posting reversal, and
+Trip-expense detachment remain unchanged.
+
+Test-first evidence:
+
+- the mutation-contract test failed with the old non-null optimistic payload;
+- the compatibility test failed because a legacy queued clear retained the
+  year;
+- both passed after the focused mutation and overlay correction.
+
+### Shared list-card radius
+
+Added a `ListCard` surface using `tokens.radiusControl` (14 points), the same
+outer radius as Ledger's Statements/Assets segmented bar. `DetailListRow`
+delegates its surface to this component.
+
+Migrated tappable list cards for:
+
+- Calendar selected-date events and Notifications;
+- Grocery lists and Grocery items;
+- Statement years, Budget categories and transactions;
+- Assets, one-off transfers, and recurring-transfer schedules;
+- Notes;
+- Trips, itinerary entries, bookings, checklist entries, and expenses.
+
+Calendar month cards, Ledger summaries/charts, Budget metrics, Trip currency
+totals, forms, modals, and state cards retain `tokens.radiusCard` (20 points).
+Navigation, checkboxes, report controls, and trash actions retain their
+independent interaction targets.
+
+### One-calendar Trip date range
+
+Replaced the side-by-side Start and End controls with one full-width
+`Trip dates` field. Tapping it opens a dependency-free page-sheet calendar
+with month navigation.
+
+Behavior:
+
+- new Trips start today and end tomorrow;
+- editing begins with the saved range;
+- the first tap starts a new draft range;
+- the second same-day or later tap completes the range;
+- an earlier second tap restarts Start;
+- ranges can cross months and years;
+- Start/End receive endpoint circles and included dates receive a range tint;
+- Cancel discards the draft;
+- Done is disabled until both endpoints exist and then commits both dates;
+- Trip keys remain local civil `YYYY-MM-DD` strings without UTC conversion.
+
+Pure helpers own civil-date incrementing, selection transitions, formatting,
+and month extraction. The field owns modal/draft behavior, and `TripSheet`
+owns committed values and operation submission.
+
+### Verification
+
+| Gate | Result |
+| --- | --- |
+| Native focused Statement tests | 2 suites, 15 tests, pass |
+| Native focused list tests | 5 suites, 5 tests, pass |
+| Native focused Trip tests | 5 suites, 13 tests, pass |
+| Native full Jest | 47 suites, 160 tests, pass |
+| Native TypeScript | Pass |
+| Repository ESLint | Pass |
+| Web production PWA build | Pass |
+| Scoped diff check | Pass |
+
+The web build retains its existing large-chunk warning. Native Jest retains
+the two existing non-failing React `act()` warnings in authentication-gate
+tests; new suites add no warnings.
+
+Physical-device acceptance remains in Task 9: verify the 14-point list
+geometry, online/offline Statement deletion, and the Trip page-sheet calendar
+on iPhone. No database schema, server operation, web feature, authentication,
+deployment, or production data changed.

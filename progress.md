@@ -83,6 +83,19 @@ A native operation/form reliability pass was completed on 2026-07-26:
   screens because those entities already use confirmed trash actions in their
   root lists.
 
+A native list, Statement deletion, and Trip-date correction was completed on
+2026-07-26:
+
+- every tappable list card now uses the same 14-point radius as Ledger's
+  Statements/Assets segmented bar; summary, chart, form, and modal cards retain
+  their 20-point radius;
+- Statement clear commands are projected as deletions, and the optimistic
+  overlay also repairs incorrectly shaped clear commands already persisted by
+  older builds;
+- new Trips default from today through tomorrow and use one modal calendar for
+  Start/End selection, including same-day and cross-month ranges, draft
+  cancellation, and explicit Done confirmation.
+
 Design and execution notes:
 
 - `docs/superpowers/specs/2026-07-26-native-ui-correction-design.md`
@@ -93,6 +106,8 @@ Design and execution notes:
 - `docs/superpowers/plans/2026-07-26-native-header-spacing-refinement.md`
 - `docs/superpowers/specs/2026-07-26-native-operation-form-reliability-design.md`
 - `docs/superpowers/plans/2026-07-26-native-operation-form-reliability.md`
+- `docs/superpowers/specs/2026-07-26-native-list-deletion-trip-dates-design.md`
+- `docs/superpowers/plans/2026-07-26-native-list-deletion-trip-dates.md`
 
 | Work | Status |
 | --- | --- |
@@ -104,6 +119,7 @@ Design and execution notes:
 | Native UI consistency pass | Complete and verified; device review pending (2026-07-26) |
 | Header and spacing refinement | Complete and verified; device review pending (2026-07-26) |
 | Native operation/form reliability | Complete and verified; device review pending (2026-07-26) |
+| Native list/deletion/Trip-date correction | Complete and verified; device review pending (2026-07-26) |
 | Task 9: reset, E2E acceptance, release handoff | Cleared to start |
 
 ## Resume checklist
