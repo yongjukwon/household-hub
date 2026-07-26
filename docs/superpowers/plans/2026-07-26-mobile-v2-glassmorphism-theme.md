@@ -852,7 +852,6 @@ import {
   TAB_BAR_FLOAT_OFFSET,
   TAB_BAR_HEIGHT,
 } from '@/components/FloatingTabBar'
-import { GradientBackground } from '@/components/GradientBackground'
 import { useTheme } from '@/theme/tokens'
 
 /**
@@ -868,7 +867,6 @@ export default function TabsLayout() {
 
   return (
     <View style={styles.root}>
-      <GradientBackground />
       <AppHeader />
       <View
         style={[
@@ -889,9 +887,14 @@ const styles = StyleSheet.create({
 })
 ```
 
-Note: `GradientBackground` doesn't exist until Task 9 — this task's typecheck will fail until then. That's expected; Tasks 6–9 are sequential parts of one visual change and Task 9 completes this file's dependency. (If executing tasks out of order, stub `GradientBackground` as an empty `View` temporarily, then remove the stub in Task 9.)
+Note: this task does not yet add the gradient background itself (Task 9 owns creating `GradientBackground` and mounting it in all 4 native screens, this file included) — it only adds the padding so Task 9's background isn't hidden underneath the tab bar once it lands.
 
-- [ ] **Step 2: Commit**
+- [ ] **Step 2: Typecheck**
+
+Run: `npm run typecheck`
+Expected: no errors — this file has no dependency on anything from a later task.
+
+- [ ] **Step 3: Commit**
 
 ```bash
 git add app/\(tabs\)/_layout.tsx
@@ -1017,16 +1020,16 @@ git commit -m "feat(mobile): sage gradient FAB, repositioned above the floating 
 
 **Files:**
 - Create: `mobile/src/components/GradientBackground.tsx`
+- Modify: `mobile/app/(tabs)/_layout.tsx`
 - Modify: `mobile/app/login.tsx`
 - Modify: `mobile/app/settings.tsx`
 - Modify: `mobile/app/notifications.tsx`
-- (`app/(tabs)/_layout.tsx` already references this component from Task 7)
 
 **Interfaces:**
 - Consumes: `tokens.gradientColors`, `tokens.glow` (Task 2).
 - Produces: `GradientBackground` — a self-contained, absolute-fill component with no props, safe to mount as the first child of any screen's root.
 
-`login`, `settings`, and `notifications` are each their own top-level `Stack.Screen` (see `app/_layout.tsx`'s `RootNavigator`, `settings`/`notifications` use `presentation: 'card'`) — i.e., separate native screens, not React siblings of `(tabs)`. A background mounted once at the app root would not composite behind them, so `GradientBackground` must be mounted inside each of the 4 independently-navigated screens: `(tabs)/_layout.tsx` (done in Task 7 — covers all 5 tabs and their nested detail routes, since those share one `Slot`), `login.tsx`, `settings.tsx`, `notifications.tsx`.
+`login`, `settings`, and `notifications` are each their own top-level `Stack.Screen` (see `app/_layout.tsx`'s `RootNavigator`, `settings`/`notifications` use `presentation: 'card'`) — i.e., separate native screens, not React siblings of `(tabs)`. A background mounted once at the app root would not composite behind them, so `GradientBackground` must be mounted inside each of the 4 independently-navigated screens: `(tabs)/_layout.tsx` (covers all 5 tabs and their nested detail routes, since those share one `Slot`), `login.tsx`, `settings.tsx`, `notifications.tsx`.
 
 - [ ] **Step 1: Create the component**
 
@@ -1074,9 +1077,23 @@ export function GradientBackground() {
 }
 ```
 
-- [ ] **Step 2: Mount in `login.tsx`, `settings.tsx`, `notifications.tsx`**
+- [ ] **Step 2: Mount in `(tabs)/_layout.tsx`, `login.tsx`, `settings.tsx`, `notifications.tsx`**
 
-In each of these 3 files, add the import:
+In `mobile/app/(tabs)/_layout.tsx` (last edited in Task 7), add the import:
+
+```ts
+import { GradientBackground } from '@/components/GradientBackground'
+```
+
+and render `<GradientBackground />` as the first child of the root `View`, immediately before `<AppHeader />`:
+
+```tsx
+    <View style={styles.root}>
+      <GradientBackground />
+      <AppHeader />
+```
+
+In each of `login.tsx`, `settings.tsx`, `notifications.tsx`, add the same import:
 
 ```ts
 import { GradientBackground } from '@/components/GradientBackground'
@@ -1095,7 +1112,7 @@ Apply the same pattern (add the import, add `<GradientBackground />` as the firs
 - [ ] **Step 3: Typecheck**
 
 Run: `npm run typecheck`
-Expected: no errors — `(tabs)/_layout.tsx` (Task 7) now resolves its `GradientBackground` import correctly too.
+Expected: no errors.
 
 - [ ] **Step 4: Manually verify in the simulator**
 
@@ -1104,7 +1121,7 @@ Reload the app (still the Task 1 build). Confirm: Schedule/Groceries/Ledger/Note
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/components/GradientBackground.tsx app/login.tsx app/settings.tsx app/notifications.tsx
+git add src/components/GradientBackground.tsx app/\(tabs\)/_layout.tsx app/login.tsx app/settings.tsx app/notifications.tsx
 git commit -m "feat(mobile): add gradient+glow background, mount on all 4 native screens"
 ```
 
@@ -1125,7 +1142,7 @@ git commit -m "feat(mobile): add gradient+glow background, mount on all 4 native
 - Modify: `mobile/app/(tabs)/trips/[tripId].tsx:95`
 
 **Interfaces:**
-- Consumes: `GradientBackground` mounted in `(tabs)/_layout.tsx` (Task 7) — these screens sit inside that same `Slot`, so they only need to stop painting an opaque background over it.
+- Consumes: `GradientBackground` mounted in `(tabs)/_layout.tsx` (Task 9) — these screens sit inside that same `Slot`, so they only need to stop painting an opaque background over it.
 
 Every line below is the same one-line change: `backgroundColor: tokens.canvas` → `backgroundColor: 'transparent'` inside a `SafeAreaView`'s style array. Do **not** touch `src/features/trips/TripDateRangeField.tsx:127` (a modal popover that should stay opaque) or `src/features/ledger/BudgetMonthSelector.tsx:119` (uses `tokens.canvas` as a text color, not a background — leave untouched).
 
