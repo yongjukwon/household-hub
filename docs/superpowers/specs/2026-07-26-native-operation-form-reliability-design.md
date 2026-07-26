@@ -46,4 +46,3 @@ Confirmation dialogs accept an optional error message so failed destructive acti
 - Unit-test user-facing operation error normalization and confirmation-dialog error rendering.
 - Component-test that the duplicate Grocery and Note Delete text controls are absent while authoritative trash actions remain.
 - Run focused native tests, complete native Jest, native TypeScript checking, and workspace lint/typecheck where available.
-

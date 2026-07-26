@@ -49,4 +49,3 @@ describe('ClearYearSheet operation lifecycle', () => {
     expect(onOpenChange).not.toHaveBeenCalledWith(false)
   })
 })
-

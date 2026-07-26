@@ -67,4 +67,3 @@ describe('TransferSheet operation lifecycle', () => {
     expect(onOpenChange).not.toHaveBeenCalledWith(false)
   })
 })
-

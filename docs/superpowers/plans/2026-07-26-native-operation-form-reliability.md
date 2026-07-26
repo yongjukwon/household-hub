@@ -185,4 +185,3 @@ Confirm no unrelated reference files are staged and no user data reset was intro
 - [ ] **Step 5: Update progress documentation**
 
 Record the root cause, changed lifecycle contract, files, tests, and any remaining manual device checks.
-
