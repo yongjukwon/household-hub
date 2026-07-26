@@ -15,7 +15,7 @@ export function ListCard({ children, style }: ListCardProps) {
   const radiusStyle = { borderRadius: tokens.radiusControl }
 
   return (
-    <Card style={style ? [radiusStyle, style] : radiusStyle}>
+    <Card variant="row" style={style ? [radiusStyle, style] : radiusStyle}>
       {children}
     </Card>
   )

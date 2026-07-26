@@ -33,3 +33,15 @@ jest.mock('@react-native-community/netinfo', () => ({
     Promise.resolve({ isConnected: true, isInternetReachable: true }),
   ),
 }))
+
+// expo-blur ships a native view; tests just need something renderable.
+jest.mock('expo-blur', () => {
+  // In tests, render BlurView as a named component type so root.type is 'BlurView'.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const React = require('react')
+
+  const BlurView = (props: any) =>
+    React.createElement('BlurView' as any, props, props.children)
+
+  return { BlurView }
+})

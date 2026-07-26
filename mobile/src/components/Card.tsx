@@ -5,25 +5,51 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native'
+import { BlurView } from 'expo-blur'
 
 import { useTheme } from '@/theme/tokens'
 
-/** Surface card: white/dark, rounded, soft-shadowed, per the design reference. */
-export function Card({
-  children,
-  style,
-}: {
+interface CardProps {
   children?: ReactNode
   style?: StyleProp<ViewStyle>
-}) {
-  const { tokens } = useTheme()
+  /**
+   * `glass` (default): frosted, blurred surface for hero/section cards.
+   * `row`: flatter, more opaque, unblurred surface for list rows.
+   */
+  variant?: 'glass' | 'row'
+}
+
+/** Surface card: glass or flat-row treatment, per the v2 design reference. */
+export function Card({ children, style, variant = 'glass' }: CardProps) {
+  const { tokens, scheme } = useTheme()
+
+  if (variant === 'row') {
+    return (
+      <View
+        style={[
+          styles.surface,
+          {
+            backgroundColor: tokens.row.fill,
+            borderColor: tokens.row.border,
+            borderRadius: tokens.radiusCard,
+          },
+          style,
+        ]}
+      >
+        {children}
+      </View>
+    )
+  }
 
   return (
-    <View
+    <BlurView
+      intensity={40}
+      tint={scheme}
       style={[
-        styles.card,
+        styles.surface,
         {
-          backgroundColor: tokens.card,
+          backgroundColor: tokens.glass.fill,
+          borderColor: tokens.glass.border,
           borderRadius: tokens.radiusCard,
         },
         tokens.shadowCard,
@@ -31,10 +57,10 @@ export function Card({
       ]}
     >
       {children}
-    </View>
+    </BlurView>
   )
 }
 
 const styles = StyleSheet.create({
-  card: { padding: 16 },
+  surface: { padding: 16, borderWidth: 1 },
 })
