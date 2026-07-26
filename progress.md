@@ -390,7 +390,21 @@ Sub-checkpoints:
   errors) — this eagerly bundles TenTap's WebView editor HTML/assets, which
   dev Metro's lazy route loading would not otherwise exercise.
 
-Next: 8E (Trips), 8F (Settings + Notifications), then 8G final verification.
+- **8E — Trips tab (done, `55c7091`).** Converted `trips.tsx` to a folder
+  route. Ported `data.ts`/`mutations.ts`/`forms.ts` verbatim. `TripsScreen`:
+  list + create sheet. `[tripId]`: header card with inline `EditableTitle`
+  rename, Itinerary/Bookings/Checklist/Expenses `SegmentedControl`
+  (Itinerary/Bookings/Checklist show an honest "coming soon" — the
+  mobile-first schema only defines `trip.*`/`trip.expense.*` operations,
+  matching web's same scope note), and a fully functional Expenses tab
+  (per-currency totals never converted/combined, expense list, `ExpenseSheet`
+  with destination-or-CAD currency choice and a Paid-from Asset picker
+  filtered to matching currency, deep-linking to Ledger/Assets when none
+  exists). **Verification:** 93 tests / 18 suites, tsc clean; no new native
+  modules, verified via clean JS-reload boot + production `expo export`
+  (1738 modules, up from 1732 at 8D, zero errors).
+
+Next: 8F (Settings + Notifications), then 8G final verification.
 
 ## Environment, constraints & risks (condensed)
 
