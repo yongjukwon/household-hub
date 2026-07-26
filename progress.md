@@ -96,6 +96,16 @@ A native list, Statement deletion, and Trip-date correction was completed on
   Start/End selection, including same-day and cross-month ranges, draft
   cancellation, and explicit Done confirmation.
 
+A web/native tonal-surface refinement was completed on 2026-07-26:
+
+- light mode now uses a white canvas, light-gray primary cards, and a slightly
+  deeper gray for controls and secondary surfaces;
+- dark mode uses the same three-step hierarchy over a near-black canvas;
+- web and native share the same semantic values, while the orange accent,
+  colored Budget summaries, typography, layout, radii, and shadows remain
+  unchanged;
+- a token-contract regression test protects the approved hierarchy.
+
 Design and execution notes:
 
 - `docs/superpowers/specs/2026-07-26-native-ui-correction-design.md`
@@ -108,6 +118,8 @@ Design and execution notes:
 - `docs/superpowers/plans/2026-07-26-native-operation-form-reliability.md`
 - `docs/superpowers/specs/2026-07-26-native-list-deletion-trip-dates-design.md`
 - `docs/superpowers/plans/2026-07-26-native-list-deletion-trip-dates.md`
+- `docs/superpowers/specs/2026-07-26-white-canvas-tonal-surfaces-design.md`
+- `docs/superpowers/plans/2026-07-26-white-canvas-tonal-surfaces.md`
 
 | Work | Status |
 | --- | --- |
@@ -120,6 +132,7 @@ Design and execution notes:
 | Header and spacing refinement | Complete and verified; device review pending (2026-07-26) |
 | Native operation/form reliability | Complete and verified; device review pending (2026-07-26) |
 | Native list/deletion/Trip-date correction | Complete and verified; device review pending (2026-07-26) |
+| Web/native tonal-surface refinement | Complete and verified; visual device review pending (2026-07-26) |
 | Task 9: reset, E2E acceptance, release handoff | Cleared to start |
 
 ## Resume checklist

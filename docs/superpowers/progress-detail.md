@@ -1880,3 +1880,60 @@ Physical-device acceptance remains in Task 9: verify the 14-point list
 geometry, online/offline Statement deletion, and the Trip page-sheet calendar
 on iPhone. No database schema, server operation, web feature, authentication,
 deployment, or production data changed.
+
+## Web/native tonal-surface refinement (2026-07-26)
+
+Design:
+`docs/superpowers/specs/2026-07-26-white-canvas-tonal-surfaces-design.md`
+
+Execution plan:
+`docs/superpowers/plans/2026-07-26-white-canvas-tonal-surfaces.md`
+
+### Shared semantic hierarchy
+
+The existing web and native clients already consumed the same three semantic
+surface levels, so the refinement required no screen-specific layout changes.
+The shared hierarchy is now:
+
+| Level | Light | Dark |
+| --- | --- | --- |
+| Canvas | `#FFFFFF` | `#0F1014` |
+| Primary card/surface | `#F6F7F9` | `#191B22` |
+| Secondary/control surface | `#EFF0F2` | `#242731` |
+| Primary text | `#14151A` | `#F4F5F8` |
+| Divider | `rgba(20, 21, 26, 0.08)` | `rgba(255, 255, 255, 0.09)` |
+| Accent | `#FF7A45` | `#FF7A45` |
+
+Native `lightTokens`/`darkTokens` and the web `--hh-*` variables use the same
+values. Both system-selected dark mode and explicitly selected dark mode were
+updated on web.
+
+Typography, spacing, radii, shadows, iconography, selected states, the chart
+palette, and colored Budget summary surfaces are unchanged. No screen APIs,
+domain behavior, storage, operations, authentication, deployment, or data
+were changed.
+
+### Test-first evidence
+
+- The new token-contract suite failed first against the previous gray canvas,
+  white card, and older dark values.
+- It passed after the native and web semantic tokens were updated.
+- The contract also proves that Canvas, primary surface, and
+  secondary/control surface remain three distinct levels in each appearance.
+
+### Verification
+
+| Gate | Result |
+| --- | --- |
+| Native theme contract | 1 suite, 2 tests, pass |
+| Native full Jest | 48 suites, 162 tests, pass |
+| Web full Vitest | 71 files, 405 tests, pass |
+| Native TypeScript | Pass |
+| Repository ESLint | Pass |
+| Web production PWA build | Pass |
+| Scoped diff check | Pass |
+
+The web build retains its existing large-chunk warning. Native Jest retains
+the existing non-failing React `act()` warnings in authentication-gate tests.
+Manual visual confirmation in light and dark mode on the iPhone simulator or
+a physical device remains part of Task 9 acceptance.
