@@ -1,533 +1,342 @@
-# Household Hub Mobile-First Implementation Progress
+# Household Hub — Current Progress
 
-**Last updated:** 2026-07-25
+**Last updated:** 2026-07-26
 
 **Canonical continuation file:** `progress.md`
 
-**Implementation branch:** `codex/household-hub-mobile-first`
+**Detailed completed-task archive:** `docs/superpowers/progress-detail.md`
 
-**Implementation worktree:** `/Users/conlegs/dev/household-hub/.worktrees/household-hub-mobile-first`
+**Branch:** `codex/household-hub-mobile-first`
 
-**Latest implementation checkpoint:** Tasks 1–6 and the web parity correction
-pass are complete and user-accepted (web app done). **Task 7 (Expo foundation
-and offline data layer) is complete and user-accepted**, HEAD `a41c92c`. 7A–7E
-done: Expo Router shell + auth gate, Supabase session, SQLite durable operation
-queue + device identity, realtime, deep-link OAuth, Expo Notifications, and a
-verified iOS Metro bundle. **User acceptance evidence:** built and ran the real
-SDK 57 app end-to-end on a local iOS Simulator (iPhone 17, iOS 26.5) via
-`expo run:ios` — signed in with the local test account and navigated the
-five-tab shell. (Expo Go could not be used: its public build only supports SDK
-54, one behind this project's deliberate SDK 57 baseline — see
-`mobile/AGENTS.md`. EAS dev-client / TestFlight on the user's physical iPhone
-is pending Apple Developer Program enrollment, tracked separately.)
-**Task 8 (Expo feature parity and visual implementation) is complete
-(self-review), HEAD `3ca6365`.** 8A–8G done: all five feature tabs (Calendar,
-Groceries, Ledger, Notes with a TenTap editor, Trips) plus a fully real
-Settings screen, built against the same operation contracts as web with the
-design reference's visual system applied throughout. 93 tests pass, tsc clean
-at every commit, every checkpoint bundle-verified via production `expo export`
-(iOS and Android). **Known gap:** interactive tap-through beyond the Calendar
-screen wasn't possible in this environment (no synthetic-tap tooling); the
-user should manually verify the other four tabs + Settings, especially the
-Notes editor and Ledger charts, before approving Task 9.
+**Worktree:** `/Users/conlegs/dev/household-hub/.worktrees/household-hub-mobile-first`
 
-This file is the source of truth for continuing the approved web-first
-Household Hub rebuild. Current Git state and fresh verification results take
-precedence if this file ever becomes stale. Deep per-task history for the
-completed web work lives in `docs/superpowers/progress-detail.md`.
+## Current state
 
-## How to resume safely
+Tasks 1–8 are implemented. The latest Task 7/8 correction completed Trip
+Itinerary/Bookings/Checklist, persisted native queries, optimistic overlays,
+mounted Realtime, Notifications, push lifecycle, secure sessions, local test
+credentials, and EAS development builds.
 
-1. Work from:
+Manual testing on 2026-07-26 found the UI/behavior issues listed below.
+**All of those findings have been implemented and reviewed** (implemented via
+`superpowers:subagent-driven-development`, plan:
+`docs/superpowers/plans/2026-07-26-manual-test-correction-pass.md`; every
+task's diff passed an independent spec-compliance + code-quality review).
+Task 9 is cleared to start per explicit user approval ("move to Task 9 if the
+manual-test findings are all fixed").
+
+| Work | Status |
+| --- | --- |
+| Tasks 1–6: foundation, backend, queue, web shell/features | Complete |
+| Task 7: Expo foundation and offline layer | Complete and accepted |
+| Task 8: native parity plus completion correction | Complete |
+| Manual-test correction pass | Complete and reviewed (2026-07-26) |
+| Task 9: reset, E2E acceptance, release handoff | Cleared to start |
+
+## Resume checklist
+
+1. Work only from:
 
    ```bash
    cd /Users/conlegs/dev/household-hub/.worktrees/household-hub-mobile-first
    ```
 
-2. Read, in order:
+2. Read:
 
    - `progress.md`
    - `docs/superpowers/plans/2026-07-24-household-hub-web-first-native-parity.md`
-     (Task 7 scope)
    - `docs/superpowers/specs/2026-07-24-web-first-household-hub-redesign.md`
-   - `docs/mobile-design-reference/README.md` (+ `Household Hub Mobile.dc.html`)
-     — drives the native UI (Task 8; Task 7 is foundation only)
-   - `CLAUDE.md`
-   - `mobile/AGENTS.md` **before changing any Expo code** — it requires reading
-     the exact versioned Expo SDK 57 docs at
-     `https://docs.expo.dev/versions/v57.0.0/` before writing code
-   - `docs/superpowers/progress-detail.md` — deep per-task history (optional)
+   - `docs/mobile-design-reference/README.md`
+   - `mobile/AGENTS.md` before changing Expo code
+   - `docs/superpowers/progress-detail.md` only when historical implementation
+     detail is needed
 
-3. Reconcile the repository before editing:
+3. Reconcile current code before editing:
 
    ```bash
    git status --short
    git log --oneline -12
    ```
 
-4. Preserve the existing untracked reference/scaffold files unless the active
-   task explicitly brings them into scope:
+   Current code and Git state override documentation if they differ.
+
+4. Preserve the existing reference files:
 
    - `DEPLOYMENT.md`
    - `docs/mobile-design-reference/`
    - `docs/mobile-implementation-handoff.md`
-   - the still-untracked files under `mobile/`
 
-5. **Task 7 is complete and user-accepted; Task 8 is the active task.** Task 8 = Expo
-   feature parity + visual implementation. Build the five tabs, header actions,
-   detail stacks, modal/sheet flows, and design tokens against
-   `docs/mobile-design-reference/` (Heroicons, React Native SVG, TenTap), reusing
-   the shared contracts already wired in Task 7:
+5. Do not implement the findings below until the user explicitly starts the
+   correction pass.
 
-   - Shared domain: `packages/domain/src/` (consumed via `@household-hub/domain`;
-     bundles into the Expo app — verified by `expo export`).
-   - Native durable queue: `mobile/src/lib/operations/` (`enqueueOperation`,
-     `withOptimisticOverlay`, `useHouseholdRealtime`, `explainDiscard`) — same
-     command contract as the web `src/lib/operations/`. Feature mutations should
-     call `enqueueOperation`, not write tables.
-   - Native Supabase client + auth: `mobile/src/lib/supabase.ts`,
-     `mobile/src/lib/auth/`. Session gate + OAuth deep links already work.
-   - `mobile/app/(tabs)/*` currently render `PlaceholderScreen`; replace them.
-   - **Mount `useHouseholdRealtime(householdId)`** once feature reads expose the
-     household id.
+## Next correction pass — manual-test findings (resolved 2026-07-26)
 
-   Native environment variables are `EXPO_PUBLIC_SUPABASE_URL` /
-   `EXPO_PUBLIC_SUPABASE_ANON_KEY` (see `mobile/.env.example`), plus
-   `EXPO_PUBLIC_ENABLE_TEST_AUTH=true` to show the local email/password form;
-   native scheme is `householdhub://`, app id `com.conlegs.householdhub`,
-   portrait phones only. **Run mobile commands from `mobile/`** (not the worktree
-   root — the jest/tsc config lives there); prefix Node with
-   `PATH="/opt/homebrew/bin:$PATH"`. Mobile verification is `npm test` (jest) +
-   `npm run typecheck` + `npx expo export --platform ios` for a bundle check. Use
-   TDD for behavior changes and update `progress.md` at **every sub-checkpoint**.
+All findings below are implemented, tested, and reviewed. Kept verbatim for
+the historical record; see each note for the actual resolution and any
+follow-up still owed.
 
-6. **Deferred cleanup (safe, no behavior impact):** the legacy page-based
-   screens/hooks/components (`src/components/pages|budget|savings|groceries|
-   trips|notes`, `src/hooks/useBudget|useSavings|usePages|useTrip|useGroceries|
-   useCalendar`, `src/routes/PageView|SectionListPage`, and their tests) remain
-   in the tree but are **fully unrouted and unreferenced by the rebuilt web
-   route graph** (verified by grep from `App.tsx` through `features/`, `shell/`,
-   `components/auth/`). The functional retirement requirement is met. Physically
-   deleting that dead code (~15 files + tests) is deferred to its own commit
-   before merge or during Task 9 cleanup.
+### Calendar
 
-## Approved product direction
+1. **Event-dot alignment**
+   - Current: adding the event dot changes/breaks date-number alignment in the
+     month grid.
+   - Required: every date remains aligned consistently whether it has zero,
+     one, or multiple events. The indicator must not change the date cell's
+     layout height or number position.
 
-- Rebuild and validate the web application first. **(Done and accepted.)**
-- Phone web and native follow the supplied mobile design reference.
-- Desktop web keeps a wider left navigation pane with the same behavior.
-- Primary destinations are Calendar, Groceries, Ledger, Notes, and Trips.
-- Calendar is the default destination. There is no Home destination.
-- The header contains the rabbit/penguin identity, Notifications, and Settings.
-- Notes retain multiple named documents.
-- Web, iOS, and Android use one Supabase backend and one shared domain contract.
-- Native targets portrait phones only.
-- Production application data will start empty, but the production reset must
-  not run until a separate release-time approval.
+2. **Move event ownership out of the legend**
+   - Remove the `Yongju / Claire / Shared` legend above the calendar.
+   - Show the owner on each event row in the selected-date event list below the
+     calendar.
+   - Preserve the distinction between Yongju, Claire, and Shared at the event
+     row level.
 
-## Progress summary
+**Resolved:** ported `buildOwnerColors` into `packages/domain` (deterministic
+per-member colors + "You"/name/"Shared" labels); web and mobile event rows now
+show it. Mobile's dot is `position: absolute` so it no longer perturbs the
+date number; the fake hardcoded legend is deleted.
 
-| Task | Status | Completion |
-| --- | --- | --- |
-| 1. Shared foundation and domain contracts | Complete | Review-clean at `ffc3c01` |
-| 2. Supabase schema and operation RPC | Complete | Review-clean at `d1f3e30` |
-| 3. Identity, notifications, jobs, deployment config | Complete | Verified at `24a5b39` (self-review) |
-| 4. Durable web operation queue | Complete | Verified at `f86f4c0` |
-| 5. Responsive web shell and visual system | Complete | Verified at `626c681` |
-| 6. Web feature flows | Complete | 6A–6F done; verified at `eafdce8` |
-| Pre-7. Authenticated local test setup | Complete | Verified at `c5dc6d3`; real two-member Supabase household |
-| Web parity correction pass (1–6) | Complete & accepted | Final handoff at `edd24dd` era |
-| 7. Expo foundation and offline data layer | Complete & accepted | 7A–7E done; user-accepted on a real iOS Simulator build at `a41c92c` |
-| 8. Expo feature parity and visual implementation | Complete (self-review) | 8A–8G done; awaiting user acceptance |
-| 9. Reset procedure, E2E verification, release handoff | Pending | Not started |
+### Groceries
 
-Per-task narratives, sub-checkpoints, and live-evidence logs for Tasks 1–6 and
-the correction pass are archived in `docs/superpowers/progress-detail.md`.
+1. Autocomplete currently works and must be preserved.
+2. Price history is missing and must return.
+3. Show no more than five price-history entries for the Grocery item.
+4. Display the selected entries from cheapest at the top to most expensive at
+   the bottom.
+5. Keep the purchase date visible for each price.
 
-## Task 7 — Expo foundation and offline data layer (complete, user-accepted)
+**Clarification required before implementation:** “last five histories based
+on price” could mean either:
 
-Scope (from the plan): replace the Expo scaffold with Expo Router, shared domain
-package consumption, Supabase session storage, OAuth/deep links, a SQLite query
-cache and durable operation queue, secure device/session identifiers, Realtime
-reconciliation, and Expo Notifications. Configure `householdhub://` callbacks,
-`com.conlegs.householdhub`, portrait-only phones, system appearance, iOS and
-Android development builds, and EAS profiles. Add Jest/React Native Testing
-Library coverage for navigation, queue persistence/replay/conflicts,
-authentication gates, deep links, timezone helpers, and currency presentation.
+- take the five most recent purchases, then sort those five by price; or
+- take the five cheapest purchases from all retained history.
 
-**Starting scaffold state** (`mobile/`, mostly untracked): default Expo SDK 57
-`App.tsx`/`index.ts`; `app.json` + `eas.json` already carry the scheme, bundle
-id, portrait lock, and EAS profiles; `@household-hub/domain` already declared as
-a `file:` dependency; `metro.config.js` uses the default workspace-aware Expo
-config; `.env.example` documents the `EXPO_PUBLIC_*` anon-scoped vars.
+Do not choose silently; confirm the intended candidate set first.
 
-Sub-checkpoints:
+**Resolved:** user confirmed "5 cheapest ever recorded." Investigation found
+this — and autocomplete — was **already fully implemented and tested** on
+both platforms (`cheapestPriceHistory()`, committed 2026-07-25, before this
+manual test), matching the confirmed behavior exactly. No code change; web
+(`groceryData`/`GroceryListScreen` tests) and mobile
+(`groceries/data.test.ts`) suites re-verified passing. A live browser
+click-through was **not** performed (no network egress in the sandbox to
+install a headless browser) — do one manual spot-check before Task 9's
+device testing if you want independent confirmation.
 
-- **7A — Expo Router foundation, auth gate, session wiring (done, `c834135`).**
-  Installed the SDK 57 native module set (expo-router, sqlite, secure-store,
-  notifications, async-storage, netinfo, crypto, auth-session/web-browser,
-  supabase-js, react-query) + a jest-expo/RNTL test harness. `mobile/app/`:
-  root `_layout` (SafeArea + QueryClient + AuthProvider + `<Stack>`), a five-tab
-  group (`(tabs)/` — Calendar `index` default, groceries/ledger/notes/trips),
-  and `login`/`settings`/`notifications` routes; feature screens are
-  `PlaceholderScreen`s until Task 8. `src/lib/supabase.ts` persists the session
-  to AsyncStorage with AppState-driven `startAutoRefresh`/`stopAutoRefresh`.
-  Auth gate = pure `resolveAuthRedirect` (unit-tested) wired through
-  `useAuthGate` (`src/lib/auth/gate.ts`). OAuth = `householdhub://auth/callback`
-  PKCE via expo-web-browser + a pure `parseAuthCallback`; local email/password
-  is gated behind `EXPO_PUBLIC_ENABLE_TEST_AUTH`. **Verification:** `npm test`
-  **12 passed / 4 suites**, `npm run typecheck` clean.
-  - Harness notes for later checkpoints: mobile pins React 19.2.3 (Expo) vs the
-    root web app's 19.2.7, so `jest` `moduleNameMapper` forces a single React
-    copy and `react-test-renderer@19.2.3` matches it. `renderRouter` switches on
-    fake timers and does not reset expo-router's global store between calls, so
-    **one `renderRouter` per test file** (extra route-wiring scenarios get their
-    own file, e.g. `gate.signedIn.test.tsx`); the exhaustive redirect matrix
-    lives in the pure `redirect.test.ts`.
+### Ledger
 
-- **7B/7C — SQLite durable operation queue + device identity (done, `ab2f619`).**
-  Ported the web durable queue onto expo-sqlite behind an `OperationStore`
-  interface (`src/lib/operations/store.ts`): the SQLite impl (`src/lib/db/
-  sqlite.ts`) backs the app; `InMemoryOperationStore` backs the tests, so the
-  FIFO/replay/conflict rules are tested without a native bridge (exactly as the
-  web queue is tested against fake-indexeddb). `queue.ts` keeps the web
-  contract verbatim — durable-first enqueue, FIFO replay that **stops** on a
-  transport failure, applied/duplicate removal, permanent conflict/rejection
-  discards with `explainDiscard` (copied verbatim), optimistic overlay. RN swaps:
-  `navigator.onLine`→`@/lib/net` (NetInfo), `crypto.randomUUID`→`@/lib/uuid`
-  (WebCrypto in tests / expo-crypto on device), window/visibility events→NetInfo
-  + AppState + interval. Secure per-install **device id** in expo-secure-store
-  (`@/lib/secure`); transactional local sequence in the store. Realtime hook
-  (`realtime.ts`) mirrors web. **Verification:** 15 queue/device tests; full
-  suite **27 passed / 6 suites**, tsc clean.
-- **7D — Deep-link OAuth, notifications, sync loop, presentation (done, `edd24dd`).**
-  `useOperationSync` mounts the queue for the app lifetime (hands it the React
-  Query client + starts reconnect/foreground/interval replay); wired into the
-  root `_layout`. `useOAuthDeepLinks` completes the `householdhub://` PKCE flow
-  on cold start (`getInitialURL`) and warm redirect (`addEventListener`), reusing
-  the pure `parseAuthCallback`. `src/lib/notifications.ts` registers for the Expo
-  push token (permission prompt, null on simulator, foreground banner handler).
-  `src/lib/format.ts` adds shared money/timezone presentation over the domain.
-  **Verification:** notifications (4) + format currency/timezone (6) tests; full
-  suite **37 passed / 8 suites**, tsc clean.
-- **7E — Config finalization + full verification (done).** `metro.config.js`
-  made monorepo-correct: watch the workspace root, resolve from both
-  node_modules paths, and **force a single React copy** into the bundle (the
-  root web app pins 19.2.7, Expo pins 19.2.3 — two on disk, but a RN bundle must
-  contain exactly one React). `app.json` finalized: `expo-notifications` plugin
-  (accent `#FF7A45`), typed-routes experiment, `userInterfaceStyle: automatic`
-  (system appearance), portrait lock, `householdhub` scheme, and bundle/app id
-  `com.conlegs.householdhub` (all validated by `expo config`). `@types/jest`
-  pinned to 29.5.x to match jest 29. **Verification:** full Jest **37 passed /
-  8 suites**; `tsc --noEmit` clean; `expo config` valid; `expo-doctor` **19/20**
-  (only the on-disk React duplicate, mitigated in-bundle by the Metro resolver);
-  **`expo export --platform ios` bundles cleanly (1283 modules, Hermes
-  bytecode)** — proving the Metro monorepo config and shared-domain resolution
-  end to end.
+1. **Missing Statement creation path**
+   - Current: Ledger can show `Statement not found`, but there is no visible
+     action to create one.
+   - Required: expose a clear add-Statement action from the empty/missing state
+     and the Statements screen.
 
-**What Task 7 deliberately did NOT do** (belongs to Task 8/9):
-  - Feature screens are `PlaceholderScreen`s (Task 8 implements the five flows).
-  - `useHouseholdRealtime` is built but not yet mounted with a real household id
-    (needs the household context that arrives with Task 8 feature reads).
-  - No physical-device / EAS build, no push registered against Expo's servers,
-    no OAuth provider round-trip — those are Task 9 device/release validation.
-  - No mobile ESLint config yet (Task 7 gates are Jest + tsc + bundle; `expo
-    lint` setup is a reasonable Task 8/9 addition).
-  - No independent review agent ran (session directive: self-review). A native
-    `/code-review` pass is the recommended pre-merge follow-up, alongside the
-    web branch review.
+2. **Statement-year selection**
+   - Replace manual year typing with a year list.
+   - Years that already have a Statement remain visible but disabled.
+   - Only uncreated years are selectable.
+   - Preserve the existing fixed four-digit year validation at the operation
+     boundary.
 
-- **7F — Real-device validation + acceptance (done, `a41c92c`).** Fixed a real
-  npm-hoisting bug found only by actually running the dev server: `expo-router`
-  is declared as an *optional* peer of `@expo/cli`/`@expo/router-server` (both
-  hoisted to the workspace root), so npm never hoisted `expo-router` itself —
-  it stayed nested under `mobile/node_modules`. Those packages' runtime code
-  does a plain `require('expo-router/_ctx-shared')` resolved from their own
-  (root) location, which `npx expo start`/`npx expo run:ios` could never
-  satisfy, crashing with `MODULE_NOT_FOUND`. Fix: declare `expo-router` as a
-  real root `devDependency` (same `~57.0.8` pin) so npm hoists one shared copy.
-  Linked `mobile/app.json` to an EAS project (`eas init`, `penguinfactory`
-  account) for the push-token `projectId` `notifications.ts` already reads.
-  Discovered Expo Go's public build only supports SDK 54 (one behind this
-  project's SDK 57), so device validation used a local **iOS Simulator**
-  instead (downloaded via `xcodebuild -downloadPlatform iOS`, no Apple
-  Developer Program needed): `npx expo run:ios` — first run needed CocoaPods,
-  installed via `brew install cocoapods` after the automated installer inside
-  `expo run:ios` failed non-interactively. Full native build succeeded,
-  installed, and launched on an iPhone 17 (iOS 26.5) simulator; screenshot
-  confirmed the real login screen (🐰🐧 mark, Google/Apple buttons, local
-  test sign-in). **User signed in with the local test account and confirmed
-  navigating the five-tab shell** — this is the acceptance evidence for Task 7.
-  Physical-iPhone testing (Expo Go is not usable at SDK 57) is deferred to an
-  EAS dev-client or TestFlight build, gated on the user's in-progress Apple
-  Developer Program enrollment — tracked in memory, not blocking Task 8.
+3. **Annual Statement scope**
+   - The 12-month Statement page should show the annual Statement summary.
+   - Remove monthly budget-limit presentation from the 12-month annual view.
+   - Monthly budget limits belong only in the selected month’s budget/detail
+     view.
 
-**Known caveat carried forward:** the on-disk React duplicate (19.2.3 vs 19.2.7)
-is a monorepo artifact of the accepted web app's React pin. It is mitigated for
-the native bundle by the Metro single-React resolver and for tests by the jest
-`moduleNameMapper`. A permanent fix (aligning both packages on one React) is a
-cross-cutting change to the accepted web checkpoint and was deliberately not
-made under Task 7; revisit during Task 9 dependency hardening.
+**Resolved:**
+1. Both platforms' per-year "Statement not found" state now has a "Back to
+   Ledger" action (the Statements-tab-level "+ Year"/"Create year" actions
+   already worked and were untouched).
+2. `NewYearSheet` replaced the free-text year input with a year list (native
+   `<select>` on web; a rebuilt tap-to-open `SelectField` on mobile — see
+   below), existing years shown disabled. Mobile's `SelectField` itself was
+   rebuilt from an always-visible `@react-native-picker/picker` wheel into a
+   tap-to-open menu (used by 6+ other sheets too, with zero call-site
+   changes); `@react-native-picker/picker` removed from `mobile/package.json`.
+   **Known gap:** the root `package-lock.json` still lists
+   `@react-native-picker/picker` — couldn't be cleanly isolated from other,
+   unrelated pending dependency changes already sitting in that lockfile.
+   Run `npm install` at the repo root (after those other pending dependency
+   changes are committed, or by stashing them first) and commit the result
+   before any EAS/production build.
+3. The 12-bar "Monthly budget limits" chart is removed from the annual
+   Statement view (it was only ever reachable from there, backwards from the
+   intent); the now-dead `monthlyBudgetLimits` function and its test were
+   deleted on both platforms. The per-month view's own limit gauge and
+   per-category limit editing (`CategorySheet.tsx`) were untouched — already
+   correct.
 
-**Task 7 is accepted.** See the Task 8 section below for the active work.
+### Notes
 
-## Task 8 — Expo feature parity and visual implementation (in progress)
+1. Current: opening a Note fails with `Could not load this note.`
+2. Required:
+   - diagnose the read/query/route failure before changing behavior;
+   - restore semantic read mode for saved notes;
+   - preserve explicit Edit/Save/Cancel and the restricted TenTap schema;
+   - verify existing saved JSON, empty notes, headings, bullets, numbered
+     lists, and checklists load safely.
 
-Scope (from the plan): implement the same five tabs, header actions, detail
-stacks, modal/bottom-sheet flows, design tokens, validation, optimistic
-behavior, and server operations as web. Use Heroicons, React Native SVG, and
-TenTap. Implement Calendar, Groceries, Ledger/Assets, multiple Notes,
-Trips/Expenses, notification inbox, and Settings at phone portrait sizes.
-Validate against the supplied references on iPhone and Android development
-builds and add focused component tests.
+**Resolved — root cause found:** `useNote` used `.single()`, which throws
+when the row doesn't exist yet — including the normal case of a brand-new
+note still sitting in the offline outbox, not yet synced. That's before the
+optimistic overlay ever gets a chance to reconstruct it, so the screen showed
+the error even for notes that exist locally. Changed to `.maybeSingle()` +
+explicit null handling (matching the established pattern already used by
+`useTrip` and others), on both platforms. `RestrictedNoteView`'s semantic
+read-mode rendering, the Edit/Save/Cancel flow, and the restricted TenTap
+schema were already correct and untouched — verified via a full code trace
+(query → overlay → screen guard) plus a new regression test seeding a queued
+create operation with no server row; a live device click-through covering
+headings/bullets/numbered lists/checklists specifically was not additionally
+performed in this pass.
 
-Reference material to build against:
+### General mobile layout and forms
 
-- `docs/mobile-design-reference/README.md` + `Household Hub Mobile.dc.html` —
-  the target visual system and interaction patterns for every screen.
-- Web feature implementations (`src/features/calendar|groceries|ledger|notes|
-  trips|settings/`) — the read/mutation contracts to mirror exactly (same
-  `enqueueOperation` command types, same domain validators). Native screens
-  are a new UI layer over the *same* server contract, not a reinterpretation.
-- `mobile/src/lib/operations/` (queue, overlay, realtime), `mobile/src/lib/
-  supabase.ts`, `mobile/src/lib/auth/` — already built in Task 7, ready to use.
-- `mobile/src/theme/tokens.ts` — light/dark tokens exist but are minimal;
-  expect to expand them to match the design reference's full palette/spacing.
+1. **Bottom navigation**
+   - Attach the five-destination navigation to the bottom edge/safe area.
+   - Remove the hovered/floating vertical gap.
+   - Preserve bottom safe-area handling and active-tab clarity.
+   - Goal: recover vertical content space.
 
-Device validation (iOS Simulator, `npx expo run:ios`) is available now — see
-Task 7F above for the working setup (CocoaPods via Homebrew, EAS project
-linked). A native rebuild (not just a JS reload) is required whenever a new
-native module is installed (e.g. this checkpoint added react-native-svg,
-@react-native-community/datetimepicker, @react-native-picker/picker).
+   **Resolved:** `FloatingTabBar` no longer uses `position: absolute` — it's
+   now a normal flex sibling in `(tabs)/_layout.tsx`, docked flush with the
+   bottom safe area (`paddingBottom: insets.bottom + 6`, no floating
+   margins/pill). The 8 screens' compensating `paddingBottom: 120` (needed
+   only while the bar floated over content) dropped to `24`.
 
-Sub-checkpoints:
+2. **Header**
+   - Remove the Household Hub/app name from the upper-left header.
+   - Put the current page title in that position.
+   - Keep Notifications and Settings at the upper right.
+   - Avoid rendering a second large page title below the header.
+   - Goal: recover vertical content space.
 
-- **8A — Design tokens, shared UI primitives, Calendar tab (done, `6e0224a`).**
-  `theme/tokens.ts` expanded to the full palette from `src/styles/theme.css`
-  (data colors, card/control radii, shadows, muted-text tiers) — ported values,
-  not reinterpreted. Shared native UI in `mobile/src/components/`: `icons.tsx`
-  (Heroicons via react-native-svg, using the exact path data the web client's
-  `@heroicons/react` package ships and the design HTML embeds — the web
-  package itself only exports DOM components, so this is the RN-appropriate
-  equivalent), `AppHeader` (floating circular bell/gear buttons, no title —
-  matches the design reference exactly; each screen renders its own big page
-  title in-content instead), `FloatingTabBar` (a custom `Slot`-based
-  `(tabs)/_layout.tsx`, **not** expo-router's native `<Tabs>` bar — the design's
-  floating pill + accent-soft active chip doesn't map onto the native tab bar's
-  header/label conventions, and `@react-navigation/bottom-tabs` isn't even
-  resolvable as a direct dependency in this SDK), `Card`, `SegmentedControl`,
-  `states` (Loading/Empty/Error), `BottomSheet`, `ConfirmDialog`,
-  `DateTimeField` (native date/time picker wrapper).
-  Calendar tab (`app/(tabs)/index.tsx` + `src/features/calendar/`): the pure
-  logic (`monthGrid.ts`, `events.ts`, `datetime.ts`, `reminders.ts`,
-  `mutations.ts`) is copied **verbatim** from web — platform-agnostic by
-  design, and their Vitest tests port to Jest unchanged (31 tests, identical
-  assertions). Added a native `useCalendarEvents` hook and `EventSheet` (title,
-  all-day switch, native date/time pickers, recurrence chips, reminder chips,
-  owner chips, note, delete-confirm) against the same `calendar.event.upsert`/
-  `delete` operation contract as web. Copied the web-generated
-  `src/types/database.ts` into `mobile/src/types/` (one shared Supabase
-  backend — same pattern as duplicating the operations layer in Task 7) and
-  wired `supabase.ts`/`queue.ts` to the typed client.
-  **Verification:** 68 mobile tests / 13 suites pass, `tsc --noEmit` clean.
-  **Real-device evidence:** rebuilt and ran on the iOS Simulator (iPhone 17,
-  iOS 26.5) after installing the three new native modules (CocoaPods rebuild
-  required); screenshotted in both light and dark appearance — header, legend
-  (Yongju filled dot / Claire outlined dot / Shared accent dot), month grid
-  with a live seeded event dot on the correct day, selected-day empty state,
-  and the floating tab bar's active-chip treatment all match the design
-  reference. EventSheet's interactive open/save/delete flow was not tap-tested
-  on device this checkpoint (no reliable synthetic-tap tooling in this
-  environment — AppleScript `System Events` clicks land on the real desktop,
-  not the Simulator, and were abandoned after one stray click); it is covered
-  by the same pure-logic tests as web plus manual verification is expected
-  from the user.
+   **Resolved:** `AppHeader` now derives its title from the active route
+   (reusing `FloatingTabBar`'s `TAB_DESTINATIONS`/`tabActiveForPath`, so the
+   header and tab bar can never disagree on a label) instead of a fixed
+   "🐰&🐧" wordmark. Each of the 5 tab-root screens' own large duplicate
+   title was removed.
 
-- **8B — Groceries tab (done, `e842444`).** Converted `groceries.tsx` to a
-  folder route (`index` + `[listId]`). Ported web's pure logic verbatim
-  (`sortGroceryItems`, `cheapestPriceHistory`, `groceryNameSuggestions`,
-  `normalizeItemName`, `latestPriceByName`, `moneyInput`'s
-  `parseDollarsToCents`/`centsToInputValue`). List index + detail (add-item
-  row with CAD price, household-wide name autocomplete, last-price recall,
-  unchecked/checked sections, five-cheapest price-history card, per-item edit,
-  inline rename via new `EditableTitle`, clear-checked/delete-list confirms)
-  against the same `grocery.list.*`/`grocery.item.*` contract as web.
-  `FloatingTabBar` active-matching now prefix-matches non-root paths so a
-  detail route keeps its tab highlighted. **Verification:** 80 tests / 15
-  suites, tsc clean. Visual: confirmed clean app boot only — `simctl` in this
-  Xcode has no synthetic-tap capability, and `simctl openurl` for a
-  `/groceries` deep link hits an untappable iOS "Open in App?" system dialog,
-  so interactive tap-through to nested routes isn't currently automatable in
-  this environment.
-- **8C — Ledger tab, Statements + Assets (done, `72615f3`).** Converted
-  `ledger.tsx` to a folder route. Ported all pure Ledger logic and mutation
-  builders verbatim (`statements.ts`, `statementMutations.ts`, `assets.ts`,
-  `assetMutations.ts`). `LedgerScreen` (Statements/Assets `SegmentedControl`),
-  `StatementsTab` (year list, inline-expand summary, new-year sheet),
-  `[yearId]` month detail (4×3 month grid, `StatementCharts` with income/
-  spending breakdown + monthly-limit bars, Spent/Limit/Left cards, category
-  progress bars, Income/Spending transaction lists, typed-year clear),
-  `AssetsTab` (CAD total + foreign subtotals never converted, assets,
-  one-off + recurring transfers). New shared `DonutChart` (react-native-svg
-  stroke-dasharray — recharts is DOM-only) and `SelectField` (native
-  wheel-picker wrapping `@react-native-picker/picker`, RN's `<select>`
-  equivalent). **Verification:** 91 tests / 17 suites, tsc clean; a full
-  production `expo export` (1458 modules, up from 1283 at Task 7E) confirmed
-  every route — including the ones blocked from interactive tap-through —
-  bundles without resolution errors.
+3. **Form selection controls**
+   - Current scrolling/wheel options are convenient but consume too much
+     vertical space.
+   - Replace them with a more compact selection interaction.
+   - Preserve accessibility, selected-value visibility, and phone usability.
 
-- **8D — Notes tab, TenTap port (done, `5619825`).** Converted `notes.tsx` to
-  a folder route. Ported web's `data.ts`/`mutations.ts` verbatim.
-  `RestrictedEditor.tsx` assembles TenTap's bridge extensions individually
-  (Core/History/Heading-levels-1-3/BulletList/OrderedList/ListItem/TaskList/
-  HardBreak/Placeholder) instead of the full `TenTapStartKit`, which also
-  ships bold/italic/strike/code/link/color/highlight/image/blockquote/
-  underline/dropcursor — none permitted by the shared `isRichNoteJson`
-  domain validator. This mirrors exactly how web restricts `StarterKit`.
-  TenTap runs Tiptap inside a WebView (new native dep: `react-native-webview`)
-  and exposes content async via `editor.getJSON()`; a custom toolbar (Body/
-  H1-H3/bullet/numbered/checklist/undo/redo) matches web's one-for-one, reading
-  active state from `useBridgeState`. `RestrictedNoteView.tsx` is a native
-  read-mode renderer for the same restricted node set. `[noteId]`: plain read
-  view with explicit Edit/Save/Cancel drafting (one title+document draft,
-  matching web's queued-save/local-accepted-snapshot pattern).
-  **Verification:** tsc clean; 91 tests still pass (no new pure logic beyond
-  what `packages/domain/src/notes.test.ts` already covers). Native rebuild
-  required (webview/tentap-editor ship native code); clean on-device boot,
-  plus a full production `expo export` (1732 modules, up from 1458 at 8C, zero
-  errors) — this eagerly bundles TenTap's WebView editor HTML/assets, which
-  dev Metro's lazy route loading would not otherwise exercise.
+**Clarification required before implementation:** confirm the preferred compact
+control pattern—tap-to-open menu, compact modal list, or another approved
+mobile control—rather than assuming a replacement.
 
-- **8E — Trips tab (done, `55c7091`).** Converted `trips.tsx` to a folder
-  route. Ported `data.ts`/`mutations.ts`/`forms.ts` verbatim. `TripsScreen`:
-  list + create sheet. `[tripId]`: header card with inline `EditableTitle`
-  rename, Itinerary/Bookings/Checklist/Expenses `SegmentedControl`
-  (Itinerary/Bookings/Checklist show an honest "coming soon" — the
-  mobile-first schema only defines `trip.*`/`trip.expense.*` operations,
-  matching web's same scope note), and a fully functional Expenses tab
-  (per-currency totals never converted/combined, expense list, `ExpenseSheet`
-  with destination-or-CAD currency choice and a Paid-from Asset picker
-  filtered to matching currency, deep-linking to Ledger/Assets when none
-  exists). **Verification:** 93 tests / 18 suites, tsc clean; no new native
-  modules, verified via clean JS-reload boot + production `expo export`
-  (1738 modules, up from 1732 at 8D, zero errors).
+**Resolved:** user confirmed "tap-to-open dropdown/select menu." Mobile's
+`SelectField` (year picker, category/asset/type pickers across `AssetSheet`,
+`TransferSheet`, `TransactionSheet`, `TripSheet`, `BookingSheet`,
+`ExpenseSheet`) was rebuilt from an always-visible wheel into a tap-to-open
+`Modal` menu with the same external prop interface, so no consumer call site
+changed. `DateTimeField`'s iOS `display` mode changed from `'inline'`
+(always-expanded calendar) to `'compact'` (small tappable pill, popover on
+tap) — verified against the installed `@react-native-community/datetimepicker@9.1.0`'s
+actual type definitions. Neither change has been visually confirmed on a real
+device/simulator in this pass (no Simulator access from the implementing
+subagents) — worth a quick look during Task 9's device pass.
 
-- **8F — Settings screen, real appearance (done, `e52902a`).** Notifications
-  inbox stays a placeholder — web's own `/notifications` was never built past
-  a placeholder either (Task 6 scoped Settings only), so there's nothing to
-  port. New `AppearanceProvider` + `lib/appearance.ts` port web's real
-  persisted Light/Dark/System appearance (not the design reference's
-  visual-only version) to AsyncStorage; `useTheme()` now resolves the
-  explicit override before falling back to `useColorScheme()`. `settings/
-  profile.ts` and `settings/household.ts` port web's hooks/mutations
-  (`useProfile` against mobile's own auth context; `useHouseholdMembers`/
-  `useHouseholdInvites`/`createInvite`/`revokeInvite`/`transferOwnership`/
-  `removeMember`/`deleteHousehold`/`prepareAccountDeletion` verbatim). New
-  `DangerConfirm` (typed-phrase destructive gate). Rewrote `app/settings.tsx`
-  to match web's `SettingsScreen` exactly: Profile, Appearance (really wired,
-  synced via `settings.update`), Household (members/roles, invite create+
-  revoke, transfer-ownership+remove-member), Account, Danger zone.
-  `ConfirmDialog` gained an optional `destructive={false}` variant.
-  **Verification:** tsc clean, 93 tests still pass; no new native modules,
-  verified via clean JS-reload boot + production `expo export` (1743 modules,
-  zero errors).
+## Current architecture in one view
 
-- **8G — Final verification (done).** Full gate: **93 Jest tests / 18 suites
-  pass, `tsc --noEmit` clean**, `expo-doctor` **19/20** (only the known,
-  in-bundle-mitigated React duplicate from Task 7F plus a new inert
-  `react-dom` duplicate pulled in by `@10play/tentap-editor`'s own web-build
-  tooling — not something that ships in the native bundle, confirmed by every
-  `expo export` throughout Task 8 completing with zero errors). Ran a full
-  production `expo export` for **both** `--platform ios` **and** `--platform
-  android` (1743 / 1881 modules respectively, zero errors on either) — the
-  Android bundle check is new for this checkpoint and gives confidence beyond
-  the iOS Simulator testing that's been possible in this environment.
-  Re-confirmed a clean on-device boot on the iOS Simulator (iPhone 17, iOS
-  26.5). Attempted two further approaches to unblock interactive tap-through
-  to the nested routes (Groceries/Ledger/Notes/Trips detail screens, Settings)
-  that couldn't be reached in earlier checkpoints: `simctl openurl` (hits an
-  untappable iOS "Open in App?" system dialog — confirmed structural, not a
-  one-off) and `simctl launch --terminate-running-process <bundle> <url-as-
-  argv>` (silently ignored — `simctl launch` has no `--url` flag in this
-  Xcode version; confirmed via `simctl launch --help`, not a deep-link bug in
-  the app). Neither unblocks interactive verification; this is a tooling
-  ceiling of the current environment, not a defect found in the app.
+```mermaid
+flowchart LR
+  Web["Responsive web UI"]
+  Native["Expo phone app"]
+  Cache["IndexedDB or SQLite cache"]
+  Queue["Durable FIFO command queue"]
+  RPC["apply_household_operation"]
+  DB["Supabase plus RLS"]
+  RT["Realtime"]
 
-**Task 8 is complete (self-review).** All five feature tabs (Calendar,
-Groceries, Ledger, Notes, Trips) plus a fully real Settings screen are built
-against the same shared operation contracts as web, with the design
-reference's visual system (tokens, header, floating tab bar, cards, Heroicons)
-applied throughout. Every checkpoint's pure logic is tested (breadth: month
-grid/recurrence/timezone math, grocery sorting/price-history, ledger
-statement/category/asset math, trip currency bucketing — 93 tests total,
-mirroring the equivalent Vitest suites on web line-for-line), tsc is clean at
-every commit, and every checkpoint was bundle-verified via production `expo
-export` (growing 1283 → 1743 modules across Task 7→8, zero errors at any
-point) in addition to on-device boot checks. **Known gap:** interactive
-tap-through verification (actually opening the Groceries list, tapping a
-Ledger year, typing in the Notes editor, etc.) was not possible in this
-environment beyond the Calendar screen validated in 8A/7F, because `simctl`
-has no synthetic-tap capability here and every deep-link workaround attempted
-hit either a system confirmation dialog or an unsupported flag. This is the
-single most important thing for the user to check by hand before accepting
-Task 8 — particularly the TenTap Notes editor (the newest, highest-risk native
-integration) and the Ledger `DonutChart` (a hand-built react-native-svg
-component with no equivalent tested elsewhere).
+  Web --> Cache
+  Native --> Cache
+  Cache --> Queue
+  Queue --> RPC
+  RPC --> DB
+  DB --> RT
+  RT --> Cache
+```
 
-**Next gate:** the user should try the app on-device (physical iPhone once
-Apple Developer Program enrollment clears, or continue on the iOS Simulator)
-and confirm the five feature tabs + Settings work end-to-end, then approve
-Task 9 (reset procedure, E2E verification, release handoff) — the final task
-in the plan.
+- Web and native share `@household-hub/domain`.
+- Mutable feature writes use the authoritative operation RPC.
+- Web persists queries/commands in IndexedDB; native uses SQLite.
+- Pending optimistic overlays reconcile with operation receipts and Realtime.
+- Native Supabase sessions and the device identity use SecureStore.
+- Calendar is the default destination; there is no Home tab.
 
-## Environment, constraints & risks (condensed)
+## Latest verified baseline
 
-- **Local sign-in is enabled and required.** `RequireAuth` (web) requires a real
-  Supabase session; the ignored `.env.local` has `VITE_ENABLE_TEST_AUTH=true`,
-  which exposes the email/password form only in the local/test build. Production
-  authentication is Google and Apple OAuth only.
-- **Local test household:** `🐰 & 🐧 Test`, provisioned through the real
-  `onboard_household` + invite-redemption path with Yongju as owner and Claire
-  as member.
+| Gate | Result |
+| --- | --- |
+| ESLint | Pass |
+| Web TypeScript and production PWA build | Pass |
+| Web Vitest | 398/398 |
+| Native TypeScript | Pass |
+| Native Jest | 100/100 |
+| Database pgTAP | 343/343 |
+| Edge Functions | 73/73 |
+| Supabase schema lint | No errors |
+| Expo Doctor | 20/20 |
+| iOS and Android production exports | Pass |
+| EAS iOS Simulator build | Finished, installed, launched |
+| EAS Android development APK | Finished |
 
-  | Member | Email | Password | Role |
-  | --- | --- | --- | --- |
-  | Yongju | `yongju@test.local` | `household123` | Owner |
-  | Claire | `claire@test.local` | `household123` | Member |
+Build IDs:
 
-  Start the local stack and app with:
+- iOS Simulator: `4b928a60-8652-471f-b695-6ef0658c5b36`
+- Android APK: `11204ad2-a790-4988-9011-7fdef563a232`
 
-  ```bash
-  PATH="/opt/homebrew/bin:$PATH" npx supabase start
-  PATH="/opt/homebrew/bin:$PATH" npm run dev
-  ```
+## Local testing
 
-  Re-running `scripts/seed-household.ts` with the same household and credentials
-  is idempotent: it reuses the accounts and membership without clearing feature
-  data.
-- **Run from this worktree** (`codex/household-hub-mobile-first`), not the main
-  checkout — different branch.
-- **Prefix Node commands with `PATH="/opt/homebrew/bin:$PATH"`** — the Rosetta
-  x64 node breaks `npm test`/`build` (arch mismatch); arm64 runs clean. Supabase
-  CLI must be ≥ 2.109.
-- **Migrations go to both DBs separately:** `supabase db push` (cloud) and
-  `supabase db reset` / `migration up` (local).
-- **Nothing is deployed** — all verification is local; no hosted Supabase,
-  Vercel, or EAS build touched. Production data untouched. **Do not run the
-  production reset** (Task 9; needs explicit release approval).
-- **No independent review agent has run for Tasks 3–6** (session directive: no
-  subagents) — self-review + live end-to-end only. `/code-review` on this branch
-  is the recommended pre-merge follow-up.
-- **Legacy membership preflight:** the one-user/one-household unique constraint
-  fails if legacy data has a user in multiple households — resolve before a
-  hosted deploy.
-- Carried-forward risks (permanently-failing push batch, Expo push not yet
-  exercised against Expo's servers, live two-client Realtime) are in the
-  archive.
+Local household: `🐰 & 🐧 Test`
 
-## Full detail
+| Member | Email | Password | Role |
+| --- | --- | --- | --- |
+| Yongju | `yongju@test.local` | `household123` | Owner |
+| Claire | `claire@test.local` | `household123` | Member |
 
-Architecture diagrams, per-task narratives (including the full Task 5, Task 6,
-and web parity correction records), per-task verification baselines, reviews,
-and the original task scope live in `docs/superpowers/progress-detail.md`.
-Current git state + fresh verification always take precedence over both files.
+Both password grants were verified successfully. Rerunning
+`scripts/seed-household.ts` refreshes the supplied test password without
+clearing feature data. It does not generate sample feature data.
+
+```bash
+npx supabase start
+npm run dev
+```
+
+Run native commands from `mobile/`. Local native configuration reads
+`mobile/.env.local`. The EAS development build points to the Mac LAN address
+recorded in the detailed archive and must be rebuilt if that address changes.
+
+## Task 9 boundary
+
+The manual-test correction pass is implemented, tested, and reviewed (see
+above) — Task 9 is cleared to start. Two small loose ends from the
+correction pass to pick up before/during Task 9's device and release work:
+
+- Commit the root `package-lock.json` update removing
+  `@react-native-picker/picker` (currently blocked on unrelated pending
+  dependency changes already sitting in that lockfile — see the Ledger
+  finding 2 note above).
+- Do a quick visual pass on a real device/simulator for: the calendar
+  dot alignment and owner-color rows, the docked tab bar, the route-aware
+  header, the new year-list picker, and `SelectField`/`DateTimeField`'s
+  tap-to-open behavior — none of these had a live UI check during this
+  pass (no browser/Simulator access from the implementing subagents).
+
+Task 9 includes:
+
+- manual iPhone and Android end-to-end acceptance;
+- physical-device Google/Apple OAuth and push/reminder delivery;
+- two-user/two-device Realtime and offline/reconnect acceptance;
+- production Supabase, Vercel, and EAS configuration;
+- physical iOS/TestFlight signing;
+- final branch review and integration;
+- administrator-only production data reset.
+
+**Never run the production reset without separate explicit release approval.**
+No production deployment or production data change has occurred.
