@@ -1,19 +1,25 @@
-import { useRouter } from 'expo-router'
+import { usePathname, useRouter } from 'expo-router'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useTheme } from '@/theme/tokens'
+import { TAB_DESTINATIONS, tabActiveForPath } from './FloatingTabBar'
 import { BellIcon, CogIcon } from './icons'
 
+function titleForPath(pathname: string): string {
+  const match = TAB_DESTINATIONS.find((destination) => tabActiveForPath(destination.path, pathname))
+  return match?.label ?? 'Household Hub'
+}
+
 /**
- * Persistent header shown on every primary destination, per the design
- * reference: the 🐰&🐧 wordmark top-left, bell (notifications) + gear
- * (settings) as floating circular white buttons top-right. No page title —
- * each screen renders its own large title inside its scroll content.
+ * Persistent header shown on every primary destination: the current page's
+ * title top-left (matching the active tab), bell (notifications) + gear
+ * (settings) as floating circular buttons top-right.
  */
 export function AppHeader() {
   const { tokens } = useTheme()
   const router = useRouter()
+  const pathname = usePathname()
   const insets = useSafeAreaInsets()
 
   return (
@@ -23,7 +29,9 @@ export function AppHeader() {
         { paddingTop: insets.top + 6, backgroundColor: tokens.canvas },
       ]}
     >
-      <Text style={[styles.mark, { color: tokens.ink }]}>🐰&🐧</Text>
+      <Text accessibilityRole="header" style={[styles.title, { color: tokens.ink }]}>
+        {titleForPath(pathname)}
+      </Text>
       <View style={styles.actions}>
         <Pressable
           accessibilityRole="button"
@@ -62,7 +70,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 6,
   },
-  mark: { fontSize: 17, fontWeight: '800', letterSpacing: -0.2 },
+  title: { fontSize: 20, fontWeight: '800', letterSpacing: -0.2 },
   actions: { flexDirection: 'row', gap: 8 },
   iconButton: {
     width: 36,

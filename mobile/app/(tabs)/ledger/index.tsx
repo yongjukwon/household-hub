@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { ScrollView, StyleSheet, Text, View } from 'react-native'
+import { ScrollView, StyleSheet, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { SegmentedControl } from '@/components/SegmentedControl'
@@ -27,9 +27,6 @@ export default function LedgerScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tokens.canvas }]} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text accessibilityRole="header" style={[styles.pageTitle, { color: tokens.ink }]}>
-          Ledger
-        </Text>
         <View style={styles.segmented}>
           <SegmentedControl
             label="Ledger view"
@@ -56,6 +53,5 @@ export default function LedgerScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   content: { padding: 20, paddingBottom: 24 },
-  pageTitle: { fontSize: 22, fontWeight: '800', letterSpacing: -0.2, marginBottom: 14 },
   segmented: { marginBottom: 16 },
 })

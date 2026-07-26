@@ -56,9 +56,6 @@ export default function GroceriesScreen() {
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <View style={styles.titleRow}>
-            <Text accessibilityRole="header" style={[styles.pageTitle, { color: tokens.ink }]}>
-              Groceries
-            </Text>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="New list"
@@ -125,10 +122,9 @@ const styles = StyleSheet.create({
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     marginBottom: 14,
   },
-  pageTitle: { fontSize: 22, fontWeight: '800', letterSpacing: -0.2 },
   addButton: {
     width: 32,
     height: 32,

@@ -180,12 +180,6 @@ export default function CalendarScreen() {
         ListHeaderComponent={
           <View>
             <View style={styles.titleRow}>
-              <Text
-                accessibilityRole="header"
-                style={[styles.pageTitle, { color: tokens.ink }]}
-              >
-                Schedule
-              </Text>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="New event"
@@ -322,10 +316,9 @@ const styles = StyleSheet.create({
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     marginBottom: 10,
   },
-  pageTitle: { fontSize: 22, fontWeight: '800', letterSpacing: -0.2 },
   addButton: {
     width: 32,
     height: 32,
