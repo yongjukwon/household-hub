@@ -1,30 +1,44 @@
 import { useRouter, usePathname } from 'expo-router'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { BlurView } from 'expo-blur'
 
 import { useTheme, type ThemeTokens } from '@/theme/tokens'
 import { TAB_DESTINATIONS, tabActiveForPath } from './tabDestinations'
 
+/** Distance the pill floats above the bottom safe-area edge. */
+export const TAB_BAR_FLOAT_OFFSET = 20
+/** Fixed height of the floating pill. */
+export const TAB_BAR_HEIGHT = 66
+
 /**
- * Bottom tab bar, docked flush with the bottom safe area (not floating) so
- * screens recover the vertical space a hovering pill used to cost them.
+ * Floating pill tab bar per the v2 design reference: glass surface, 16px side
+ * insets, 20px above the bottom safe area, with a real outline→filled icon
+ * swap on the active tab (not just a stroke-width/color change).
  */
 export function FloatingTabBar() {
-  const { tokens } = useTheme()
+  const { tokens, scheme } = useTheme()
   const router = useRouter()
   const pathname = usePathname()
   const insets = useSafeAreaInsets()
 
   return (
-    <View
+    <BlurView
+      intensity={60}
+      tint={scheme}
       style={[
         styles.bar,
-        { backgroundColor: tokens.card, paddingBottom: insets.bottom + 6 },
+        {
+          bottom: insets.bottom + TAB_BAR_FLOAT_OFFSET,
+          backgroundColor: tokens.glass.fill,
+          borderColor: tokens.glass.border,
+        },
         tokens.shadowFloat,
       ]}
     >
-      {TAB_DESTINATIONS.map(({ path, label, icon: Icon }) => {
+      {TAB_DESTINATIONS.map(({ path, label, icon: Icon, activeIcon: ActiveIcon }) => {
         const active = tabActiveForPath(path, pathname)
+        const TabIcon = active ? ActiveIcon : Icon
         return (
           <Pressable
             key={path}
@@ -32,21 +46,14 @@ export function FloatingTabBar() {
             accessibilityLabel={label}
             accessibilityState={{ selected: active }}
             onPress={() => router.replace(path)}
-            style={[
-              styles.item,
-              active && { backgroundColor: tokens.accentSoft },
-            ]}
+            style={styles.item}
           >
-            <Icon
-              size={20}
-              color={active ? tokens.accent : tokens.muted}
-              strokeWidth={active ? 2 : 1.5}
-            />
+            <TabIcon size={21} color={active ? tokens.accent : tokens.muted} />
             <Text style={itemLabelStyle(tokens, active)}>{label}</Text>
           </Pressable>
         )
       })}
-    </View>
+    </BlurView>
   )
 }
 
@@ -60,18 +67,22 @@ function itemLabelStyle(tokens: ThemeTokens, active: boolean) {
 
 const styles = StyleSheet.create({
   bar: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    height: TAB_BAR_HEIGHT,
+    borderRadius: 26,
+    borderWidth: 1,
     flexDirection: 'row',
-    alignItems: 'stretch',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingTop: 8,
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    overflow: 'hidden',
   },
   item: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
-    paddingVertical: 8,
-    borderRadius: 12,
+    gap: 3,
+    height: '100%',
   },
 })
