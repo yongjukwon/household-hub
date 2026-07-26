@@ -327,6 +327,13 @@ correction pass to pick up before/during Task 9's device and release work:
   header, the new year-list picker, and `SelectField`/`DateTimeField`'s
   tap-to-open behavior — none of these had a live UI check during this
   pass (no browser/Simulator access from the implementing subagents).
+  **Priority check flagged by the final whole-pass review:** `SelectField`
+  now opens its own `Modal` while nested inside a sheet's `BottomSheet`
+  `Modal` (e.g. the category/asset picker inside `TransactionSheet` or
+  `ExpenseSheet`) — a new two-modal-deep interaction the rewrite introduced
+  pass-wide, never exercised on a device. Specifically confirm on iOS
+  *and* Android that backdrop-tap and the Android hardware-back button
+  dismiss the picker, not the whole sheet underneath it.
 
 Task 9 includes:
 
