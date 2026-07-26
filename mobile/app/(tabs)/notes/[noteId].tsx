@@ -1,5 +1,5 @@
 import type { RichNoteDocument } from '@household-hub/domain'
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 import {
   KeyboardAvoidingView,
@@ -13,11 +13,10 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { ErrorState, LoadingState } from '@/components/states'
 import { useActiveHousehold } from '@/features/household'
 import { useNote, type Note } from '@/features/notes/data'
-import { deleteNote, saveNote } from '@/features/notes/mutations'
+import { saveNote } from '@/features/notes/mutations'
 import { RestrictedEditor } from '@/features/notes/RestrictedEditor'
 import { RestrictedNoteView } from '@/features/notes/RestrictedNoteView'
 import { operationOutcomeError } from '@/lib/operations'
@@ -31,14 +30,12 @@ interface NoteDraft {
 /** One note in plain read mode, with explicit Edit/Save/Cancel drafting. */
 export default function NoteScreen() {
   const { tokens } = useTheme()
-  const router = useRouter()
   const { noteId } = useLocalSearchParams<{ noteId: string }>()
   const household = useActiveHousehold()
   const householdId = household.data?.id
   const query = useNote(householdId, noteId)
   const [draft, setDraft] = useState<NoteDraft | null>(null)
   const [localSaved, setLocalSaved] = useState<Note | null>(null)
-  const [confirmDelete, setConfirmDelete] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -99,24 +96,6 @@ export default function NoteScreen() {
     }
   }
 
-  async function handleDelete() {
-    if (!householdId || !noteId) return
-    setBusy(true)
-    setError(null)
-    try {
-      const outcome = await deleteNote(householdId, noteId, saved.revision)
-      const outcomeError = operationOutcomeError(outcome)
-      if (outcomeError) {
-        setError(outcomeError)
-        setConfirmDelete(false)
-        return
-      }
-      router.replace('/notes')
-    } finally {
-      setBusy(false)
-    }
-  }
-
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tokens.canvas }]} edges={['bottom']}>
       <KeyboardAvoidingView
@@ -164,14 +143,9 @@ export default function NoteScreen() {
                 </Pressable>
               </View>
             ) : (
-              <View style={styles.actions}>
-                <Pressable accessibilityRole="button" onPress={beginEditing}>
-                  <Text style={[styles.actionText, { color: tokens.accent }]}>Edit</Text>
-                </Pressable>
-                <Pressable accessibilityRole="button" onPress={() => setConfirmDelete(true)}>
-                  <Text style={[styles.actionText, { color: tokens.danger }]}>Delete</Text>
-                </Pressable>
-              </View>
+              <Pressable accessibilityRole="button" onPress={beginEditing}>
+                <Text style={[styles.actionText, { color: tokens.accent }]}>Edit</Text>
+              </Pressable>
             )}
           </View>
 
@@ -211,14 +185,6 @@ export default function NoteScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <ConfirmDialog
-        open={confirmDelete}
-        onOpenChange={setConfirmDelete}
-        title="Delete this note?"
-        description="This permanently removes the note. This cannot be undone."
-        confirmLabel="Delete"
-        onConfirm={() => void handleDelete()}
-      />
     </SafeAreaView>
   )
 }

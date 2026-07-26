@@ -1,5 +1,5 @@
 import { formatMoney } from '@household-hub/domain'
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useLocalSearchParams } from 'expo-router'
 import { useMemo, useState } from 'react'
 import {
   FlatList,
@@ -31,7 +31,6 @@ import {
 import {
   clearCheckedItems,
   deleteGroceryItem,
-  deleteGroceryList,
   saveGroceryList,
   saveGroceryItem,
   toggleGroceryItem,
@@ -44,7 +43,6 @@ import { useTheme } from '@/theme/tokens'
 /** Grocery list detail: items, checked handling, prices, and price history. */
 export default function GroceryListScreen() {
   const { tokens } = useTheme()
-  const router = useRouter()
   const { listId } = useLocalSearchParams<{ listId: string }>()
   const household = useActiveHousehold()
   const householdId = household.data?.id
@@ -57,9 +55,9 @@ export default function GroceryListScreen() {
   const [editing, setEditing] = useState<GroceryItem | null>(null)
   const [historyItem, setHistoryItem] = useState<GroceryItem | null>(null)
   const [confirmClear, setConfirmClear] = useState(false)
-  const [confirmDeleteList, setConfirmDeleteList] = useState(false)
   const [deleteItem, setDeleteItem] = useState<GroceryItem | null>(null)
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const items = useMemo(() => query.data?.items ?? [], [query.data?.items])
   const latest = useMemo(() => latestPriceByName(query.data?.history ?? []), [query.data])
@@ -120,17 +118,6 @@ export default function GroceryListScreen() {
     }
   }
 
-  async function handleDeleteList() {
-    if (!householdId || !list) return
-    setBusy(true)
-    try {
-      await deleteGroceryList(householdId, list.id, list.revision)
-      router.replace('/groceries')
-    } finally {
-      setBusy(false)
-    }
-  }
-
   async function handleDeleteItem() {
     if (!householdId || !deleteItem) return
     setBusy(true)
@@ -179,13 +166,6 @@ export default function GroceryListScreen() {
                     </Text>
                   </Pressable>
                 ) : null}
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => setConfirmDeleteList(true)}
-                  hitSlop={6}
-                >
-                  <Text style={[styles.headerActionText, { color: tokens.danger }]}>Delete</Text>
-                </Pressable>
               </View>
             </View>
 
@@ -321,20 +301,13 @@ export default function GroceryListScreen() {
         onConfirm={() => void handleClear()}
       />
       <ConfirmDialog
-        open={confirmDeleteList}
-        onOpenChange={setConfirmDeleteList}
-        title="Delete this list?"
-        description="This removes the list and all its items. This cannot be undone."
-        confirmLabel="Delete"
-        onConfirm={() => void handleDeleteList()}
-      />
-      <ConfirmDialog
         open={deleteItem !== null}
         onOpenChange={(open) => {
           if (!open) setDeleteItem(null)
         }}
         title={`Delete ${deleteItem?.name ?? 'this item'}?`}
         description="This permanently removes the item from this grocery list."
+        error={error}
         confirmLabel="Delete"
         confirmDisabled={busy}
         onConfirm={() => void handleDeleteItem()}

@@ -20,6 +20,10 @@ import {
   deleteGroceryList,
   saveGroceryList,
 } from '@/features/groceries/mutations'
+import {
+  operationOutcomeError,
+  operationThrownError,
+} from '@/lib/operations'
 import { newUuid } from '@/lib/uuid'
 import { useTheme } from '@/theme/tokens'
 
@@ -34,15 +38,29 @@ export default function GroceriesScreen() {
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<GroceryList | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   async function addList() {
     if (!householdId || name.trim().length === 0) return
     setSaving(true)
+    setFormError(null)
     try {
       const sortOrder = lists.data?.length ?? 0
-      await saveGroceryList(householdId, { id: newUuid(), name, sortOrder }, null)
+      const outcome = await saveGroceryList(
+        householdId,
+        { id: newUuid(), name, sortOrder },
+        null,
+      )
+      const outcomeError = operationOutcomeError(outcome)
+      if (outcomeError) {
+        setFormError(outcomeError)
+        return
+      }
       setName('')
       setAdding(false)
+    } catch (error) {
+      setFormError(operationThrownError(error, 'Could not create this list.'))
     } finally {
       setSaving(false)
     }
@@ -54,8 +72,25 @@ export default function GroceriesScreen() {
 
   async function confirmDelete() {
     if (!householdId || !deleting) return
-    await deleteGroceryList(householdId, deleting.id, deleting.revision)
-    setDeleting(null)
+    setSaving(true)
+    setDeleteError(null)
+    try {
+      const outcome = await deleteGroceryList(
+        householdId,
+        deleting.id,
+        deleting.revision,
+      )
+      const outcomeError = operationOutcomeError(outcome)
+      if (outcomeError) {
+        setDeleteError(outcomeError)
+        return
+      }
+      setDeleting(null)
+    } catch (error) {
+      setDeleteError(operationThrownError(error, 'Could not delete this list.'))
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -79,7 +114,10 @@ export default function GroceriesScreen() {
             openLabel={`Open ${item.name}`}
             deleteLabel={`Delete ${item.name}`}
             onOpen={() => openList(item)}
-            onDelete={() => setDeleting(item)}
+            onDelete={() => {
+              setDeleteError(null)
+              setDeleting(item)
+            }}
           />
         )}
         ItemSeparatorComponent={() => <Text style={styles.separator} />}
@@ -87,7 +125,14 @@ export default function GroceriesScreen() {
 
       <FloatingActionButton accessibilityLabel="New list" onPress={() => setAdding(true)} />
 
-      <BottomSheet open={adding} onOpenChange={setAdding} title="New list">
+      <BottomSheet
+        open={adding}
+        onOpenChange={(open) => {
+          setAdding(open)
+          if (!open) setFormError(null)
+        }}
+        title="New list"
+      >
         <TextInput
           accessibilityLabel="List name"
           value={name}
@@ -101,6 +146,9 @@ export default function GroceriesScreen() {
             { borderColor: tokens.line, borderRadius: tokens.radiusControl, color: tokens.ink },
           ]}
         />
+        {formError ? (
+          <Text style={[styles.error, { color: tokens.danger }]}>{formError}</Text>
+        ) : null}
         <Pressable
           accessibilityRole="button"
           disabled={saving || name.trim().length === 0}
@@ -118,11 +166,16 @@ export default function GroceriesScreen() {
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={(open) => {
-          if (!open) setDeleting(null)
+          if (!open && !saving) {
+            setDeleteError(null)
+            setDeleting(null)
+          }
         }}
         title={`Delete ${deleting?.name ?? 'list'}?`}
         description="This permanently removes the list and all of its items."
+        error={deleteError}
         confirmLabel="Delete"
+        confirmDisabled={saving}
         onConfirm={() => void confirmDelete()}
       />
     </SafeAreaView>
@@ -137,4 +190,5 @@ const styles = StyleSheet.create({
   createButton: { paddingVertical: 13, alignItems: 'center' },
   createButtonText: { fontSize: 15, fontWeight: '700' },
   disabled: { opacity: 0.6 },
+  error: { fontSize: 13, marginBottom: 10 },
 })

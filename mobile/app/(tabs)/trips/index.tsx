@@ -11,6 +11,10 @@ import { useActiveHousehold } from '@/features/household'
 import { useTrips, type Trip } from '@/features/trips/data'
 import { deleteTrip } from '@/features/trips/mutations'
 import { TripSheet } from '@/features/trips/TripSheet'
+import {
+  operationOutcomeError,
+  operationThrownError,
+} from '@/lib/operations'
 import { useTheme } from '@/theme/tokens'
 
 function formatRange(startDate: string, endDate: string): string {
@@ -32,6 +36,8 @@ export default function TripsScreen() {
   const trips = useTrips(householdId)
   const [adding, setAdding] = useState(false)
   const [deleting, setDeleting] = useState<Trip | null>(null)
+  const [deletingBusy, setDeletingBusy] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   function openTrip(trip: Trip) {
     router.push({ pathname: '/trips/[tripId]', params: { tripId: trip.id } })
@@ -39,8 +45,25 @@ export default function TripsScreen() {
 
   async function confirmDelete() {
     if (!householdId || !deleting) return
-    await deleteTrip(householdId, deleting.id, deleting.revision)
-    setDeleting(null)
+    setDeletingBusy(true)
+    setDeleteError(null)
+    try {
+      const outcome = await deleteTrip(
+        householdId,
+        deleting.id,
+        deleting.revision,
+      )
+      const outcomeError = operationOutcomeError(outcome)
+      if (outcomeError) {
+        setDeleteError(outcomeError)
+        return
+      }
+      setDeleting(null)
+    } catch (error) {
+      setDeleteError(operationThrownError(error, 'Could not delete this trip.'))
+    } finally {
+      setDeletingBusy(false)
+    }
   }
 
   return (
@@ -65,7 +88,10 @@ export default function TripsScreen() {
             openLabel={`Open ${item.name}`}
             deleteLabel={`Delete ${item.name}`}
             onOpen={() => openTrip(item)}
-            onDelete={() => setDeleting(item)}
+            onDelete={() => {
+              setDeleteError(null)
+              setDeleting(item)
+            }}
           />
         )}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -80,11 +106,16 @@ export default function TripsScreen() {
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={(open) => {
-          if (!open) setDeleting(null)
+          if (!open && !deletingBusy) {
+            setDeleteError(null)
+            setDeleting(null)
+          }
         }}
         title={`Delete ${deleting?.name ?? 'trip'}?`}
         description="This permanently removes the trip and its related itinerary, bookings, checklist, and expenses."
+        error={deleteError}
         confirmLabel="Delete"
+        confirmDisabled={deletingBusy}
         onConfirm={() => void confirmDelete()}
       />
     </SafeAreaView>

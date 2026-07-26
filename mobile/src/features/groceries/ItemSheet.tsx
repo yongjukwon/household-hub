@@ -2,11 +2,14 @@ import { useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 
 import { BottomSheet } from '@/components/BottomSheet'
-import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { centsToInputValue, parseDollarsToCents } from '@/features/moneyInput'
+import {
+  operationOutcomeError,
+  operationThrownError,
+} from '@/lib/operations'
 import { useTheme } from '@/theme/tokens'
 import type { GroceryItem } from './data'
-import { deleteGroceryItem, saveGroceryItem } from './mutations'
+import { saveGroceryItem } from './mutations'
 
 interface ItemSheetProps {
   open: boolean
@@ -32,13 +35,14 @@ export function ItemSheet({
   const [quantity, setQuantity] = useState(item.quantity ?? '')
   const [price, setPrice] = useState(centsToInputValue(item.unitPriceCents))
   const [saving, setSaving] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleSave() {
     if (name.trim().length === 0) return
     setSaving(true)
+    setError(null)
     try {
-      await saveGroceryItem(
+      const outcome = await saveGroceryItem(
         householdId,
         {
           id: item.id,
@@ -51,18 +55,14 @@ export function ItemSheet({
         },
         item.revision,
       )
+      const outcomeError = operationOutcomeError(outcome)
+      if (outcomeError) {
+        setError(outcomeError)
+        return
+      }
       onOpenChange(false)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function handleDelete() {
-    setSaving(true)
-    try {
-      await deleteGroceryItem(householdId, item.id, item.revision)
-      setConfirmDelete(false)
-      onOpenChange(false)
+    } catch (failure) {
+      setError(operationThrownError(failure, 'Could not save this item.'))
     } finally {
       setSaving(false)
     }
@@ -113,37 +113,19 @@ export function ItemSheet({
           />
         </View>
       </View>
-      <View style={styles.actions}>
-        <Pressable
-          accessibilityRole="button"
-          disabled={saving}
-          onPress={() => void handleSave()}
-          style={[
-            styles.saveButton,
-            { backgroundColor: tokens.accent, borderRadius: tokens.radiusControl },
-            saving && styles.disabled,
-          ]}
-        >
-          <Text style={[styles.saveButtonText, { color: tokens.accentContrast }]}>Save</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          disabled={saving}
-          onPress={() => setConfirmDelete(true)}
-          style={[styles.deleteButton, saving && styles.disabled]}
-        >
-          <Text style={[styles.deleteButtonText, { color: tokens.danger }]}>Delete</Text>
-        </Pressable>
-      </View>
-
-      <ConfirmDialog
-        open={confirmDelete}
-        onOpenChange={setConfirmDelete}
-        title="Delete item?"
-        description="This removes the item from the list."
-        confirmLabel="Delete"
-        onConfirm={() => void handleDelete()}
-      />
+      {error ? <Text style={[styles.error, { color: tokens.danger }]}>{error}</Text> : null}
+      <Pressable
+        accessibilityRole="button"
+        disabled={saving}
+        onPress={() => void handleSave()}
+        style={[
+          styles.saveButton,
+          { backgroundColor: tokens.accent, borderRadius: tokens.radiusControl },
+          saving && styles.disabled,
+        ]}
+      >
+        <Text style={[styles.saveButtonText, { color: tokens.accentContrast }]}>Save</Text>
+      </Pressable>
     </BottomSheet>
   )
 }
@@ -154,10 +136,8 @@ const styles = StyleSheet.create({
   rowField: { flex: 1 },
   label: { fontSize: 12.5, fontWeight: '600', marginBottom: 6 },
   input: { borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15 },
-  actions: { flexDirection: 'row', gap: 10, paddingTop: 4 },
   saveButton: { flex: 1, paddingVertical: 13, alignItems: 'center' },
   saveButtonText: { fontSize: 15, fontWeight: '700' },
-  deleteButton: { paddingHorizontal: 16, paddingVertical: 13, alignItems: 'center' },
-  deleteButtonText: { fontSize: 15, fontWeight: '600' },
+  error: { fontSize: 13, marginBottom: 10 },
   disabled: { opacity: 0.6 },
 })

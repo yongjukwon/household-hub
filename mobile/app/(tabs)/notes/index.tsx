@@ -11,6 +11,10 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/states'
 import { useActiveHousehold } from '@/features/household'
 import { emptyNoteDocument, useNotes, type NoteSummary } from '@/features/notes/data'
 import { deleteNote, saveNote } from '@/features/notes/mutations'
+import {
+  operationOutcomeError,
+  operationThrownError,
+} from '@/lib/operations'
 import { newUuid } from '@/lib/uuid'
 import { useTheme } from '@/theme/tokens'
 
@@ -25,14 +29,28 @@ export default function NotesScreen() {
   const [title, setTitle] = useState('')
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<NoteSummary | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   async function addNote() {
     if (!householdId || title.trim().length === 0) return
     setSaving(true)
+    setFormError(null)
     try {
-      await saveNote(householdId, { id: newUuid(), title, document: emptyNoteDocument() }, null)
+      const outcome = await saveNote(
+        householdId,
+        { id: newUuid(), title, document: emptyNoteDocument() },
+        null,
+      )
+      const outcomeError = operationOutcomeError(outcome)
+      if (outcomeError) {
+        setFormError(outcomeError)
+        return
+      }
       setTitle('')
       setAdding(false)
+    } catch (error) {
+      setFormError(operationThrownError(error, 'Could not create this note.'))
     } finally {
       setSaving(false)
     }
@@ -44,8 +62,25 @@ export default function NotesScreen() {
 
   async function confirmDelete() {
     if (!householdId || !deleting) return
-    await deleteNote(householdId, deleting.id, deleting.revision)
-    setDeleting(null)
+    setSaving(true)
+    setDeleteError(null)
+    try {
+      const outcome = await deleteNote(
+        householdId,
+        deleting.id,
+        deleting.revision,
+      )
+      const outcomeError = operationOutcomeError(outcome)
+      if (outcomeError) {
+        setDeleteError(outcomeError)
+        return
+      }
+      setDeleting(null)
+    } catch (error) {
+      setDeleteError(operationThrownError(error, 'Could not delete this note.'))
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -69,7 +104,10 @@ export default function NotesScreen() {
             openLabel={`Open ${item.title}`}
             deleteLabel={`Delete ${item.title}`}
             onOpen={() => openNote(item)}
-            onDelete={() => setDeleting(item)}
+            onDelete={() => {
+              setDeleteError(null)
+              setDeleting(item)
+            }}
           />
         )}
         ItemSeparatorComponent={() => <Text style={styles.separator} />}
@@ -77,7 +115,14 @@ export default function NotesScreen() {
 
       <FloatingActionButton accessibilityLabel="New note" onPress={() => setAdding(true)} />
 
-      <BottomSheet open={adding} onOpenChange={setAdding} title="New note">
+      <BottomSheet
+        open={adding}
+        onOpenChange={(open) => {
+          setAdding(open)
+          if (!open) setFormError(null)
+        }}
+        title="New note"
+      >
         <TextInput
           accessibilityLabel="Note title"
           value={title}
@@ -91,6 +136,9 @@ export default function NotesScreen() {
             { borderColor: tokens.line, borderRadius: tokens.radiusControl, color: tokens.ink },
           ]}
         />
+        {formError ? (
+          <Text style={[styles.error, { color: tokens.danger }]}>{formError}</Text>
+        ) : null}
         <Pressable
           accessibilityRole="button"
           disabled={saving || title.trim().length === 0}
@@ -108,11 +156,16 @@ export default function NotesScreen() {
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={(open) => {
-          if (!open) setDeleting(null)
+          if (!open && !saving) {
+            setDeleteError(null)
+            setDeleting(null)
+          }
         }}
         title={`Delete ${deleting?.title ?? 'note'}?`}
         description="This permanently removes the note."
+        error={deleteError}
         confirmLabel="Delete"
+        confirmDisabled={saving}
         onConfirm={() => void confirmDelete()}
       />
     </SafeAreaView>
@@ -127,4 +180,5 @@ const styles = StyleSheet.create({
   createButton: { paddingVertical: 13, alignItems: 'center' },
   createButtonText: { fontSize: 15, fontWeight: '700' },
   disabled: { opacity: 0.6 },
+  error: { fontSize: 13, marginBottom: 10 },
 })
