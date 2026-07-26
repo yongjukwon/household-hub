@@ -2,7 +2,7 @@ import { Stack, useRouter } from 'expo-router'
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-import { Card } from '@/components/Card'
+import { ListCard } from '@/components/ListCard'
 import { EmptyState, ErrorState, LoadingState } from '@/components/states'
 import { useActiveHousehold } from '@/features/household'
 import {
@@ -76,7 +76,7 @@ export default function NotificationsScreen() {
               onPress={() => void openNotification(item)}
               style={styles.rowWrap}
             >
-              <Card style={styles.row}>
+              <ListCard style={styles.row}>
                 <View
                   style={[
                     styles.dot,
@@ -103,7 +103,7 @@ export default function NotificationsScreen() {
                     {copy.body} · {relativeTime(item.createdAt)}
                   </Text>
                 </View>
-              </Card>
+              </ListCard>
             </Pressable>
           )
         }}

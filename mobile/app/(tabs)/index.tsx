@@ -14,6 +14,7 @@ import { buildOwnerColors } from '@household-hub/domain'
 import { Card } from '@/components/Card'
 import { FloatingActionButton } from '@/components/FloatingActionButton'
 import { ChevronLeftIcon, ChevronRightIcon } from '@/components/icons'
+import { ListCard } from '@/components/ListCard'
 import { EmptyState, ErrorState, LoadingState } from '@/components/states'
 import { deviceTimeZone, useActiveHousehold } from '@/features/household'
 import { EventSheet } from '@/features/calendar/EventSheet'
@@ -260,7 +261,7 @@ export default function CalendarScreen() {
         }
         renderItem={({ item }) => (
           <Pressable onPress={() => openEvent(item)} style={styles.eventRowWrap}>
-            <Card style={styles.eventRow}>
+            <ListCard style={styles.eventRow}>
               <Text style={[styles.eventTime, { color: tokens.muted }]}>
                 {item.allDay || !item.startsAt
                   ? 'All day'
@@ -280,7 +281,7 @@ export default function CalendarScreen() {
                   {ownerColors.labelFor(item.ownerId)}
                 </Text>
               </View>
-            </Card>
+            </ListCard>
           </Pressable>
         )}
       />

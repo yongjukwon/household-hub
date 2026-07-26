@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Card } from '@/components/Card'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EditableTitle } from '@/components/EditableTitle'
+import { ListCard } from '@/components/ListCard'
 import { EmptyState, ErrorState, LoadingState } from '@/components/states'
 import { GroceryItemActions } from '@/features/groceries/GroceryItemActions'
 import { useActiveHousehold } from '@/features/household'
@@ -401,7 +402,7 @@ function ItemRow({
 }) {
   const { tokens } = useTheme()
   return (
-    <Card style={styles.itemRow}>
+    <ListCard style={styles.itemRow}>
       <Pressable
         accessibilityRole="checkbox"
         accessibilityState={{ checked: item.checked }}
@@ -446,7 +447,7 @@ function ItemRow({
         ) : null}
       </Pressable>
       <GroceryItemActions itemName={item.name} onEdit={onEdit} onDelete={onDelete} />
-    </Card>
+    </ListCard>
   )
 }
 

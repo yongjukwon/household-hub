@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { Card } from '@/components/Card'
+import { ListCard } from '@/components/ListCard'
 import { EmptyState, ErrorState, LoadingState } from '@/components/states'
 import { useActiveHousehold } from '@/features/household'
 import { HOUSEHOLD_CURRENCY, useLedgerAssets } from '@/features/ledger/assets'
@@ -220,7 +221,7 @@ export default function StatementMonthScreen() {
                   setCategoryOpen(true)
                 }}
               >
-                <Card style={styles.categoryCard}>
+                <ListCard style={styles.categoryCard}>
                   <View style={styles.categoryRow}>
                     <Text style={[styles.categoryName, { color: tokens.ink }]}>{entry.name}</Text>
                     <Text style={[styles.categoryAmount, { color: tokens.muted }]}>
@@ -243,7 +244,7 @@ export default function StatementMonthScreen() {
                       />
                     </View>
                   ) : null}
-                </Card>
+                </ListCard>
               </Pressable>
             ))}
         </View>

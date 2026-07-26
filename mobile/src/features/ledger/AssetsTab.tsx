@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Switch, Text, View } from 'react-native'
 import { Card } from '@/components/Card'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { ArrowRightIcon, PlusIcon } from '@/components/icons'
+import { ListCard } from '@/components/ListCard'
 import { EmptyState, ErrorState, LoadingState } from '@/components/states'
 import {
   operationOutcomeError,
@@ -168,12 +169,12 @@ export function AssetsTab({
                 setAssetSheet(true)
               }}
             >
-              <Card style={styles.row}>
+              <ListCard style={styles.row}>
                 <Text style={[styles.rowLabel, { color: tokens.ink }]}>{asset.name}</Text>
                 <Text style={[styles.rowValue, { color: tokens.ink }]}>
                   {formatMoney(asset.balanceCents, asset.currencyCode)}
                 </Text>
-              </Card>
+              </ListCard>
             </Pressable>
           ))
         )}
@@ -190,7 +191,7 @@ export function AssetsTab({
           <Text style={[styles.emptyText, { color: tokens.muted }]}>No transfers yet.</Text>
         ) : (
           (transfersQuery.data ?? []).map((t) => (
-            <Card key={t.id} style={styles.row}>
+            <ListCard key={t.id} style={styles.row}>
               <View style={styles.transferLeft}>
                 <Text style={[styles.rowLabel, { color: tokens.ink }]} numberOfLines={1}>
                   {byId.get(t.fromAssetId)?.name ?? '—'}
@@ -220,7 +221,7 @@ export function AssetsTab({
                   <Text style={[styles.deleteLink, { color: tokens.danger }]}>Delete</Text>
                 </Pressable>
               </View>
-            </Card>
+            </ListCard>
           ))
         )}
       </View>
@@ -236,7 +237,7 @@ export function AssetsTab({
           <Text style={[styles.emptyText, { color: tokens.muted }]}>No recurring transfers.</Text>
         ) : (
           (schedulesQuery.data ?? []).map((s) => (
-            <Card key={s.id} style={styles.row}>
+            <ListCard key={s.id} style={styles.row}>
               <View style={styles.scheduleLeft}>
                 <Text style={[styles.rowLabel, { color: tokens.ink }]} numberOfLines={1}>
                   {byId.get(s.fromAssetId)?.name ?? '—'} → {byId.get(s.toAssetId)?.name ?? '—'}
@@ -269,7 +270,7 @@ export function AssetsTab({
                   <Text style={[styles.deleteLink, { color: tokens.danger }]}>Delete</Text>
                 </Pressable>
               </View>
-            </Card>
+            </ListCard>
           ))
         )}
       </View>

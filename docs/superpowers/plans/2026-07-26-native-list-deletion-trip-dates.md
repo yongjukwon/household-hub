@@ -120,6 +120,7 @@ git commit -m "fix(mobile): remove cleared statements optimistically"
 - Create: `mobile/src/components/ListCard.tsx`
 - Create: `mobile/src/components/ListCard.test.tsx`
 - Modify: `mobile/src/components/DetailListRow.tsx`
+- Modify: `mobile/app/notifications.tsx`
 - Modify: `mobile/app/(tabs)/index.tsx`
 - Modify: `mobile/app/(tabs)/groceries/[listId].tsx`
 - Modify: `mobile/app/(tabs)/ledger/[yearId].tsx`
@@ -185,6 +186,7 @@ Replace the outer `Card` in `DetailListRow` with `ListCard`.
 Use `ListCard` for:
 
 - Calendar selected-date event rows;
+- Notification rows;
 - Grocery item rows;
 - Budget category rows;
 - Ledger transaction rows;
@@ -218,6 +220,7 @@ Expected: all suites pass.
 git add mobile/src/components/ListCard.tsx \
   mobile/src/components/ListCard.test.tsx \
   mobile/src/components/DetailListRow.tsx \
+  mobile/app/notifications.tsx \
   'mobile/app/(tabs)/index.tsx' \
   'mobile/app/(tabs)/groceries/[listId].tsx' \
   'mobile/app/(tabs)/ledger/[yearId].tsx' \

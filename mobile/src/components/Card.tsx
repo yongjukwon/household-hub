@@ -1,5 +1,10 @@
 import type { ReactNode } from 'react'
-import { StyleSheet, View, type ViewStyle } from 'react-native'
+import {
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native'
 
 import { useTheme } from '@/theme/tokens'
 
@@ -9,7 +14,7 @@ export function Card({
   style,
 }: {
   children?: ReactNode
-  style?: ViewStyle | ViewStyle[]
+  style?: StyleProp<ViewStyle>
 }) {
   const { tokens } = useTheme()
 

@@ -1,5 +1,7 @@
 import { fireEvent, render } from '@testing-library/react-native'
+import { StyleSheet } from 'react-native'
 
+import { lightTokens } from '@/theme/tokens'
 import { DetailListRow } from './DetailListRow'
 
 describe('DetailListRow', () => {
@@ -22,5 +24,13 @@ describe('DetailListRow', () => {
 
     await fireEvent.press(view.getByLabelText('Open Costco'))
     expect(onOpen).toHaveBeenCalledTimes(1)
+
+    const tree = view.toJSON()
+    expect(tree).not.toBeNull()
+    expect(
+      StyleSheet.flatten(
+        !Array.isArray(tree) && tree ? tree.props.style : undefined,
+      ).borderRadius,
+    ).toBe(lightTokens.radiusControl)
   })
 })

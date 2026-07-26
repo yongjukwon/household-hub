@@ -18,6 +18,7 @@ import {
   PlusIcon,
 } from '@/components/icons'
 import { EditableTitle } from '@/components/EditableTitle'
+import { ListCard } from '@/components/ListCard'
 import { EmptyState, ErrorState, LoadingState } from '@/components/states'
 import { SegmentedControl } from '@/components/SegmentedControl'
 import { useActiveHousehold } from '@/features/household'
@@ -231,7 +232,7 @@ function ItineraryTab({
                   setSheetOpen(true)
                 }}
               >
-                <Card style={styles.contentRow}>
+                <ListCard style={styles.contentRow}>
                   <View style={styles.contentRowText}>
                     <Text style={[styles.contentTitle, { color: tokens.ink }]}>
                       {entry.title}
@@ -250,7 +251,7 @@ function ItineraryTab({
                       {entry.startTime}
                     </Text>
                   ) : null}
-                </Card>
+                </ListCard>
               </Pressable>
             ))}
           </View>
@@ -326,7 +327,7 @@ function BookingsTab({
               setSheetOpen(true)
             }}
           >
-            <Card style={styles.contentRow}>
+            <ListCard style={styles.contentRow}>
               <View style={styles.contentRowText}>
                 <Text style={[styles.eyebrow, { color: tokens.muted }]}>
                   {BOOKING_KIND_LABELS[entry.kind]}
@@ -353,7 +354,7 @@ function BookingsTab({
                   {formatEventTime(entry.startsAt, trip.destinationTimezone)}
                 </Text>
               ) : null}
-            </Card>
+            </ListCard>
           </Pressable>
         ))
       )}
@@ -540,7 +541,7 @@ function ChecklistRow({
 }) {
   const { tokens } = useTheme()
   return (
-    <Card style={styles.checklistRow}>
+    <ListCard style={styles.checklistRow}>
       <Pressable
         accessibilityRole="checkbox"
         accessibilityLabel={`Check ${entry.label}`}
@@ -573,7 +574,7 @@ function ChecklistRow({
           {entry.label}
         </Text>
       </Pressable>
-    </Card>
+    </ListCard>
   )
 }
 
@@ -685,7 +686,7 @@ function ExpensesTab({
               setSheetOpen(true)
             }}
           >
-            <Card style={styles.expenseRow}>
+            <ListCard style={styles.expenseRow}>
               <View style={styles.expenseText}>
                 <Text style={[styles.expenseDesc, { color: tokens.ink }]} numberOfLines={1}>
                   {e.description}
@@ -698,7 +699,7 @@ function ExpensesTab({
               <Text style={[styles.expenseAmount, { color: tokens.ink }]}>
                 {formatMoney(e.amountCents, e.currencyCode)}
               </Text>
-            </Card>
+            </ListCard>
           </Pressable>
         ))
       )}

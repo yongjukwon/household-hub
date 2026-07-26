@@ -2,8 +2,8 @@ import type { ReactNode } from 'react'
 import { Pressable, StyleSheet, Text } from 'react-native'
 
 import { useTheme } from '@/theme/tokens'
-import { Card } from './Card'
 import { TrashIcon } from './icons'
+import { ListCard } from './ListCard'
 
 interface DetailListRowProps {
   title: string
@@ -33,7 +33,7 @@ export function DetailListRow({
   const { tokens } = useTheme()
 
   return (
-    <Card style={styles.row}>
+    <ListCard style={styles.row}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={openLabel}
@@ -73,7 +73,7 @@ export function DetailListRow({
       >
         <TrashIcon size={18} color={tokens.danger} />
       </Pressable>
-    </Card>
+    </ListCard>
   )
 }
 

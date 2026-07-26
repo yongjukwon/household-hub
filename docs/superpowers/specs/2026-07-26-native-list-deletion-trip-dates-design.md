@@ -27,6 +27,7 @@ Ledger Statements/Assets segmented control.
 Use this surface for tappable collection rows in:
 
 - Calendar event lists;
+- Notification rows;
 - Grocery list and Grocery item rows;
 - Ledger Statement years, categories, transactions, Assets, one-off
   transfers, and recurring-transfer schedules;

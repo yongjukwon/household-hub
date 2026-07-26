@@ -2,8 +2,8 @@ import { formatMoney } from '@household-hub/domain'
 import { useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
-import { Card } from '@/components/Card'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { ListCard } from '@/components/ListCard'
 import {
   operationOutcomeError,
   operationThrownError,
@@ -68,7 +68,7 @@ export function TransactionList({
     <View>
       {error ? <Text style={[styles.error, { color: tokens.danger }]}>{error}</Text> : null}
       {transactions.map((transaction) => (
-        <Card key={transaction.id} style={styles.row}>
+        <ListCard key={transaction.id} style={styles.row}>
           <Pressable onPress={() => onEdit(transaction)} style={styles.rowMain}>
             <Text style={[styles.description, { color: tokens.ink }]} numberOfLines={1}>
               {transaction.description}
@@ -97,7 +97,7 @@ export function TransactionList({
               <Text style={[styles.deleteLink, { color: tokens.danger }]}>Delete</Text>
             </Pressable>
           </View>
-        </Card>
+        </ListCard>
       ))}
       <ConfirmDialog
         open={!!deleting}
