@@ -130,7 +130,7 @@ export default function LoginScreen() {
         ) : null}
 
         {error ? (
-          <Text accessibilityRole="alert" style={styles.error}>
+          <Text accessibilityRole="alert" style={[styles.error, { color: tokens.danger }]}>
             {error}
           </Text>
         ) : null}
@@ -167,5 +167,5 @@ const styles = StyleSheet.create({
   },
   primary: { borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   primaryText: { fontSize: 16, fontWeight: '600' },
-  error: { color: '#D92D20', fontSize: 14, textAlign: 'center' },
+  error: { fontSize: 14, textAlign: 'center' },
 })

@@ -16,6 +16,19 @@ import {
 } from '@/lib/queryPersister'
 import { useQueryEnvironment } from '@/lib/useQueryEnvironment'
 import { AppearanceProvider } from '@/theme/AppearanceProvider'
+import { useTheme } from '@/theme/tokens'
+
+/**
+ * `expo-status-bar`'s `style="auto"` follows the OS `useColorScheme()`, not
+ * this app's own Light/Dark/System override (`useAppearance`/`useTheme`) — so
+ * picking "Dark" in-app while the phone is set to System/Light (or vice
+ * versa) left the status bar icons matching the OS scheme instead of the
+ * app's, rendering illegibly against the resolved background.
+ */
+function ThemedStatusBar() {
+  const { scheme } = useTheme()
+  return <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+}
 
 function RootNavigator() {
   useQueryEnvironment()
@@ -54,7 +67,7 @@ export default function RootLayout() {
         <AppearanceProvider>
           <AuthProvider>
             <HouseholdRuntime>
-              <StatusBar style="auto" />
+              <ThemedStatusBar />
               <RootNavigator />
             </HouseholdRuntime>
           </AuthProvider>

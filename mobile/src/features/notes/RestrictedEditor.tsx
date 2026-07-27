@@ -14,10 +14,33 @@ import {
   useEditorBridge,
   type EditorBridge,
 } from '@10play/tentap-editor'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 
-import { useTheme } from '@/theme/tokens'
+import { useTheme, type ThemeTokens } from '@/theme/tokens'
+
+/**
+ * TenTap's `theme` option (`webview`/`webviewContainer`) only styles the
+ * native RN wrapper around the WebView — it has no hook for the editable
+ * HTML content's text color or font. Without this, the WebView falls back to
+ * its own default (black text, WebKit's serif "standard font"), which reads
+ * as broken in dark mode and mismatched everywhere else. `editor.injectCSS`
+ * (from `CoreBridge`, part of `EXTENSIONS` below) is the documented mechanism
+ * for reaching into the WebView's document — used internally by the library
+ * for its own `darkEditorCss` — so we use the same hook to line up the
+ * editable text with `tokens.ink` and the app's system-default font stack.
+ */
+function editorContentCSS(tokens: ThemeTokens): string {
+  return `
+    body, .ProseMirror {
+      color: ${tokens.ink};
+      font-family: -apple-system, Roboto, 'Segoe UI', Helvetica, Arial, sans-serif;
+    }
+    .is-editor-empty:first-child::before {
+      color: ${tokens.muted3};
+    }
+  `
+}
 
 /**
  * Note editor restricted to body, Heading 1-3, bullet/numbered/checklists,
@@ -89,6 +112,33 @@ export function RestrictedEditor({
     editor.setPlaceholder?.(placeholder)
   }, [editor, placeholder])
 
+  // `state.isReady` (via useBridgeState) is unreliable here: TenTap's web
+  // side only includes `isReady` on `StateUpdate` messages, which it sends
+  // from `onUpdate`/`onSelectionUpdate`/`onTransaction` — none of which fire
+  // for a freshly-opened, non-autofocused editor until the user actually
+  // interacts with it. The WebView's own `onLoad` (surfaced through
+  // `RichText`'s passthrough props) fires once the bundled page has loaded —
+  // the same timing TenTap's own bridge-extension CSS (toolbar/placeholder
+  // styling) relies on internally — but on iOS, `RichText` deliberately
+  // remounts the WebView once right after its first load (a workaround for
+  // https://github.com/react-native-webview/react-native-webview/issues/3578),
+  // which fires `onLoad` a second time and wipes anything injected on the
+  // first. So this re-injects unconditionally on every `onLoad`, not just
+  // the transition into a "loaded" state.
+  const [webviewLoaded, setWebviewLoaded] = useState(false)
+  function injectEditorTheme() {
+    editor.injectCSS?.(editorContentCSS(tokens), 'hh-editor-theme')
+    setWebviewLoaded(true)
+  }
+  useEffect(() => {
+    if (!webviewLoaded) return
+    editor.injectCSS?.(editorContentCSS(tokens), 'hh-editor-theme')
+    // Only re-run for a *later* tokens change (e.g. toggling Light/Dark
+    // while the note stays open) — the initial injection is handled by
+    // `injectEditorTheme` from `onLoad` above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokens])
+
   return (
     <View style={[styles.root, tokens.shadowCard]}>
       <View
@@ -103,7 +153,7 @@ export function RestrictedEditor({
       >
         <Toolbar editor={editor} />
         <View style={styles.editorSurface}>
-          <RichText editor={editor} />
+          <RichText editor={editor} onLoad={injectEditorTheme} />
         </View>
       </View>
     </View>
