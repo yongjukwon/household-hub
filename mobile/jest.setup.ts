@@ -40,7 +40,9 @@ jest.mock('expo-blur', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require('react')
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const BlurView = (props: any) =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     React.createElement('BlurView' as any, props, props.children)
 
   return { BlurView }
@@ -48,6 +50,7 @@ jest.mock('expo-blur', () => {
 
 // expo-linear-gradient ships a native view; tests just need something renderable.
 jest.mock('expo-linear-gradient', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View } = require('react-native')
   return { LinearGradient: View }
 })

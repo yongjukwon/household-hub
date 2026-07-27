@@ -15,7 +15,6 @@ import {
   operationOutcomeError,
   operationThrownError,
 } from '@/lib/operations'
-import { useTheme } from '@/theme/tokens'
 
 function formatRange(startDate: string, endDate: string): string {
   const fmt = (d: string) =>
@@ -29,7 +28,6 @@ function formatRange(startDate: string, endDate: string): string {
 
 /** Trips destination: the list of trips. */
 export default function TripsScreen() {
-  const { tokens } = useTheme()
   const router = useRouter()
   const household = useActiveHousehold()
   const householdId = household.data?.id

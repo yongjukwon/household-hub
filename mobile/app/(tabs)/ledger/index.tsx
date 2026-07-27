@@ -11,13 +11,11 @@ import { AssetsTab } from '@/features/ledger/AssetsTab'
 import { NewYearSheet } from '@/features/ledger/NewYearSheet'
 import { StatementsTab } from '@/features/ledger/StatementsTab'
 import { useLedgerYears } from '@/features/ledger/statements'
-import { useTheme } from '@/theme/tokens'
 
 type LedgerSegment = 'statements' | 'assets'
 
 /** Ledger destination: Statements and Assets segments. */
 export default function LedgerScreen() {
-  const { tokens } = useTheme()
   const household = useActiveHousehold()
   const householdId = household.data?.id
   const router = useRouter()

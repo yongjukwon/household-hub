@@ -9,7 +9,6 @@ import {
   TAB_BAR_FLOAT_OFFSET,
   TAB_BAR_HEIGHT,
 } from '@/components/FloatingTabBar'
-import { useTheme } from '@/theme/tokens'
 
 /**
  * Five primary destinations, Calendar first and default (`index`). Renders
@@ -19,7 +18,6 @@ import { useTheme } from '@/theme/tokens'
  * map onto the native tab bar's header/label conventions.
  */
 export default function TabsLayout() {
-  const { tokens } = useTheme()
   const insets = useSafeAreaInsets()
 
   return (
