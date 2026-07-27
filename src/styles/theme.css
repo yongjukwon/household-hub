@@ -17,9 +17,9 @@
   --hh-muted-2: rgba(20, 21, 26, 0.45);
   --hh-muted-3: rgba(20, 21, 26, 0.4);
   --hh-line: rgba(20, 21, 26, 0.08);
-  --hh-accent: #ff7a45;
+  --hh-accent: #6f9483;
   --hh-accent-contrast: #ffffff;
-  --hh-accent-soft: rgba(255, 122, 69, 0.14);
+  --hh-accent-soft: rgba(111, 148, 131, 0.14);
   --hh-danger: #d6465f;
 
   /* category / data palette: foreground + soft background */
@@ -56,9 +56,9 @@
     --hh-muted-2: rgba(244, 245, 248, 0.48);
     --hh-muted-3: rgba(244, 245, 248, 0.4);
     --hh-line: rgba(255, 255, 255, 0.09);
-    --hh-accent: #ff7a45;
+    --hh-accent: #6f9483;
     --hh-accent-contrast: #14151a;
-    --hh-accent-soft: rgba(255, 122, 69, 0.22);
+    --hh-accent-soft: rgba(111, 148, 131, 0.22);
     --hh-danger: #ef6f83;
 
     --hh-blue-bg: rgba(90, 115, 232, 0.2);
@@ -82,9 +82,9 @@
   --hh-muted-2: rgba(244, 245, 248, 0.48);
   --hh-muted-3: rgba(244, 245, 248, 0.4);
   --hh-line: rgba(255, 255, 255, 0.09);
-  --hh-accent: #ff7a45;
+  --hh-accent: #6f9483;
   --hh-accent-contrast: #14151a;
-  --hh-accent-soft: rgba(255, 122, 69, 0.22);
+  --hh-accent-soft: rgba(111, 148, 131, 0.22);
   --hh-danger: #ef6f83;
 
   --hh-blue-bg: rgba(90, 115, 232, 0.2);
