@@ -701,7 +701,7 @@ export type Database = {
           id: string
           item_name: string
           item_name_normalized: string
-          list_id: string
+          list_id: string | null
           price_cents: number
           recorded_at: string
           recorded_by: string
@@ -711,7 +711,7 @@ export type Database = {
           id?: string
           item_name: string
           item_name_normalized: string
-          list_id: string
+          list_id?: string | null
           price_cents: number
           recorded_at?: string
           recorded_by: string
@@ -721,7 +721,7 @@ export type Database = {
           id?: string
           item_name?: string
           item_name_normalized?: string
-          list_id?: string
+          list_id?: string | null
           price_cents?: number
           recorded_at?: string
           recorded_by?: string
@@ -735,11 +735,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "household_grocery_price_history_list_id_household_id_fkey"
-            columns: ["list_id", "household_id"]
+            foreignKeyName: "household_grocery_price_history_list_id_fkey"
+            columns: ["list_id"]
             isOneToOne: false
             referencedRelation: "household_grocery_lists"
-            referencedColumns: ["id", "household_id"]
+            referencedColumns: ["id"]
           },
         ]
       }
