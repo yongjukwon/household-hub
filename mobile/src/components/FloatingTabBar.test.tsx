@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 
+import { lightTokens } from '@/theme/tokens'
 import { FloatingTabBar, TAB_BAR_FLOAT_OFFSET, TAB_BAR_HEIGHT } from './FloatingTabBar'
 
 const mockedReplace = jest.fn()
@@ -35,6 +36,10 @@ describe('FloatingTabBar', () => {
       position: 'absolute',
       bottom: TAB_BAR_FLOAT_OFFSET,
       height: TAB_BAR_HEIGHT,
+      shadowColor: lightTokens.shadowFloat.shadowColor,
+      shadowOpacity: lightTokens.shadowFloat.shadowOpacity,
+      shadowRadius: lightTokens.shadowFloat.shadowRadius,
+      elevation: lightTokens.shadowFloat.elevation,
     })
 
     const child =

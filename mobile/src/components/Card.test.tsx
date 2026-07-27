@@ -16,6 +16,15 @@ describe('Card', () => {
     // blur content to the rounded shape via overflow:'hidden'.
     expect(!Array.isArray(root) && root ? root.type : undefined).toBe('View')
 
+    // Verify the outer View carries the shadow token, so iOS shadow rendering
+    // is not suppressed by overflow:'hidden' on the same element.
+    expect(StyleSheet.flatten(!Array.isArray(root) && root ? root.props.style : undefined)).toMatchObject({
+      shadowColor: lightTokens.shadowCard.shadowColor,
+      shadowOpacity: lightTokens.shadowCard.shadowOpacity,
+      shadowRadius: lightTokens.shadowCard.shadowRadius,
+      elevation: lightTokens.shadowCard.elevation,
+    })
+
     const child =
       !Array.isArray(root) && root ? root.children?.[0] : undefined
     const blurNode =
