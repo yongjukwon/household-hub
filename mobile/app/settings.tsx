@@ -10,7 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { DangerConfirm } from '@/components/DangerConfirm'
@@ -60,6 +60,11 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 /** Settings: profile, appearance, household/invite/ownership, account, danger. */
 export default function SettingsScreen() {
   const { tokens } = useTheme()
+  const insets = useSafeAreaInsets()
+  // Approximate iOS compact-header height; @react-navigation/elements'
+  // useHeaderHeight is not resolvable in this Expo Router version's
+  // dependency tree, so this stands in for it.
+  const headerHeight = insets.top + 44
   const { session } = useAuth()
   const user = session?.user ?? null
   const household = useActiveHousehold()
@@ -139,8 +144,17 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['bottom']}>
       <GradientBackground />
-      <Stack.Screen options={{ headerShown: true, title: 'Settings' }} />
-      <ScrollView contentContainerStyle={styles.content}>
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: 'Settings',
+          headerTransparent: true,
+          headerStyle: { backgroundColor: 'transparent' },
+          headerTintColor: tokens.ink,
+          headerTitleStyle: { color: tokens.ink },
+        }}
+      />
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: headerHeight }]}>
         {notice ? (
           <View style={[styles.notice, { backgroundColor: tokens.accentSoft, borderRadius: tokens.radiusControl }]}>
             <Text style={[styles.noticeText, { color: tokens.ink }]}>{notice}</Text>

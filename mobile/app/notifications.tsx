@@ -1,6 +1,6 @@
 import { Stack, useRouter } from 'expo-router'
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { GradientBackground } from '@/components/GradientBackground'
 import { ListCard } from '@/components/ListCard'
@@ -27,6 +27,11 @@ function relativeTime(value: string): string {
 
 export default function NotificationsScreen() {
   const { tokens } = useTheme()
+  const insets = useSafeAreaInsets()
+  // Approximate iOS compact-header height; @react-navigation/elements'
+  // useHeaderHeight is not resolvable in this Expo Router version's
+  // dependency tree, so this stands in for it.
+  const headerHeight = insets.top + 44
   const router = useRouter()
   const household = useActiveHousehold()
   const householdId = household.data?.id
@@ -50,11 +55,20 @@ export default function NotificationsScreen() {
       edges={['bottom']}
     >
       <GradientBackground />
-      <Stack.Screen options={{ headerShown: true, title: 'Notifications' }} />
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: 'Notifications',
+          headerTransparent: true,
+          headerStyle: { backgroundColor: 'transparent' },
+          headerTintColor: tokens.ink,
+          headerTitleStyle: { color: tokens.ink },
+        }}
+      />
       <FlatList
         data={query.data ?? []}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingTop: headerHeight }]}
         ListEmptyComponent={
           query.isLoading ? (
             <LoadingState />
