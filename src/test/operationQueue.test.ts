@@ -284,6 +284,100 @@ describe('durable operation queue', () => {
     ).toEqual([1, 2])
   })
 
+  it('keeps a command enqueued mid-failure queued for a later pass instead of skipping ahead to it', async () => {
+    // Combines the two mechanics above: A's network call is gated (like the
+    // concurrent-enqueue test), but instead of eventually succeeding, its
+    // *first* attempt throws a transport error (like the transport-failure
+    // test) — and B is durably enqueued while A is still gated in flight, not
+    // before the pass starts. This is the one combination that actually
+    // exercises the `break drain` label: a plain `break` would only exit the
+    // inner per-batch loop, so the outer while(true) would re-list, find B
+    // (which arrived mid-pass) sitting right next to a *still-unprocessed* A,
+    // and press on — sending B (and retrying A) before this pass ever
+    // reported A's failure. That skips ahead of a command whose fate this
+    // pass hasn't resolved yet, exactly what `break drain` exists to prevent.
+    let releaseA: (() => void) | undefined
+    const aGate = new Promise<void>((resolve) => {
+      releaseA = resolve
+    })
+    let aAttempts = 0
+
+    mockRpc.mockImplementation(
+      async (_name: string, args: { command: { operationId: UUID; entityId: string } }) => {
+        if (args.command.entityId === EVENT_A) {
+          await aGate
+          aAttempts += 1
+          if (aAttempts === 1) throw new Error('Failed to fetch')
+        }
+        return { data: applied(args.command.operationId), error: null }
+      },
+    )
+
+    // Same snapshot-gate technique as the concurrent-enqueue test: wait until
+    // the pass has taken its snapshot of the store (containing only A so far)
+    // before enqueueing B.
+    let snapshotTaken: (() => void) | undefined
+    const snapshotGate = new Promise<void>((resolve) => {
+      snapshotTaken = resolve
+    })
+    type OrderBy = typeof db.operations.orderBy
+    const originalOrderBy: OrderBy = db.operations.orderBy.bind(db.operations)
+    vi.spyOn(db.operations, 'orderBy').mockImplementation(((
+      ...args: Parameters<OrderBy>
+    ) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test-only Dexie query interception
+      const query = (originalOrderBy as any)(...args)
+      const originalToArray = query.toArray.bind(query)
+      query.toArray = async () => {
+        const result = await originalToArray()
+        snapshotTaken?.()
+        snapshotTaken = undefined
+        return result
+      }
+      return query
+    }) as OrderBy)
+
+    const firstOutcome = enqueueOperation(upsertEvent(EVENT_A))
+    await snapshotGate
+
+    const secondOutcome = enqueueOperation(upsertEvent(EVENT_B))
+    // Wait for B to be durably written before releasing A's failure — same
+    // reasoning as the concurrent-enqueue test: fake-indexeddb writes settle
+    // over real macrotasks, so a fixed tick count isn't a reliable gate.
+    while ((await db.operations.count()) < 2) {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    }
+    await Promise.resolve()
+    releaseA?.()
+
+    const [first, second] = await Promise.all([firstOutcome, secondOutcome])
+
+    // A's failure never got a verdict recorded this pass, so neither caller
+    // sees anything but "still queued" — the pass stopped, it didn't settle.
+    expect(first.status).toBe('queued')
+    expect(second.status).toBe('queued')
+    // Only A's single (failing) attempt happened in this pass; B was never
+    // sent, and A was never retried within the same pass.
+    expect(mockRpc).toHaveBeenCalledTimes(1)
+
+    const stalled = await pendingOperations()
+    expect(stalled).toHaveLength(2)
+    expect(stalled[0].entityId).toBe(EVENT_A)
+    expect(stalled[0].attempts).toBe(1)
+    expect(stalled[0].lastError).toBe('Failed to fetch')
+    expect(stalled[1].entityId).toBe(EVENT_B)
+    expect(stalled[1].attempts).toBe(0)
+
+    // B was not silently lost: a later flush (the mock now lets A through on
+    // its second attempt) still picks it up, in FIFO order behind A.
+    const retry = await flushOperations()
+    expect(retry.applied).toBe(2)
+    expect(
+      mockRpc.mock.calls.slice(1).map(([, args]) => args.command.localSequence),
+    ).toEqual([1, 2])
+    expect(await pendingOperations()).toEqual([])
+  })
+
   it('never drops a command because of an unrecognized response', async () => {
     setOnline(false)
     await enqueueOperation(upsertEvent(EVENT_A))
