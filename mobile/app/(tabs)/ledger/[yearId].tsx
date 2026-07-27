@@ -111,7 +111,7 @@ export default function StatementMonthScreen() {
 
   if (household.isLoading || years.isLoading || query.isLoading || assets.isLoading) {
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: tokens.canvas }]}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]}>
         <LoadingState />
       </SafeAreaView>
     )
@@ -123,14 +123,14 @@ export default function StatementMonthScreen() {
     (years.isError && !years.data)
   ) {
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: tokens.canvas }]}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]}>
         <ErrorState message="Could not load this statement." />
       </SafeAreaView>
     )
   }
   if (!year || !query.data || !monthRow) {
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: tokens.canvas }]}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]}>
         <EmptyState
           title="Statement not found"
           hint="This year may have been removed, or the link is out of date."
@@ -161,7 +161,7 @@ export default function StatementMonthScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: tokens.canvas }]} edges={['bottom']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
         <BudgetMonthSelector month={month} onChange={setMonth} />
 

@@ -17,7 +17,7 @@ export function PlaceholderScreen({
   const { tokens } = useTheme()
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: tokens.canvas }]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]}>
       <View style={styles.body}>
         <Text
           accessibilityRole="header"

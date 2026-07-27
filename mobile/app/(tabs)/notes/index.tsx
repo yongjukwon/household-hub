@@ -84,7 +84,7 @@ export default function NotesScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: tokens.canvas }]} edges={['bottom']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['bottom']}>
       <FlatList
         data={notes.data ?? []}
         keyExtractor={(item) => item.id}

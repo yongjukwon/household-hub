@@ -94,7 +94,7 @@ export default function GroceriesScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: tokens.canvas }]} edges={['bottom']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['bottom']}>
       <FlatList
         data={lists.data ?? []}
         keyExtractor={(item) => item.id}

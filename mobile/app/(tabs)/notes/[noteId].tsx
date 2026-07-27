@@ -44,14 +44,14 @@ export default function NoteScreen() {
 
   if (query.isLoading) {
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: tokens.canvas }]}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]}>
         <LoadingState />
       </SafeAreaView>
     )
   }
   if (query.isError || !query.data) {
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: tokens.canvas }]}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]}>
         <ErrorState message="Could not load this note." onRetry={() => void query.refetch()} />
       </SafeAreaView>
     )
@@ -102,7 +102,7 @@ export default function NoteScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: tokens.canvas }]} edges={['bottom']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['bottom']}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

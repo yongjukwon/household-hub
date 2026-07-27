@@ -186,7 +186,7 @@ export default function CalendarScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: tokens.canvas }]} edges={['bottom']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['bottom']}>
       <FlatList
         data={selectedEvents}
         keyExtractor={(item) => item.id}
