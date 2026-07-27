@@ -1,5 +1,5 @@
 import { useRouter, usePathname } from 'expo-router'
-import { Pressable, StyleSheet, Text } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BlurView } from 'expo-blur'
 
@@ -23,37 +23,49 @@ export function FloatingTabBar() {
   const insets = useSafeAreaInsets()
 
   return (
-    <BlurView
-      intensity={60}
-      tint={scheme}
+    // Two-layer split (see Card.tsx for the same pattern/reasoning): the
+    // outer plain View is absolutely positioned exactly as this bar always
+    // was and carries the floating shadow (no overflow:'hidden', so the
+    // shadow isn't clipped away). The inner BlurView carries the glass
+    // background/border and overflow:'hidden' so the blur content is
+    // clipped to the pill shape instead of leaking past its rounded corners.
+    <View
       style={[
         styles.bar,
-        {
-          bottom: insets.bottom + TAB_BAR_FLOAT_OFFSET,
-          backgroundColor: tokens.glass.fill,
-          borderColor: tokens.glass.border,
-        },
+        { bottom: insets.bottom + TAB_BAR_FLOAT_OFFSET },
         tokens.shadowFloat,
       ]}
     >
-      {TAB_DESTINATIONS.map(({ path, label, icon: Icon, activeIcon: ActiveIcon }) => {
-        const active = tabActiveForPath(path, pathname)
-        const TabIcon = active ? ActiveIcon : Icon
-        return (
-          <Pressable
-            key={path}
-            accessibilityRole="button"
-            accessibilityLabel={label}
-            accessibilityState={{ selected: active }}
-            onPress={() => router.replace(path)}
-            style={styles.item}
-          >
-            <TabIcon size={21} color={active ? tokens.accent : tokens.muted} />
-            <Text style={itemLabelStyle(tokens, active)}>{label}</Text>
-          </Pressable>
-        )
-      })}
-    </BlurView>
+      <BlurView
+        intensity={60}
+        tint={scheme}
+        style={[
+          styles.barInner,
+          {
+            backgroundColor: tokens.glass.fill,
+            borderColor: tokens.glass.border,
+          },
+        ]}
+      >
+        {TAB_DESTINATIONS.map(({ path, label, icon: Icon, activeIcon: ActiveIcon }) => {
+          const active = tabActiveForPath(path, pathname)
+          const TabIcon = active ? ActiveIcon : Icon
+          return (
+            <Pressable
+              key={path}
+              accessibilityRole="button"
+              accessibilityLabel={label}
+              accessibilityState={{ selected: active }}
+              onPress={() => router.replace(path)}
+              style={styles.item}
+            >
+              <TabIcon size={21} color={active ? tokens.accent : tokens.muted} />
+              <Text style={itemLabelStyle(tokens, active)}>{label}</Text>
+            </Pressable>
+          )
+        })}
+      </BlurView>
+    </View>
   )
 }
 
@@ -71,6 +83,10 @@ const styles = StyleSheet.create({
     left: 16,
     right: 16,
     height: TAB_BAR_HEIGHT,
+    borderRadius: 26,
+  },
+  barInner: {
+    flex: 1,
     borderRadius: 26,
     borderWidth: 1,
     flexDirection: 'row',

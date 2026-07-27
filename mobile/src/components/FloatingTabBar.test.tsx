@@ -24,13 +24,29 @@ describe('FloatingTabBar', () => {
     const root = view.toJSON()
 
     expect(root).not.toBeNull()
-    expect(!Array.isArray(root) && root ? root.type : undefined).toBe('BlurView')
+    // Two-layer surface: an outer plain View is absolutely positioned and
+    // carries the floating shadow (unclipped), wrapping an inner BlurView
+    // that carries the glass background/border and clips its own blur
+    // content to the pill shape via overflow:'hidden'.
+    expect(!Array.isArray(root) && root ? root.type : undefined).toBe('View')
     expect(
       StyleSheet.flatten(!Array.isArray(root) && root ? root.props.style : undefined),
     ).toMatchObject({
       position: 'absolute',
       bottom: TAB_BAR_FLOAT_OFFSET,
       height: TAB_BAR_HEIGHT,
+    })
+
+    const child =
+      !Array.isArray(root) && root ? root.children?.[0] : undefined
+    const blurNode =
+      child && typeof child !== 'string' && !Array.isArray(child)
+        ? child
+        : undefined
+    expect(blurNode).not.toBeUndefined()
+    expect(blurNode?.type).toBe('BlurView')
+    expect(StyleSheet.flatten(blurNode?.props.style)).toMatchObject({
+      overflow: 'hidden',
     })
   })
 

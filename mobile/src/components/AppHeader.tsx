@@ -137,5 +137,10 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    // BlurView doesn't clip its own blur content to borderRadius without
+    // this — without it the blur renders as a squared-off ghost rectangle
+    // behind the rounded button. No shadow here, so no masksToBounds
+    // tradeoff to worry about (see Card.tsx for that case).
+    overflow: 'hidden',
   },
 })

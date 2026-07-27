@@ -41,23 +41,38 @@ export function Card({ children, style, variant = 'glass' }: CardProps) {
     )
   }
 
+  // Resolve the effective corner radius (a caller may override it via
+  // `style`, e.g. a future variant like ListCard's radius override) so the
+  // outer shadow-casting shape always matches the inner clipped surface.
+  const resolvedRadius =
+    StyleSheet.flatten([{ borderRadius: tokens.radiusCard }, style])
+      .borderRadius ?? tokens.radiusCard
+
   return (
-    <BlurView
-      intensity={40}
-      tint={scheme}
-      style={[
-        styles.surface,
-        {
-          backgroundColor: tokens.glass.fill,
-          borderColor: tokens.glass.border,
-          borderRadius: tokens.radiusCard,
-        },
-        tokens.shadowCard,
-        style,
-      ]}
-    >
-      {children}
-    </BlurView>
+    // Two-layer split: BlurView does not reliably clip its own native blur
+    // content to a borderRadius unless it also has overflow:'hidden' — but
+    // overflow:'hidden' forces masksToBounds=true on iOS, which suppresses
+    // the shadow below. So the shadow lives on this plain outer View
+    // (no overflow:'hidden'), and the inner BlurView gets overflow:'hidden'
+    // to clip the blur to the rounded shape.
+    <View style={[{ borderRadius: resolvedRadius }, tokens.shadowCard]}>
+      <BlurView
+        intensity={40}
+        tint={scheme}
+        style={[
+          styles.surface,
+          {
+            backgroundColor: tokens.glass.fill,
+            borderColor: tokens.glass.border,
+            borderRadius: tokens.radiusCard,
+            overflow: 'hidden',
+          },
+          style,
+        ]}
+      >
+        {children}
+      </BlurView>
+    </View>
   )
 }
 

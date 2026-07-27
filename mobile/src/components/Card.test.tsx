@@ -10,14 +10,24 @@ describe('Card', () => {
     const root = view.toJSON()
 
     expect(root).not.toBeNull()
-    expect(!Array.isArray(root) && root ? root.type : undefined).toBe('BlurView')
-    expect(
-      StyleSheet.flatten(
-        !Array.isArray(root) && root ? root.props.style : undefined,
-      ),
-    ).toMatchObject({
+    // The glass variant is a two-layer surface: an outer plain View carries
+    // the shadow (unclipped, so the iOS shadow renders), wrapping an inner
+    // BlurView that carries the glass background/border and clips its own
+    // blur content to the rounded shape via overflow:'hidden'.
+    expect(!Array.isArray(root) && root ? root.type : undefined).toBe('View')
+
+    const child =
+      !Array.isArray(root) && root ? root.children?.[0] : undefined
+    const blurNode =
+      child && typeof child !== 'string' && !Array.isArray(child)
+        ? child
+        : undefined
+    expect(blurNode).not.toBeUndefined()
+    expect(blurNode?.type).toBe('BlurView')
+    expect(StyleSheet.flatten(blurNode?.props.style)).toMatchObject({
       backgroundColor: lightTokens.glass.fill,
       borderColor: lightTokens.glass.border,
+      overflow: 'hidden',
     })
   })
 
