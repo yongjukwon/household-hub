@@ -151,6 +151,16 @@ let flushInFlight: Promise<FlushSummary> | null = null
  * verdicts are final — applied and duplicate leave the queue, conflict and
  * rejection leave it as a discard record. Nothing is ever retried after the
  * server has ruled on it.
+ *
+ * Concurrent callers share one in-flight pass (see `flushInFlight` below), so
+ * this must keep draining the store until it is empty rather than take a
+ * single snapshot: a command enqueued by another caller while an earlier
+ * command's own network round trip is still pending (a normal timing outcome
+ * on a real network, not just a contrived race) must still get a turn in
+ * *this* pass — otherwise its enqueueOperation() caller sees "queued" even
+ * though the connection is live and other commands are going through right
+ * now, and nothing flushes it again until the next reconnect/foreground/timer
+ * event.
  */
 export function flushOperations(): Promise<FlushSummary> {
   if (flushInFlight) return flushInFlight
@@ -178,42 +188,53 @@ async function runFlush(): Promise<FlushSummary> {
     return summary
   }
 
-  const pending = await store.listOperations()
   const touchedHouseholds = new Set<string>()
 
-  for (const entry of pending) {
-    let result: OperationResult
-    try {
-      result = await applyCommand(entry.command)
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      await store.updateOperationAttempt(
-        entry.operationId,
-        entry.attempts + 1,
-        message,
-      )
-      summary.stoppedBy = message
-      break
-    }
+  // Re-list after each batch instead of snapshotting once: anything newly
+  // queued mid-pass (see doc comment above) is picked up on the next
+  // iteration. Applied/duplicate/discarded entries are removed from the store
+  // as they're handled, so a fully-drained store ends the loop.
+  drain: while (true) {
+    const pending = await store.listOperations()
+    const unprocessed = pending.filter(
+      (entry) => !(entry.operationId in summary.results),
+    )
+    if (unprocessed.length === 0) break
 
-    touchedHouseholds.add(entry.householdId)
-    summary.results[entry.operationId] = result
+    for (const entry of unprocessed) {
+      let result: OperationResult
+      try {
+        result = await applyCommand(entry.command)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        await store.updateOperationAttempt(
+          entry.operationId,
+          entry.attempts + 1,
+          message,
+        )
+        summary.stoppedBy = message
+        break drain
+      }
 
-    switch (result.status) {
-      case 'applied':
-        summary.applied += 1
-        await store.deleteOperation(entry.operationId)
-        break
-      case 'duplicate':
-        // Already recorded by a previous attempt whose response was lost.
-        summary.duplicate += 1
-        await store.deleteOperation(entry.operationId)
-        break
-      case 'conflict':
-      case 'rejected':
-        summary.discarded += 1
-        await discard(entry, result)
-        break
+      touchedHouseholds.add(entry.householdId)
+      summary.results[entry.operationId] = result
+
+      switch (result.status) {
+        case 'applied':
+          summary.applied += 1
+          await store.deleteOperation(entry.operationId)
+          break
+        case 'duplicate':
+          // Already recorded by a previous attempt whose response was lost.
+          summary.duplicate += 1
+          await store.deleteOperation(entry.operationId)
+          break
+        case 'conflict':
+        case 'rejected':
+          summary.discarded += 1
+          await discard(entry, result)
+          break
+      }
     }
   }
 

@@ -190,6 +190,58 @@ describe('durable operation queue', () => {
     expect(await store.countOperations()).toBe(0)
   })
 
+  it('drains a command enqueued while another is still in flight, instead of leaving it for the next flush', async () => {
+    // Real-world race: a user adds item A, then adds item B (same name, new
+    // price) before A's network round trip has returned. Both enqueueOperation
+    // calls are online and call flushOperations(); the second reuses the
+    // first's in-flight promise via the `flushInFlight` singleton. If that
+    // pass only ever looks at the snapshot it took before A's request was
+    // sent, B never gets a turn in this pass — its own enqueueOperation
+    // resolves to 'queued' even though the server was reachable and A just
+    // went through, and nothing flushes it again until the next timer tick,
+    // reconnect, or foreground event (30s+ later in production).
+    let releaseA: (() => void) | undefined
+    const aGate = new Promise<void>((resolve) => {
+      releaseA = resolve
+    })
+
+    mockRpc.mockImplementation(
+      async (_name: string, args: { command: { operationId: UUID; entityId: string } }) => {
+        if (args.command.entityId === EVENT_A) await aGate
+        return { data: applied(args.command.operationId), error: null }
+      },
+    )
+
+    // Deterministically wait until the flush pass has taken its snapshot of
+    // the store (i.e. called listOperations()) before enqueueing B, rather
+    // than counting microtask ticks — that snapshot is the exact race window
+    // this test targets.
+    let snapshotTaken: (() => void) | undefined
+    const snapshotGate = new Promise<void>((resolve) => {
+      snapshotTaken = resolve
+    })
+    const originalListOperations = store.listOperations.bind(store)
+    jest.spyOn(store, 'listOperations').mockImplementation(async () => {
+      const result = await originalListOperations()
+      snapshotTaken?.()
+      snapshotTaken = undefined
+      return result
+    })
+
+    const firstOutcome = enqueueOperation(upsertEvent(EVENT_A))
+    await snapshotGate
+
+    const secondOutcome = enqueueOperation(upsertEvent(EVENT_B))
+    await Promise.resolve()
+    releaseA?.()
+
+    const [first, second] = await Promise.all([firstOutcome, secondOutcome])
+
+    expect(first.status).toBe('settled')
+    expect(second.status).toBe('settled')
+    expect(await store.countOperations()).toBe(0)
+  })
+
   it('stops the pass on a transport failure instead of skipping ahead', async () => {
     mockIsOnline.mockResolvedValue(false)
     await enqueueOperation(upsertEvent(EVENT_A))

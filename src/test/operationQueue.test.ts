@@ -191,6 +191,73 @@ describe('durable operation queue', () => {
     expect(await unacknowledgedDiscards()).toEqual([])
   })
 
+  it('drains a command enqueued while another is still in flight, instead of leaving it for the next flush', async () => {
+    // Real-world race: a user adds item A, then adds item B (same name, new
+    // price) before A's network round trip has returned. Both enqueueOperation
+    // calls are online and call flushOperations(); the second reuses the
+    // first's in-flight promise via the module-level flush singleton. If that
+    // pass only ever looks at the snapshot it took before A's request was
+    // sent, B never gets a turn in this pass — its own enqueueOperation
+    // resolves to 'queued' even though the server was reachable and A just
+    // went through, and nothing flushes it again until the next
+    // online/visibility/timer event (30s+ later in production).
+    let releaseA: (() => void) | undefined
+    const aGate = new Promise<void>((resolve) => {
+      releaseA = resolve
+    })
+
+    mockRpc.mockImplementation(
+      async (_name: string, args: { command: { operationId: UUID; entityId: string } }) => {
+        if (args.command.entityId === EVENT_A) await aGate
+        return { data: applied(args.command.operationId), error: null }
+      },
+    )
+
+    // Deterministically wait until the flush pass has taken its snapshot of
+    // the store before enqueueing B, rather than counting microtask ticks —
+    // that snapshot is the exact race window this test targets.
+    let snapshotTaken: (() => void) | undefined
+    const snapshotGate = new Promise<void>((resolve) => {
+      snapshotTaken = resolve
+    })
+    type OrderBy = typeof db.operations.orderBy
+    const originalOrderBy: OrderBy = db.operations.orderBy.bind(db.operations)
+    vi.spyOn(db.operations, 'orderBy').mockImplementation(((
+      ...args: Parameters<OrderBy>
+    ) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test-only Dexie query interception
+      const query = (originalOrderBy as any)(...args)
+      const originalToArray = query.toArray.bind(query)
+      query.toArray = async () => {
+        const result = await originalToArray()
+        snapshotTaken?.()
+        snapshotTaken = undefined
+        return result
+      }
+      return query
+    }) as OrderBy)
+
+    const firstOutcome = enqueueOperation(upsertEvent(EVENT_A))
+    await snapshotGate
+
+    const secondOutcome = enqueueOperation(upsertEvent(EVENT_B))
+    // Wait for B to be durably written (and, in turn, for its own
+    // flushOperations() call to have reused A's still-in-flight promise)
+    // before releasing A — fake-indexeddb's writes settle over real
+    // macrotasks, so a fixed microtask-tick count isn't a reliable gate here.
+    while ((await db.operations.count()) < 2) {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    }
+    await Promise.resolve()
+    releaseA?.()
+
+    const [first, second] = await Promise.all([firstOutcome, secondOutcome])
+
+    expect(first.status).toBe('settled')
+    expect(second.status).toBe('settled')
+    expect(await db.operations.count()).toBe(0)
+  })
+
   it('stops the pass on a transport failure and keeps order intact', async () => {
     setOnline(false)
     await enqueueOperation(upsertEvent(EVENT_A))
