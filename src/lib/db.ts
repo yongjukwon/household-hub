@@ -5,11 +5,7 @@ import type {
   QueuedOperation,
 } from '@/lib/operations/types'
 
-/**
- * One queued offline write. `clientId` is the target row's real primary key
- * (client-generated UUID), so retries are idempotent by construction: a
- * replayed upsert rewrites the identical row, never a duplicate.
- */
+/** Compatibility record retained only while older web clients are migrated. */
 export interface OutboxEntry {
   id?: number
   clientId: string
@@ -41,8 +37,8 @@ export class AppDB extends Dexie {
       outbox: '++id, clientId, status, createdAt',
       kv: 'key',
     })
-    // v2 adds the durable operation queue (Task 4). The legacy `outbox` stays
-    // until the rebuilt feature screens replace the legacy ones in Task 6.
+    // v2 adds the durable operation queue. The legacy store remains read-only
+    // so a newly loaded client can drain writes created by an older release.
     this.version(2).stores({
       operations: 'operationId, localSequence, [entityType+entityId]',
       discardedOperations: 'operationId, discardedAt, acknowledgedAt',

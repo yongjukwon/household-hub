@@ -1,26 +1,11 @@
-import type { ReminderPreset } from '@household-hub/domain'
+import {
+  buildCalendarEventPayload,
+  type CalendarEventForm,
+} from '@household-hub/application/feature-data'
 import { enqueueOperation, type EnqueueOutcome } from '@/lib/operations'
-import type { RecurrenceFrequency } from './events'
-import { reminderToDatabase } from './reminders'
 
 /** Form model for creating/editing a calendar event. */
-export interface CalendarEventForm {
-  id: string
-  ownerId: string | null
-  title: string
-  note: string | null
-  allDay: boolean
-  /** Timed events: ISO-8601 UTC instants. */
-  startAt: string | null
-  endAt: string | null
-  /** All-day events: `YYYY-MM-DD`. */
-  startDate: string | null
-  endDate: string | null
-  timezone: string
-  recurrenceFrequency: RecurrenceFrequency
-  recurrenceUntil: string | null
-  reminders: ReminderPreset[]
-}
+export type { CalendarEventForm }
 
 /**
  * Builds the `calendar.event.upsert` payload the RPC expects. All-day and timed
@@ -28,29 +13,7 @@ export interface CalendarEventForm {
  * pair to be absent rather than present with null values.
  */
 export function buildEventPayload(form: CalendarEventForm): Record<string, unknown> {
-  return {
-    ownerId: form.ownerId,
-    title: form.title.trim(),
-    note: form.note && form.note.trim().length > 0 ? form.note.trim() : null,
-    allDay: form.allDay,
-    ...(form.allDay
-      ? {
-          startDate: form.startDate,
-          endDate: form.endDate,
-        }
-      : {
-          startAt: form.startAt,
-          endAt: form.endAt,
-        }),
-    timezone: form.timezone,
-    recurrenceFrequency: form.recurrenceFrequency,
-    recurrenceUntil:
-      form.recurrenceFrequency === 'none' ? null : form.recurrenceUntil,
-    reminders: form.reminders.flatMap((preset) => {
-      const stored = reminderToDatabase(preset)
-      return stored ? [stored] : []
-    }),
-  }
+  return buildCalendarEventPayload(form)
 }
 
 /** Enqueues a create/edit of a calendar event through the durable queue. */

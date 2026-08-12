@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
+    "@household-hub/application": "file:packages/application",
     "@household-hub/domain": "file:packages/domain",
     "@supabase/supabase-js": "^2.110.2",
     "@tanstack/query-core": "^5.101.4",

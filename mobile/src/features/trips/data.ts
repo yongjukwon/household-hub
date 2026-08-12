@@ -1,11 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
 import {
-  aggregateTripCurrencyBuckets,
   queryKeys,
-  type Cents,
-  type CurrencyCode,
   type TripCurrencyBucket,
 } from '@household-hub/domain'
+import {
+  expenseBuckets as sharedExpenseBuckets,
+  mapBookingEntry,
+  mapChecklistEntry,
+  mapItineraryEntry,
+  mapTrip,
+  mapTripExpense,
+  sortChecklistEntries as sharedSortChecklistEntries,
+} from '@household-hub/application/feature-data'
 import { supabase } from '@/lib/supabase'
 import { withOptimisticOverlay } from '@/lib/operations'
 import type { Tables } from '@/types/database'
@@ -71,16 +77,7 @@ export interface ChecklistEntry {
 }
 
 function toTrip(r: Tables<'household_trips'>): Trip {
-  return {
-    id: r.id,
-    name: r.name,
-    destination: r.destination,
-    destinationCurrency: r.destination_currency,
-    destinationTimezone: r.destination_timezone,
-    startDate: r.start_date,
-    endDate: r.end_date,
-    revision: r.revision,
-  }
+  return mapTrip(r)
 }
 
 /** All trips in the household, most recent start date first. */
@@ -160,16 +157,7 @@ export function useTrip(householdId: string | undefined, tripId: string | undefi
       )
       const expenses = await withOptimisticOverlay(
         (expensesRes.data ?? []).map((r) => ({
-          id: r.id,
-          tripId: r.trip_id,
-          assetId: r.asset_id,
-          amountCents: r.amount_cents,
-          currencyCode: r.currency_code,
-          description: r.description,
-          spentAt: r.spent_at,
-          itineraryEntryId: r.itinerary_entry_id,
-          bookingEntryId: r.booking_entry_id,
-          revision: r.revision,
+          ...mapTripExpense(r),
         })),
         'trip_expense',
       )
@@ -197,43 +185,15 @@ export function useTrip(householdId: string | undefined, tripId: string | undefi
 }
 
 function toItineraryEntry(r: Tables<'trip_itinerary_entries'>): ItineraryEntry {
-  return {
-    id: r.id,
-    tripId: r.trip_id,
-    itemDate: r.item_date,
-    startTime: r.start_time,
-    title: r.title,
-    notes: r.notes,
-    sortOrder: r.sort_order,
-    revision: r.revision,
-  }
+  return mapItineraryEntry(r)
 }
 
 function toBookingEntry(r: Tables<'trip_booking_entries'>): BookingEntry {
-  return {
-    id: r.id,
-    tripId: r.trip_id,
-    kind: r.kind as BookingKind,
-    title: r.title,
-    confirmationNumber: r.confirmation_number,
-    address: r.address,
-    startsAt: r.starts_at,
-    endsAt: r.ends_at,
-    notes: r.notes,
-    sortOrder: r.sort_order,
-    revision: r.revision,
-  }
+  return mapBookingEntry(r)
 }
 
 function toChecklistEntry(r: Tables<'trip_checklist_entries'>): ChecklistEntry {
-  return {
-    id: r.id,
-    tripId: r.trip_id,
-    label: r.label,
-    checked: r.checked,
-    sortOrder: r.sort_order,
-    revision: r.revision,
-  }
+  return mapChecklistEntry(r)
 }
 
 /** Checklist items, unchecked first (each group by sort order). */
@@ -241,12 +201,7 @@ export function sortChecklistEntries(items: ChecklistEntry[]): {
   unchecked: ChecklistEntry[]
   checked: ChecklistEntry[]
 } {
-  const bySort = (left: ChecklistEntry, right: ChecklistEntry) =>
-    left.sortOrder - right.sortOrder || left.label.localeCompare(right.label)
-  return {
-    unchecked: items.filter((i) => !i.checked).sort(bySort),
-    checked: items.filter((i) => i.checked).sort(bySort),
-  }
+  return sharedSortChecklistEntries(items)
 }
 
 /**
@@ -255,10 +210,5 @@ export function sortChecklistEntries(items: ChecklistEntry[]): {
  * combined (delegates to the shared domain aggregator).
  */
 export function expenseBuckets(expenses: TripExpense[]): TripCurrencyBucket[] {
-  return aggregateTripCurrencyBuckets(
-    expenses.map((e) => ({
-      currency: e.currencyCode as CurrencyCode,
-      amountCents: e.amountCents as Cents,
-    })),
-  )
+  return sharedExpenseBuckets(expenses)
 }

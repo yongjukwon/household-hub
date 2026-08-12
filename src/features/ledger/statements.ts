@@ -1,5 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { queryKeys } from '@household-hub/domain'
+import {
+  categoryProgress as sharedCategoryProgress,
+  hasSpendingFromMonth as sharedHasSpendingFromMonth,
+  monthSummaries as sharedMonthSummaries,
+  spendingCategoryTotals as sharedSpendingCategoryTotals,
+  statementTotals as sharedStatementTotals,
+} from '@household-hub/application/feature-data'
 import { supabase } from '@/lib/supabase'
 import { withOptimisticOverlay } from '@/lib/operations'
 import type { Tables } from '@/types/database'
@@ -181,22 +188,7 @@ export interface MonthSummary {
 
 /** Income/spending/net per month, derived from transactions. */
 export function monthSummaries(data: LedgerYearData): MonthSummary[] {
-  return data.months.map((m) => {
-    let income = 0
-    let spending = 0
-    for (const t of data.transactions) {
-      if (t.monthId !== m.id) continue
-      if (t.kind === 'income') income += t.amountCents
-      else spending += t.amountCents
-    }
-    return {
-      monthId: m.id,
-      month: m.month,
-      incomeCents: income,
-      spendingCents: spending,
-      netCents: income - spending,
-    }
-  })
+  return sharedMonthSummaries(data)
 }
 
 export interface CategoryProgress {
@@ -218,39 +210,7 @@ export function categoryProgress(
   data: LedgerYearData,
   monthId: string,
 ): CategoryProgress[] {
-  const limitByCategory = new Map<string, number | null>()
-  for (const l of data.limits) {
-    if (l.monthId === monthId) limitByCategory.set(l.categoryId, l.amountCents)
-  }
-  const actualByCategory = new Map<string, number>()
-  for (const t of data.transactions) {
-    if (t.monthId !== monthId) continue
-    actualByCategory.set(
-      t.categoryId,
-      (actualByCategory.get(t.categoryId) ?? 0) + t.amountCents,
-    )
-  }
-  return data.categories
-    .filter((c) => c.monthId === monthId)
-    .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
-    .map((c) => {
-      const limitCents = limitByCategory.get(c.categoryId) ?? null
-      const actualCents = actualByCategory.get(c.categoryId) ?? 0
-      const ratio =
-        limitCents && limitCents > 0 ? actualCents / limitCents : null
-      return {
-        categoryId: c.categoryId,
-        monthCategoryId: c.id,
-        name: c.name,
-        kind: c.kind,
-        sortOrder: c.sortOrder,
-        revision: c.revision,
-        limitCents,
-        actualCents,
-        ratio,
-        overLimit: ratio !== null && ratio > 1,
-      }
-    })
+  return sharedCategoryProgress(data, monthId)
 }
 
 /** Whether a category has any spending in this month or any later month. */
@@ -259,12 +219,7 @@ export function hasSpendingFromMonth(
   categoryId: string,
   fromMonth: number,
 ): boolean {
-  const monthNumberById = new Map(data.months.map((m) => [m.id, m.month]))
-  return data.transactions.some(
-    (t) =>
-      t.categoryId === categoryId &&
-      (monthNumberById.get(t.monthId) ?? 0) >= fromMonth,
-  )
+  return sharedHasSpendingFromMonth(data, categoryId, fromMonth)
 }
 
 export interface StatementTotals {
@@ -280,40 +235,7 @@ export function statementTotals(
   data: LedgerYearData,
   monthId?: string,
 ): StatementTotals {
-  const transactions = monthId
-    ? data.transactions.filter((transaction) => transaction.monthId === monthId)
-    : data.transactions
-  const incomeCents = transactions
-    .filter((transaction) => transaction.kind === 'income')
-    .reduce((sum, transaction) => sum + transaction.amountCents, 0)
-  const spendingCents = transactions
-    .filter((transaction) => transaction.kind === 'spending')
-    .reduce((sum, transaction) => sum + transaction.amountCents, 0)
-
-  const spendingCategoryKeys = new Set(
-    data.categories
-      .filter(
-        (category) =>
-          category.kind === 'spending' &&
-          (!monthId || category.monthId === monthId),
-      )
-      .map((category) => `${category.monthId}:${category.categoryId}`),
-  )
-  const limitCents = data.limits
-    .filter(
-      (limit) =>
-        (!monthId || limit.monthId === monthId) &&
-        spendingCategoryKeys.has(`${limit.monthId}:${limit.categoryId}`),
-    )
-    .reduce((sum, limit) => sum + (limit.amountCents ?? 0), 0)
-
-  return {
-    incomeCents,
-    spendingCents,
-    limitCents,
-    leftCents: limitCents - spendingCents,
-    utilization: limitCents > 0 ? spendingCents / limitCents : null,
-  }
+  return sharedStatementTotals(data, monthId)
 }
 
 /** Actual spending grouped by category for annual or monthly donuts. */
@@ -321,34 +243,5 @@ export function spendingCategoryTotals(
   data: LedgerYearData,
   monthId?: string,
 ): Array<{ categoryId: string; name: string; totalCents: number }> {
-  const totals = new Map<string, number>()
-  const names = new Map<string, string>()
-  for (const category of data.categories) {
-    if (
-      category.kind === 'spending' &&
-      (!monthId || category.monthId === monthId) &&
-      !names.has(category.categoryId)
-    ) {
-      names.set(category.categoryId, category.name)
-    }
-  }
-  for (const transaction of data.transactions) {
-    if (
-      transaction.kind !== 'spending' ||
-      (monthId && transaction.monthId !== monthId)
-    ) {
-      continue
-    }
-    totals.set(
-      transaction.categoryId,
-      (totals.get(transaction.categoryId) ?? 0) + transaction.amountCents,
-    )
-  }
-  return [...totals.entries()]
-    .map(([categoryId, totalCents]) => ({
-      categoryId,
-      name: names.get(categoryId) ?? 'Other',
-      totalCents,
-    }))
-    .sort((left, right) => left.name.localeCompare(right.name))
+  return sharedSpendingCategoryTotals(data, monthId)
 }

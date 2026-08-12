@@ -1,5 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { queryKeys } from '@household-hub/domain'
+import {
+  householdTotalCents as sharedHouseholdTotalCents,
+  mapLedgerAsset,
+  mapLedgerTransfer,
+  mapTransferSchedule,
+  totalsByCurrency as sharedTotalsByCurrency,
+} from '@household-hub/application/feature-data'
 import { supabase } from '@/lib/supabase'
 import { withOptimisticOverlay } from '@/lib/operations'
 import type { Tables } from '@/types/database'
@@ -64,15 +71,8 @@ export function useLedgerAssets(householdId: string | undefined) {
       if (error) throw error
       return withOptimisticOverlay((data ?? [])
         .filter((r) => r.id)
-        .map((r) => ({
-          id: r.id!,
-          name: r.name ?? '',
-          kind: (r.kind ?? 'other') as AssetKind,
-          currencyCode: r.currency_code ?? HOUSEHOLD_CURRENCY,
-          balanceCents: r.balance_cents ?? 0,
-          sortOrder: r.sort_order ?? 0,
-          revision: r.revision ?? 1,
-        })), 'ledger_asset')
+        .map(mapLedgerAsset)
+        .filter((asset): asset is LedgerAsset => asset !== null), 'ledger_asset')
     },
   })
 }
@@ -92,16 +92,7 @@ export function useLedgerTransfers(householdId: string | undefined) {
         .limit(50)
         .returns<Tables<'ledger_transfers'>[]>()
       if (error) throw error
-      return withOptimisticOverlay((data ?? []).map((r) => ({
-        id: r.id,
-        fromAssetId: r.from_asset_id,
-        toAssetId: r.to_asset_id,
-        amountCents: r.amount_cents,
-        occurredAt: r.occurred_at,
-        note: r.note,
-        scheduleId: r.schedule_id,
-        revision: r.revision,
-      })), 'ledger_transfer')
+      return withOptimisticOverlay((data ?? []).map(mapLedgerTransfer), 'ledger_transfer')
     },
   })
 }
@@ -120,17 +111,7 @@ export function useTransferSchedules(householdId: string | undefined) {
         .order('created_at', { ascending: true })
         .returns<Tables<'ledger_transfer_schedules'>[]>()
       if (error) throw error
-      return withOptimisticOverlay((data ?? []).map((r) => ({
-        id: r.id,
-        fromAssetId: r.from_asset_id,
-        toAssetId: r.to_asset_id,
-        amountCents: r.amount_cents,
-        frequency: r.frequency as TransferFrequency,
-        startsAt: r.starts_at,
-        timezone: r.timezone,
-        active: r.active,
-        revision: r.revision,
-      })), 'ledger_schedule')
+      return withOptimisticOverlay((data ?? []).map(mapTransferSchedule), 'ledger_schedule')
     },
   })
 }
@@ -146,26 +127,10 @@ export interface CurrencyTotal {
  * currencies are surfaced separately and never converted.
  */
 export function totalsByCurrency(assets: LedgerAsset[]): CurrencyTotal[] {
-  const totals = new Map<string, number>()
-  for (const asset of assets) {
-    totals.set(
-      asset.currencyCode,
-      (totals.get(asset.currencyCode) ?? 0) + asset.balanceCents,
-    )
-  }
-  // Household currency first, then the rest alphabetically.
-  return [...totals.entries()]
-    .map(([currencyCode, totalCents]) => ({ currencyCode, totalCents }))
-    .sort((a, b) => {
-      if (a.currencyCode === HOUSEHOLD_CURRENCY) return -1
-      if (b.currencyCode === HOUSEHOLD_CURRENCY) return 1
-      return a.currencyCode.localeCompare(b.currencyCode)
-    })
+  return sharedTotalsByCurrency(assets)
 }
 
 /** The household (CAD-only) net total in cents. */
 export function householdTotalCents(assets: LedgerAsset[]): number {
-  return assets
-    .filter((a) => a.currencyCode === HOUSEHOLD_CURRENCY)
-    .reduce((sum, a) => sum + a.balanceCents, 0)
+  return sharedHouseholdTotalCents(assets)
 }

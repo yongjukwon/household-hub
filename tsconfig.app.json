@@ -17,6 +17,8 @@
     "jsx": "react-jsx",
     "paths": {
       "@/*": ["./src/*"],
+      "@household-hub/application": ["./packages/application/src/index.ts"],
+      "@household-hub/application/*": ["./packages/application/src/*"],
       "@household-hub/domain": ["./packages/domain/src/index.ts"]
     },
 

@@ -9,6 +9,11 @@ import {
   type Revision,
   type UUID,
 } from '@household-hub/domain'
+import {
+  createOperationReplayer,
+  type FlushSummary,
+  type OperationStore,
+} from '@household-hub/application/operations'
 import type { QueryClient } from '@tanstack/react-query'
 import { AppState, type AppStateStatus } from 'react-native'
 
@@ -40,16 +45,7 @@ export type EnqueueOutcome =
   /** Reached the server and lost; see the discard record. */
   | { status: 'discarded'; operationId: string; discarded: DiscardedOperation }
 
-export interface FlushSummary {
-  applied: number
-  duplicate: number
-  discarded: number
-  /** Commands still queued because the pass stopped early. */
-  remaining: number
-  stoppedBy: string | null
-  /** Verdict per command the server ruled on during this pass. */
-  results: Record<string, OperationResult>
-}
+export type { FlushSummary }
 
 /**
  * Identifiers are validated at the boundary rather than cast: a malformed id
@@ -141,108 +137,27 @@ export async function enqueueOperation(
   return { status: 'settled', operationId, result }
 }
 
-let flushInFlight: Promise<FlushSummary> | null = null
-
-/**
- * Replays queued commands in local FIFO order.
- *
- * A transport failure stops the pass instead of skipping ahead: order is part
- * of the contract, and a later command may depend on an earlier one. Server
- * verdicts are final — applied and duplicate leave the queue, conflict and
- * rejection leave it as a discard record. Nothing is ever retried after the
- * server has ruled on it.
- *
- * Concurrent callers share one in-flight pass (see `flushInFlight` below), so
- * this must keep draining the store until it is empty rather than take a
- * single snapshot: a command enqueued by another caller while an earlier
- * command's own network round trip is still pending (a normal timing outcome
- * on a real network, not just a contrived race) must still get a turn in
- * *this* pass — otherwise its enqueueOperation() caller sees "queued" even
- * though the connection is live and other commands are going through right
- * now, and nothing flushes it again until the next reconnect/foreground/timer
- * event.
- */
-export function flushOperations(): Promise<FlushSummary> {
-  if (flushInFlight) return flushInFlight
-
-  flushInFlight = runFlush().finally(() => {
-    flushInFlight = null
-  })
-  return flushInFlight
+const operationStore: OperationStore = {
+  addOperation: (operation) => getOperationStore().addOperation(operation),
+  listOperations: () => getOperationStore().listOperations(),
+  countOperations: () => getOperationStore().countOperations(),
+  updateOperationAttempt: (operationId, attempts, lastError) =>
+    getOperationStore().updateOperationAttempt(operationId, attempts, lastError),
+  deleteOperation: (operationId) => getOperationStore().deleteOperation(operationId),
+  discardOperation: (record, operationId) =>
+    getOperationStore().discardOperation(record, operationId),
 }
 
-async function runFlush(): Promise<FlushSummary> {
-  const store = getOperationStore()
-  const summary: FlushSummary = {
-    applied: 0,
-    duplicate: 0,
-    discarded: 0,
-    remaining: 0,
-    stoppedBy: null,
-    results: {},
-  }
+const replayer = createOperationReplayer({
+  store: operationStore,
+  transport: { apply: applyCommand },
+  isOnline,
+  now: () => new Date().toISOString(),
+  invalidateHousehold,
+})
 
-  if (!(await isOnline())) {
-    summary.remaining = await store.countOperations()
-    summary.stoppedBy = summary.remaining > 0 ? 'offline' : null
-    return summary
-  }
-
-  const touchedHouseholds = new Set<string>()
-
-  // Re-list after each batch instead of snapshotting once: anything newly
-  // queued mid-pass (see doc comment above) is picked up on the next
-  // iteration. Applied/duplicate/discarded entries are removed from the store
-  // as they're handled, so a fully-drained store ends the loop.
-  drain: while (true) {
-    const pending = await store.listOperations()
-    const unprocessed = pending.filter(
-      (entry) => !(entry.operationId in summary.results),
-    )
-    if (unprocessed.length === 0) break
-
-    for (const entry of unprocessed) {
-      let result: OperationResult
-      try {
-        result = await applyCommand(entry.command)
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        await store.updateOperationAttempt(
-          entry.operationId,
-          entry.attempts + 1,
-          message,
-        )
-        summary.stoppedBy = message
-        break drain
-      }
-
-      touchedHouseholds.add(entry.householdId)
-      summary.results[entry.operationId] = result
-
-      switch (result.status) {
-        case 'applied':
-          summary.applied += 1
-          await store.deleteOperation(entry.operationId)
-          break
-        case 'duplicate':
-          // Already recorded by a previous attempt whose response was lost.
-          summary.duplicate += 1
-          await store.deleteOperation(entry.operationId)
-          break
-        case 'conflict':
-        case 'rejected':
-          summary.discarded += 1
-          await discard(entry, result)
-          break
-      }
-    }
-  }
-
-  summary.remaining = await store.countOperations()
-  for (const householdId of touchedHouseholds) {
-    await invalidateHousehold(householdId)
-  }
-  return summary
+export function flushOperations(): Promise<FlushSummary> {
+  return replayer.flush()
 }
 
 async function applyCommand(
@@ -262,40 +177,6 @@ async function applyCommand(
     throw new Error('apply_household_operation returned an unrecognized result')
   }
   return data
-}
-
-async function discard(
-  entry: QueuedOperation,
-  result: Extract<OperationResult, { status: 'conflict' | 'rejected' }>,
-): Promise<void> {
-  const record: DiscardedOperation =
-    result.status === 'conflict'
-      ? {
-          operationId: entry.operationId,
-          reason: 'conflict',
-          command: entry.command,
-          discardedAt: new Date().toISOString(),
-          winner: result.winner,
-          code: null,
-          explanation: result.reason,
-          details: { currentRevision: result.currentRevision },
-          warnings: [],
-          acknowledgedAt: null,
-        }
-      : {
-          operationId: entry.operationId,
-          reason: 'rejected',
-          command: entry.command,
-          discardedAt: new Date().toISOString(),
-          winner: null,
-          code: result.code,
-          explanation: result.reason,
-          details: result.details,
-          warnings: result.warnings,
-          acknowledgedAt: null,
-        }
-
-  await getOperationStore().discardOperation(record, entry.operationId)
 }
 
 async function invalidateHousehold(householdId: string): Promise<void> {

@@ -1,31 +1,18 @@
 import { useQuery } from '@tanstack/react-query'
-import { queryKeys, type RichNoteDocument } from '@household-hub/domain'
+import { queryKeys } from '@household-hub/domain'
+import {
+  emptyNoteDocument,
+  mapNote,
+  mapNoteSummary,
+  type Note,
+  type NoteSummary,
+} from '@household-hub/application/feature-data'
 import { supabase } from '@/lib/supabase'
 import { withOptimisticOverlay } from '@/lib/operations'
 import type { Tables } from '@/types/database'
 
-export interface NoteSummary {
-  id: string
-  title: string
-  revision: number
-  updatedAt: string
-}
-
-export interface Note {
-  id: string
-  title: string
-  document: RichNoteDocument
-  revision: number
-}
-
-/** The empty note body: a single empty paragraph. */
-export function emptyNoteDocument(): RichNoteDocument {
-  return { type: 'doc', content: [{ type: 'paragraph' }] }
-}
-
-function toSummary(row: Pick<Tables<'household_notes'>, 'id' | 'title' | 'revision' | 'updated_at'>): NoteSummary {
-  return { id: row.id, title: row.title, revision: row.revision, updatedAt: row.updated_at }
-}
+export { emptyNoteDocument, mapNote, mapNoteSummary }
+export type { Note, NoteSummary }
 
 /** Named notes in the household, most recently updated first. */
 export function useNotes(householdId: string | undefined) {
@@ -39,7 +26,7 @@ export function useNotes(householdId: string | undefined) {
         .order('updated_at', { ascending: false })
         .returns<Pick<Tables<'household_notes'>, 'id' | 'title' | 'revision' | 'updated_at'>[]>()
       if (error) throw error
-      return withOptimisticOverlay((data ?? []).map(toSummary), 'note')
+      return withOptimisticOverlay((data ?? []).map(mapNoteSummary), 'note')
     },
   })
 }
@@ -57,14 +44,7 @@ export function useNote(householdId: string | undefined, noteId: string | undefi
         .eq('id', noteId!)
         .maybeSingle<Pick<Tables<'household_notes'>, 'id' | 'title' | 'document' | 'revision'>>()
       if (error) throw error
-      const rows = data
-        ? [{
-            id: data.id,
-            title: data.title,
-            document: data.document as unknown as RichNoteDocument,
-            revision: data.revision,
-          }]
-        : []
+      const rows = data ? [mapNote(data)] : []
       const [note] = await withOptimisticOverlay(rows, 'note')
       return note ?? null
     },

@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom'
-// jsdom has no IndexedDB; the offline outbox/query persister (Dexie) need
-// one in every suite that touches App or the offline-capable hooks.
+// jsdom has no IndexedDB; the operation queue, legacy migration, and query
+// persister (Dexie) need one in every suite that touches the web app.
 import 'fake-indexeddb/auto'
 
 // jsdom doesn't implement layout, so ProseMirror's scroll-into-view /

@@ -53,6 +53,18 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@household-hub/application/feature-data': path.resolve(
+        __dirname,
+        './packages/application/src/feature-data/index.ts',
+      ),
+      '@household-hub/application/operations': path.resolve(
+        __dirname,
+        './packages/application/src/operations/index.ts',
+      ),
+      '@household-hub/application': path.resolve(
+        __dirname,
+        './packages/application/src/index.ts',
+      ),
       '@household-hub/domain': path.resolve(
         __dirname,
         './packages/domain/src/index.ts',

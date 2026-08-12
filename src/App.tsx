@@ -34,9 +34,9 @@ const queryClient = new QueryClient({
 
 setupQueryPersistence(queryClient)
 
-// Mobile-first shell (Task 5). Calendar is the default destination; there is no
-// Home. Feature screens are placeholders until Task 6 fills them; the legacy
-// page-based screens remain in the tree, unrouted, until Task 6 retires them.
+// Calendar is the default destination; there is no Home. The web route graph
+// mirrors the native feature destinations while retaining web navigation and
+// PWA behavior.
 const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   {

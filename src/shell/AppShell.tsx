@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { BellIcon, Cog6ToothIcon } from '@heroicons/react/24/outline'
 import { setOperationQueryClient, startOperationSync } from '@/lib/operations'
-import { startSyncManager } from '@/lib/offline/syncManager'
+import { drainLegacyOutbox } from '@/lib/offline/legacyOutboxMigration'
 import { cn } from '@/lib/utils'
 import { PRIMARY_DESTINATIONS, type IconComponent } from './destinations'
 import { SyncStatus } from './ui/SyncStatus'
@@ -13,8 +13,11 @@ import { useHouseholdRealtime } from '@/lib/operations'
 const WORDMARK = '🐰&🐧'
 
 export function AppShell() {
-  // Legacy outbox flush stays until Task 6 retires the legacy screens.
-  useEffect(() => startSyncManager(), [])
+  // Drain writes created by older web clients once; all current writes use the
+  // durable operation queue below.
+  useEffect(() => {
+    void drainLegacyOutbox()
+  }, [])
 
   // The durable operation queue is the rebuilt clients' only write path.
   const queryClient = useQueryClient()

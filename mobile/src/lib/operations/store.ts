@@ -1,3 +1,6 @@
+import type {
+  OperationStore as SharedOperationStore,
+} from '@household-hub/application/operations'
 import type { DiscardedOperation, QueuedOperation } from './types'
 
 /**
@@ -7,7 +10,7 @@ import type { DiscardedOperation, QueuedOperation } from './types'
  * be tested without a native SQLite bridge, exactly as the web queue is tested
  * against fake-indexeddb.
  */
-export interface OperationStore {
+export interface OperationStore extends SharedOperationStore {
   addOperation(op: QueuedOperation): Promise<void>
   /** Queued commands in replay order (local sequence ascending). */
   listOperations(): Promise<QueuedOperation[]>
