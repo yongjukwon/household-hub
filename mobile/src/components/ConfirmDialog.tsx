@@ -1,4 +1,5 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native'
+import type { ReactNode } from 'react'
 
 import { useTheme } from '@/theme/tokens'
 
@@ -14,6 +15,7 @@ interface ConfirmDialogProps {
   confirmDisabled?: boolean
   /** False for a neutral (non-red) confirm action, e.g. "Transfer ownership". */
   destructive?: boolean
+  children?: ReactNode
 }
 
 /** Centered confirmation dialog; the confirm button reads as destructive
@@ -28,6 +30,7 @@ export function ConfirmDialog({
   onConfirm,
   confirmDisabled = false,
   destructive = true,
+  children,
 }: ConfirmDialogProps) {
   const { tokens } = useTheme()
 
@@ -52,9 +55,10 @@ export function ConfirmDialog({
           ]}
         >
           <Text style={[styles.title, { color: tokens.ink }]}>{title}</Text>
-          <Text style={[styles.description, { color: tokens.muted }]}>
+          <Text style={[styles.description, { color: tokens.muted }]}> 
             {description}
           </Text>
+          {children ? <View style={styles.extra}>{children}</View> : null}
           {error ? (
             <Text style={[styles.error, { color: tokens.danger }]}>{error}</Text>
           ) : null}
@@ -102,6 +106,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 16, fontWeight: '800', marginBottom: 6 },
   description: { fontSize: 13.5, lineHeight: 19 },
   error: { fontSize: 13, lineHeight: 18, marginTop: 10 },
+  extra: { marginTop: 12 },
   actions: { flexDirection: 'row', gap: 10, marginTop: 18 },
   button: {
     flex: 1,

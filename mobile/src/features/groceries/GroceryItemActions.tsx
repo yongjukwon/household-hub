@@ -1,21 +1,32 @@
 import { Pressable, StyleSheet, View } from 'react-native'
 
-import { PencilIcon, TrashIcon } from '@/components/icons'
+import { ChartBarIcon, PencilIcon, TrashIcon } from '@/components/icons'
 import { useTheme } from '@/theme/tokens'
 
 export function GroceryItemActions({
   itemName,
   onEdit,
   onDelete,
+  onHistory,
 }: {
   itemName: string
   onEdit: () => void
   onDelete: () => void
+  onHistory: () => void
 }) {
   const { tokens } = useTheme()
 
   return (
     <View style={styles.actions}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Price history for ${itemName}`}
+        hitSlop={4}
+        onPress={onHistory}
+        style={[styles.action, { backgroundColor: tokens.cardAlt }]}
+      >
+        <ChartBarIcon size={17} color={tokens.muted} />
+      </Pressable>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Edit ${itemName}`}

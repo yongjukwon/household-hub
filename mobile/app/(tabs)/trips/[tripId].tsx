@@ -12,12 +12,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { Card } from '@/components/Card'
+import { useAppChrome } from '@/components/AppChrome'
 import {
   CheckIcon,
-  PencilIcon,
   PlusIcon,
 } from '@/components/icons'
-import { EditableTitle } from '@/components/EditableTitle'
 import { ListCard } from '@/components/ListCard'
 import { EmptyState, ErrorState, LoadingState } from '@/components/states'
 import { SegmentedControl } from '@/components/SegmentedControl'
@@ -39,7 +38,7 @@ import { ItinerarySheet } from '@/features/trips/ItinerarySheet'
 import { BookingSheet } from '@/features/trips/BookingSheet'
 import { ChecklistSheet } from '@/features/trips/ChecklistSheet'
 import { TripSheet } from '@/features/trips/TripSheet'
-import { saveChecklistEntry, saveTrip, toggleChecklistEntry } from '@/features/trips/mutations'
+import { saveChecklistEntry, toggleChecklistEntry } from '@/features/trips/mutations'
 import {
   operationOutcomeError,
   operationThrownError,
@@ -69,39 +68,15 @@ export default function TripScreen() {
 
   const trip = query.data?.trip ?? null
 
-  async function renameTrip(next: string): Promise<string | null> {
-    if (!householdId || !trip) return 'The trip is not available.'
-    try {
-      const outcome = await saveTrip(
-        householdId,
-        {
-          id: trip.id,
-          name: next,
-          destination: trip.destination,
-          timezone: trip.destinationTimezone,
-          startDate: trip.startDate,
-          endDate: trip.endDate,
-          destinationCurrency: trip.destinationCurrency,
-        },
-        trip.revision,
-      )
-      return operationOutcomeError(outcome)
-    } catch (failure) {
-      return operationThrownError(failure, 'Could not rename this trip.')
-    }
-  }
+  useAppChrome({
+    mode: 'detail',
+    title: trip?.name ?? 'Trip',
+    onEdit: trip ? () => setEditTrip(true) : undefined,
+  })
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
-        {trip ? (
-          <View style={styles.titleRow}>
-            <EditableTitle value={trip.name} accessibilityLabel="Trip name" onSave={renameTrip} />
-          </View>
-        ) : (
-          <Text style={[styles.pageTitle, { color: tokens.ink }]}>Trip</Text>
-        )}
-
         {query.isLoading ? (
           <LoadingState />
         ) : query.isError ? (
@@ -117,14 +92,6 @@ export default function TripScreen() {
                   {trip.startDate} – {trip.endDate} · {trip.destinationTimezone}
                 </Text>
               </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Edit trip"
-                onPress={() => setEditTrip(true)}
-                hitSlop={6}
-              >
-                <PencilIcon size={18} color={tokens.muted} />
-              </Pressable>
             </Card>
 
             <SegmentedControl
@@ -727,8 +694,6 @@ function ExpensesTab({
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   content: { padding: 20, paddingBottom: 24 },
-  titleRow: { marginBottom: 14 },
-  pageTitle: { fontSize: 22, fontWeight: '800', marginBottom: 14 },
   stack: { gap: 16 },
   group: { gap: 8 },
   groupTitle: {

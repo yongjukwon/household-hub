@@ -10,9 +10,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { BottomSheet } from '@/components/BottomSheet'
+import { useAppChrome } from '@/components/AppChrome'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { DetailListRow } from '@/components/DetailListRow'
-import { FloatingActionButton } from '@/components/FloatingActionButton'
 import { EmptyState, ErrorState, LoadingState } from '@/components/states'
 import { useActiveHousehold } from '@/features/household'
 import { useGroceryLists, type GroceryList } from '@/features/groceries/data'
@@ -93,6 +93,8 @@ export default function GroceriesScreen() {
     }
   }
 
+  useAppChrome({ mode: 'root', title: 'Groceries', onAdd: () => setAdding(true) })
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['bottom']}>
       <FlatList
@@ -122,8 +124,6 @@ export default function GroceriesScreen() {
         )}
         ItemSeparatorComponent={() => <Text style={styles.separator} />}
       />
-
-      <FloatingActionButton accessibilityLabel="New list" onPress={() => setAdding(true)} />
 
       <BottomSheet
         open={adding}

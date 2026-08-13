@@ -5,9 +5,10 @@ import { lightTokens } from '@/theme/tokens'
 import { FloatingTabBar, TAB_BAR_FLOAT_OFFSET, TAB_BAR_HEIGHT } from './FloatingTabBar'
 
 const mockedReplace = jest.fn()
+let mockedPathname = '/ledger'
 
 jest.mock('expo-router', () => ({
-  usePathname: () => '/ledger',
+  usePathname: () => mockedPathname,
   useRouter: () => ({ replace: mockedReplace }),
 }))
 
@@ -18,6 +19,7 @@ jest.mock('react-native-safe-area-context', () => ({
 describe('FloatingTabBar', () => {
   beforeEach(() => {
     mockedReplace.mockReset()
+    mockedPathname = '/ledger'
   })
 
   it('floats above the bottom edge as a glass pill, not docked flush', async () => {
@@ -67,5 +69,27 @@ describe('FloatingTabBar', () => {
 
     await fireEvent.press(screen.getByLabelText('Schedule'))
     expect(mockedReplace).toHaveBeenCalledWith('/')
+  })
+
+  it('shows the saved three destinations and puts the omitted one in More', async () => {
+    const view = await render(
+      <FloatingTabBar navigation={['notes', 'trips', 'groceries']} />,
+    )
+
+    expect(view.queryByLabelText('Ledger')).toBeNull()
+    await fireEvent.press(view.getByLabelText('More'))
+    expect(view.getByLabelText('Open Ledger')).toBeTruthy()
+    expect(view.getByLabelText('Open Settings')).toBeTruthy()
+  })
+
+  it('keeps More active while the omitted destination is open', async () => {
+    mockedPathname = '/ledger/year-id'
+
+    await render(<FloatingTabBar navigation={['notes', 'trips', 'groceries']} />)
+
+    expect(screen.getByLabelText('More').props.accessibilityState).toEqual({
+      selected: true,
+      expanded: false,
+    })
   })
 })

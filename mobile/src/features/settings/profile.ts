@@ -1,6 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 
 import type { Appearance } from '@/lib/appearance'
+import {
+  normalizeMobileNavigation,
+  type MobileNavigation,
+} from '@/components/mobileNavigation'
 import { useAuth } from '@/lib/auth/AuthContext'
 import {
   enqueueOperation,
@@ -15,6 +19,8 @@ export interface Profile {
   displayName: string
   appearance: Appearance
   notificationsEnabled: boolean
+  mobileNavigation: MobileNavigation
+  suppressUnpricedPurchaseWarning: boolean
   revision: number
 }
 
@@ -29,12 +35,12 @@ export function useProfile() {
     queryFn: async (): Promise<Profile | null> => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('user_id, display_name, appearance, notifications_enabled, revision')
+        .select('user_id, display_name, appearance, notifications_enabled, mobile_navigation, suppress_unpriced_purchase_warning, revision')
         .eq('user_id', userId!)
         .maybeSingle()
         .returns<Pick<
           Tables<'profiles'>,
-          'user_id' | 'display_name' | 'appearance' | 'notifications_enabled' | 'revision'
+          'user_id' | 'display_name' | 'appearance' | 'notifications_enabled' | 'mobile_navigation' | 'suppress_unpriced_purchase_warning' | 'revision'
         > | null>()
       if (error) throw error
       if (!data) return null
@@ -43,6 +49,8 @@ export function useProfile() {
         displayName: data.display_name,
         appearance: data.appearance as Appearance,
         notificationsEnabled: data.notifications_enabled,
+        mobileNavigation: normalizeMobileNavigation(data.mobile_navigation),
+        suppressUnpricedPurchaseWarning: data.suppress_unpriced_purchase_warning,
         revision: data.revision,
         id: data.user_id,
       }], 'settings')
@@ -55,6 +63,8 @@ export interface ProfileSettingsPatch {
   displayName?: string
   appearance?: Appearance
   notificationsEnabled?: boolean
+  mobileNavigation?: MobileNavigation
+  suppressUnpricedPurchaseWarning?: boolean
 }
 
 /**
@@ -73,6 +83,10 @@ export function saveProfileSettings(
   if (patch.appearance !== undefined) payload.appearance = patch.appearance
   if (patch.notificationsEnabled !== undefined)
     payload.notificationsEnabled = patch.notificationsEnabled
+  if (patch.mobileNavigation !== undefined)
+    payload.mobileNavigation = [...patch.mobileNavigation]
+  if (patch.suppressUnpricedPurchaseWarning !== undefined)
+    payload.suppressUnpricedPurchaseWarning = patch.suppressUnpricedPurchaseWarning
   return enqueueOperation({
     householdId,
     type: 'settings.update',

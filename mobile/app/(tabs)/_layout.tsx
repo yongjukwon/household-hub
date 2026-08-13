@@ -1,8 +1,10 @@
 import { Slot } from 'expo-router'
 import { StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useProfile } from '@/features/settings/profile'
 
 import { AppHeader } from '@/components/AppHeader'
+import { AppChromeProvider } from '@/components/AppChrome'
 import { GradientBackground } from '@/components/GradientBackground'
 import {
   FloatingTabBar,
@@ -19,20 +21,23 @@ import {
  */
 export default function TabsLayout() {
   const insets = useSafeAreaInsets()
+  const profile = useProfile()
 
   return (
     <View style={styles.root}>
       <GradientBackground />
-      <AppHeader />
-      <View
-        style={[
-          styles.content,
-          { paddingBottom: insets.bottom + TAB_BAR_FLOAT_OFFSET + TAB_BAR_HEIGHT + 12 },
-        ]}
-      >
-        <Slot />
-      </View>
-      <FloatingTabBar />
+      <AppChromeProvider>
+        <AppHeader />
+        <View
+          style={[
+            styles.content,
+            { paddingBottom: insets.bottom + TAB_BAR_FLOAT_OFFSET + TAB_BAR_HEIGHT + 12 },
+          ]}
+        >
+          <Slot />
+        </View>
+        <FloatingTabBar navigation={profile.data?.mobileNavigation} />
+      </AppChromeProvider>
     </View>
   )
 }

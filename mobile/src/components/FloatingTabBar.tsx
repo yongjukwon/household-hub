@@ -1,10 +1,17 @@
 import { useRouter, usePathname } from 'expo-router'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { useState } from 'react'
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BlurView } from 'expo-blur'
 
 import { useTheme, type ThemeTokens } from '@/theme/tokens'
 import { TAB_DESTINATIONS, tabActiveForPath } from './tabDestinations'
+import {
+  DEFAULT_MOBILE_NAVIGATION,
+  omittedDestination,
+  type MobileNavigation,
+} from './mobileNavigation'
+import { CogIcon, EllipsisIcon } from './icons'
 
 /** Distance the pill floats above the bottom safe-area edge. */
 export const TAB_BAR_FLOAT_OFFSET = 20
@@ -16,11 +23,22 @@ export const TAB_BAR_HEIGHT = 66
  * insets, 20px above the bottom safe area, with a real outline→filled icon
  * swap on the active tab (not just a stroke-width/color change).
  */
-export function FloatingTabBar() {
+export function FloatingTabBar({
+  navigation = DEFAULT_MOBILE_NAVIGATION,
+}: {
+  navigation?: MobileNavigation
+}) {
   const { tokens, scheme } = useTheme()
   const router = useRouter()
   const pathname = usePathname()
   const insets = useSafeAreaInsets()
+  const [moreOpen, setMoreOpen] = useState(false)
+  const configured = navigation.map((key) => TAB_DESTINATIONS.find((item) => item.key === key)!)
+  const omitted = TAB_DESTINATIONS.find(
+    (item) => item.key === omittedDestination(navigation),
+  )!
+  const destinations = [TAB_DESTINATIONS[0], ...configured]
+  const moreActive = tabActiveForPath(omitted.path, pathname)
 
   return (
     // Two-layer split (see Card.tsx for the same pattern/reasoning): the
@@ -47,7 +65,7 @@ export function FloatingTabBar() {
           },
         ]}
       >
-        {TAB_DESTINATIONS.map(({ path, label, icon: Icon, activeIcon: ActiveIcon }) => {
+        {destinations.map(({ path, label, icon: Icon, activeIcon: ActiveIcon }) => {
           const active = tabActiveForPath(path, pathname)
           const TabIcon = active ? ActiveIcon : Icon
           return (
@@ -64,7 +82,53 @@ export function FloatingTabBar() {
             </Pressable>
           )
         })}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="More"
+          accessibilityState={{ selected: moreActive, expanded: moreOpen }}
+          onPress={() => setMoreOpen(true)}
+          style={styles.item}
+        >
+          <EllipsisIcon size={21} color={moreActive ? tokens.accent : tokens.muted} />
+          <Text style={itemLabelStyle(tokens, moreActive)}>More</Text>
+        </Pressable>
       </BlurView>
+      <Modal transparent visible={moreOpen} animationType="fade" onRequestClose={() => setMoreOpen(false)}>
+        <Pressable style={styles.backdrop} onPress={() => setMoreOpen(false)}>
+          <View
+            style={[
+              styles.moreMenu,
+              { bottom: insets.bottom + TAB_BAR_FLOAT_OFFSET + TAB_BAR_HEIGHT + 8, backgroundColor: tokens.card },
+              tokens.shadowFloat,
+            ]}
+          >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${omitted.label}`}
+              onPress={() => {
+                setMoreOpen(false)
+                router.replace(omitted.path)
+              }}
+              style={styles.menuRow}
+            >
+              <omitted.icon size={20} color={tokens.muted} />
+              <Text style={[styles.menuText, { color: tokens.ink }]}>{omitted.label}</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open Settings"
+              onPress={() => {
+                setMoreOpen(false)
+                router.replace('/settings')
+              }}
+              style={styles.menuRow}
+            >
+              <CogIcon size={20} color={tokens.muted} />
+              <Text style={[styles.menuText, { color: tokens.ink }]}>Settings</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   )
 }
@@ -101,4 +165,14 @@ const styles = StyleSheet.create({
     gap: 3,
     height: '100%',
   },
+  backdrop: { flex: 1 },
+  moreMenu: {
+    position: 'absolute',
+    right: 20,
+    minWidth: 180,
+    borderRadius: 16,
+    paddingVertical: 6,
+  },
+  menuRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 13 },
+  menuText: { fontSize: 15, fontWeight: '600' },
 })

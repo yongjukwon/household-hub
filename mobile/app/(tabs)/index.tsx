@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { buildOwnerColors } from '@household-hub/domain'
 
 import { Card } from '@/components/Card'
-import { FloatingActionButton } from '@/components/FloatingActionButton'
+import { useAppChrome } from '@/components/AppChrome'
 import { ChevronLeftIcon, ChevronRightIcon } from '@/components/icons'
 import { ListCard } from '@/components/ListCard'
 import { EmptyState, ErrorState, LoadingState } from '@/components/states'
@@ -129,6 +129,13 @@ export default function CalendarScreen() {
     setEditing(event)
     setSheetOpen(true)
   }
+
+  useAppChrome({
+    mode: 'root',
+    title: 'Schedule',
+    showNotifications: true,
+    onAdd: openNew,
+  })
 
   function renderCell(cell: MonthGridCell) {
     const isSelected = cell.date === selected
@@ -285,8 +292,6 @@ export default function CalendarScreen() {
           </Pressable>
         )}
       />
-
-      <FloatingActionButton accessibilityLabel="New event" onPress={openNew} />
 
       {householdId ? (
         <EventSheet

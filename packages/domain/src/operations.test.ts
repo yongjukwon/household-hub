@@ -64,6 +64,24 @@ describe('operation contracts', () => {
     }
   })
 
+  it('allows durable notification removal operations', () => {
+    for (const type of ['notification.delete', 'notification.clear']) {
+      expect(isOperationCommand({
+        schemaVersion: 1,
+        operationId: uuid,
+        deviceId: '550e8400-e29b-41d4-a716-446655440001',
+        localSequence: 1,
+        householdId: '550e8400-e29b-41d4-a716-446655440002',
+        type,
+        entityType: 'notification',
+        entityId: '550e8400-e29b-41d4-a716-446655440003',
+        baseRevision: null,
+        enqueuedAt: '2026-07-24T12:30:00.000Z',
+        payload: {},
+      })).toBe(true)
+    }
+  })
+
   it('accepts applied results with a negative Asset-balance warning', () => {
     expect(
       isOperationResult({

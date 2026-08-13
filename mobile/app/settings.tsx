@@ -16,6 +16,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { DangerConfirm } from '@/components/DangerConfirm'
 import { GradientBackground } from '@/components/GradientBackground'
 import { SegmentedControl } from '@/components/SegmentedControl'
+import { MobileNavigationEditor } from '@/features/settings/MobileNavigationEditor'
 import { useActiveHousehold } from '@/features/household'
 import {
   createInvite,
@@ -31,6 +32,7 @@ import { saveProfileSettings, useProfile } from '@/features/settings/profile'
 import { useAuth } from '@/lib/auth/AuthContext'
 import type { Appearance } from '@/lib/appearance'
 import { syncPushRegistration } from '@/lib/notificationLifecycle'
+import { operationOutcomeError, operationThrownError } from '@/lib/operations'
 import { supabase } from '@/lib/supabase'
 import { useAppearance } from '@/theme/AppearanceProvider'
 import { useTheme } from '@/theme/tokens'
@@ -81,6 +83,7 @@ export default function SettingsScreen() {
   const [removeTarget, setRemoveTarget] = useState<string | null>(null)
   const [deleteHouseholdOpen, setDeleteHouseholdOpen] = useState(false)
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false)
+  const [savingNavigation, setSavingNavigation] = useState(false)
 
   const nameValue = displayName ?? profile.data?.displayName ?? ''
   const currentMember = members.data?.find((m) => m.userId === user?.id)
@@ -114,6 +117,27 @@ export default function SettingsScreen() {
       profile.data.revision,
     )
     void profile.refetch()
+  }
+
+  async function saveNavigation(next: NonNullable<typeof profile.data>['mobileNavigation']) {
+    if (!householdId || !user || !profile.data) return
+    setSavingNavigation(true)
+    setNotice(null)
+    try {
+      const outcome = await saveProfileSettings(
+        householdId,
+        user.id,
+        { mobileNavigation: next },
+        profile.data.revision,
+      )
+      const message = operationOutcomeError(outcome)
+      if (message) setNotice(message)
+      else void profile.refetch()
+    } catch (failure) {
+      setNotice(operationThrownError(failure, 'Could not save navigation.'))
+    } finally {
+      setSavingNavigation(false)
+    }
   }
 
   async function signOut() {
@@ -189,6 +213,14 @@ export default function SettingsScreen() {
             options={APPEARANCE_OPTIONS}
             value={appearance}
             onChange={chooseAppearance}
+          />
+        </Section>
+
+        <Section title="Mobile navigation">
+          <MobileNavigationEditor
+            value={profile.data?.mobileNavigation}
+            saving={savingNavigation}
+            onSave={saveNavigation}
           />
         </Section>
 

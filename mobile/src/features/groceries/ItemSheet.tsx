@@ -9,6 +9,7 @@ import {
 } from '@/lib/operations'
 import { useTheme } from '@/theme/tokens'
 import type { GroceryItem } from './data'
+import { parsePurchaseQuantity } from './data'
 import { saveGroceryItem } from './mutations'
 
 interface ItemSheetProps {
@@ -32,13 +33,23 @@ export function ItemSheet({
 }: ItemSheetProps) {
   const { tokens } = useTheme()
   const [name, setName] = useState(item.name)
-  const [quantity, setQuantity] = useState(item.quantity ?? '')
-  const [price, setPrice] = useState(centsToInputValue(item.unitPriceCents))
+  const [quantity, setQuantity] = useState(item.purchaseQuantity?.toString() ?? '')
+  const [price, setPrice] = useState(centsToInputValue(item.totalPriceCents))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function handleSave() {
     if (name.trim().length === 0) return
+    const purchaseQuantity = parsePurchaseQuantity(quantity)
+    const totalPriceCents = parseDollarsToCents(price)
+    if (purchaseQuantity === null) {
+      setError('Quantity must be a positive number.')
+      return
+    }
+    if (price.trim() && (totalPriceCents === null || totalPriceCents <= 0)) {
+      setError('Price must be greater than zero.')
+      return
+    }
     setSaving(true)
     setError(null)
     try {
@@ -48,9 +59,12 @@ export function ItemSheet({
           id: item.id,
           listId,
           name,
-          quantity: quantity || null,
+          quantity: String(purchaseQuantity),
           checked: item.checked,
-          unitPriceCents: parseDollarsToCents(price),
+          unitPriceCents: totalPriceCents === null ? null : Math.round(totalPriceCents / purchaseQuantity),
+          purchaseQuantity,
+          totalPriceCents,
+          purchaseOccurrenceId: item.purchaseOccurrenceId,
           sortOrder,
         },
         item.revision,

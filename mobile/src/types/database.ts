@@ -600,6 +600,9 @@ export type Database = {
           name: string
           name_normalized: string | null
           quantity: string | null
+          purchase_quantity: number | null
+          total_price_cents: number | null
+          purchase_occurrence_id: string | null
           revision: number
           sort_order: number
           unit_price_cents: number | null
@@ -616,6 +619,9 @@ export type Database = {
           name: string
           name_normalized?: string | null
           quantity?: string | null
+          purchase_quantity?: number | null
+          total_price_cents?: number | null
+          purchase_occurrence_id?: string | null
           revision?: number
           sort_order?: number
           unit_price_cents?: number | null
@@ -632,6 +638,9 @@ export type Database = {
           name?: string
           name_normalized?: string | null
           quantity?: string | null
+          purchase_quantity?: number | null
+          total_price_cents?: number | null
+          purchase_occurrence_id?: string | null
           revision?: number
           sort_order?: number
           unit_price_cents?: number | null
@@ -705,6 +714,11 @@ export type Database = {
           price_cents: number
           recorded_at: string
           recorded_by: string
+          store_name: string
+          source_item_id: string | null
+          purchase_occurrence_id: string | null
+          purchase_quantity: number
+          total_price_cents: number
         }
         Insert: {
           household_id: string
@@ -715,6 +729,11 @@ export type Database = {
           price_cents: number
           recorded_at?: string
           recorded_by: string
+          store_name: string
+          source_item_id?: string | null
+          purchase_occurrence_id?: string | null
+          purchase_quantity?: number
+          total_price_cents: number
         }
         Update: {
           household_id?: string
@@ -725,6 +744,11 @@ export type Database = {
           price_cents?: number
           recorded_at?: string
           recorded_by?: string
+          store_name?: string
+          source_item_id?: string | null
+          purchase_occurrence_id?: string | null
+          purchase_quantity?: number
+          total_price_cents?: number
         }
         Relationships: [
           {
@@ -1837,6 +1861,8 @@ export type Database = {
           created_at: string
           display_name: string
           notifications_enabled: boolean
+          mobile_navigation: Json
+          suppress_unpriced_purchase_warning: boolean
           revision: number
           updated_at: string
           user_id: string
@@ -1847,6 +1873,8 @@ export type Database = {
           created_at?: string
           display_name: string
           notifications_enabled?: boolean
+          mobile_navigation?: Json
+          suppress_unpriced_purchase_warning?: boolean
           revision?: number
           updated_at?: string
           user_id: string
@@ -1857,6 +1885,8 @@ export type Database = {
           created_at?: string
           display_name?: string
           notifications_enabled?: boolean
+          mobile_navigation?: Json
+          suppress_unpriced_purchase_warning?: boolean
           revision?: number
           updated_at?: string
           user_id?: string

@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { Card } from '@/components/Card'
+import { useAppChrome } from '@/components/AppChrome'
 import { ListCard } from '@/components/ListCard'
 import { EmptyState, ErrorState, LoadingState } from '@/components/states'
 import { useActiveHousehold } from '@/features/household'
@@ -53,6 +54,8 @@ export default function StatementMonthScreen() {
   const [resumeTransactionKind, setResumeTransactionKind] =
     useState<CategoryKind | null>(null)
   const categorySavedForTransaction = useRef(false)
+
+  useAppChrome({ mode: 'detail', title: year ? `${year.year} Budget` : 'Budget' })
 
   const monthRow = query.data?.months.find((entry) => entry.month === month)
   const categories = useMemo(
