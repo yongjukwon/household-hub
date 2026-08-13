@@ -179,6 +179,28 @@ select ok(
   'only authenticated API clients receive RPC execution privilege'
 );
 
+select ok(
+  not has_function_privilege(
+    'public', 'public.mobile_valid_navigation(jsonb)', 'EXECUTE'
+  )
+  and not has_function_privilege(
+    'anon', 'public.mobile_valid_navigation(jsonb)', 'EXECUTE'
+  )
+  and not has_function_privilege(
+    'authenticated', 'public.mobile_valid_navigation(jsonb)', 'EXECUTE'
+  )
+  and not has_function_privilege(
+    'public', 'public.mobile_operation_payload_valid(text,jsonb)', 'EXECUTE'
+  )
+  and not has_function_privilege(
+    'anon', 'public.mobile_operation_payload_valid(text,jsonb)', 'EXECUTE'
+  )
+  and not has_function_privilege(
+    'authenticated', 'public.mobile_operation_payload_valid(text,jsonb)', 'EXECUTE'
+  ),
+  'navigation validation helpers are not client-callable'
+);
+
 select is(
   (
     select count(*)::integer

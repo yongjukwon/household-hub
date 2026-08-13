@@ -113,6 +113,11 @@ begin
 end;
 $$;
 
+revoke execute on function public.mobile_valid_navigation(jsonb)
+  from public, anon, authenticated;
+revoke execute on function public.mobile_operation_payload_valid(text, jsonb)
+  from public, anon, authenticated;
+
 alter function public.apply_household_operation(jsonb)
   rename to apply_household_operation_v2;
 
