@@ -132,29 +132,109 @@ below.
 
 ## Run the mobile application
 
-Mobile uses an Expo development build because Expo Go does not support all
-required native modules and notification behavior.
+The mobile app has two parts:
 
-From `mobile/`, build and launch the required platform:
+- The **development build** is the native iOS or Android app installed on your
+  simulator/device. It contains native modules such as notifications,
+  SQLite, and SecureStore.
+- **Metro** is the JavaScript development server. It bundles the TypeScript and
+  React Native code and sends it to the installed development build. Metro is
+  what makes fast refresh work when you edit a screen.
+
+Expo Go is not used for this project because it does not include every native
+module and notification behavior required by Household Hub.
+
+### One-time setup
+
+Complete the [shared local setup](#shared-local-setup) first, including:
+
+1. `npm install` from the repository root.
+2. `npx supabase start` from the repository root.
+3. `mobile/.env.local` with the local Supabase URL, Publishable key, and
+   `EXPO_PUBLIC_ENABLE_TEST_AUTH=true`.
+
+Choose one platform below. You only need to complete the setup for the
+platform you intend to use.
+
+### iOS Simulator
+
+Install Xcode from the App Store and open it once so its components and license
+are initialized. Then start the Simulator, or let Expo open it for you:
+
+```bash
+open -a Simulator
+```
+
+From the repository root, run the first native build:
 
 ```bash
 cd mobile
 npm run ios
 ```
 
-or:
+This command runs `expo run:ios`. On the first run it compiles the native iOS
+project, installs the Household Hub development build in the Simulator, and
+starts the JavaScript bundler. The first build can take several minutes.
+
+When the app opens, tap the local test sign-in option and use one of the test
+accounts below. Keep the terminal running while you develop.
+
+### Android emulator
+
+Install Android Studio, create an emulator in **Device Manager**, and start it
+before launching the app. Confirm that the emulator is visible to the Android
+toolchain:
+
+```bash
+adb devices
+```
+
+From the repository root, run the first native build:
 
 ```bash
 cd mobile
 npm run android
 ```
 
-After the development client is installed, start Metro for later sessions with:
+This command runs `expo run:android`. It compiles the native Android project,
+installs the Household Hub development build in the running emulator, and
+starts the JavaScript bundler. The mobile environment uses
+`http://10.0.2.2:55321` for the Supabase URL because `10.0.2.2` maps from the
+Android emulator back to your Mac.
+
+### Later sessions
+
+After the development build has been installed, do not run the native build
+command every time. Start Metro from the repository root:
 
 ```bash
 cd mobile
 npm start
 ```
+
+Then open the already-installed **Household Hub** development build in the
+Simulator or emulator. If Metro displays a QR code or a list of targets, choose
+the running simulator/emulator. Leave Metro running; its terminal shows bundle
+errors and reload messages.
+
+Your normal daily workflow is:
+
+1. Start local Supabase in one terminal: `npx supabase start`.
+2. Start Metro in another terminal: `cd mobile && npm start`.
+3. Open the installed Household Hub development build.
+4. Edit files; Metro applies JavaScript changes with fast refresh.
+5. Stop Metro with `Ctrl+C` when finished.
+
+Run `npm run ios` or `npm run android` again when you change native
+dependencies, permissions, the Expo config, or native code. Ordinary screen and
+styling changes only require Metro to be restarted if it is not already running.
+
+### Physical device notes
+
+For a physical iPhone or Android device, the device and Mac must be on the same
+network. Replace `127.0.0.1` in `mobile/.env.local` with the Mac's LAN IP
+address, then rebuild or restart the development client so the new value is
+embedded in the app.
 
 ## Test credentials
 
