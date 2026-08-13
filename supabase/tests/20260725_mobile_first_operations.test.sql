@@ -1954,5 +1954,97 @@ select is(
   'Realtime publishes all user-facing mobile-first change tables'
 );
 
+select is(
+  (
+    select mobile_navigation
+    from public.profiles
+    where user_id = '00000000-0000-4000-8000-000000000001'
+  ),
+  '["groceries", "ledger", "trips"]'::jsonb,
+  'profiles default mobile navigation to the three configured destinations'
+);
+
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000043',
+        '10000000-0000-4000-8000-000000000001',
+        'settings.update',
+        'settings',
+        '00000000-0000-4000-8000-000000000001',
+        1,
+        '{"mobileNavigation":["groceries","groceries","trips"]}',
+        42
+      )
+    )->>'status'
+  ),
+  'rejected',
+  'settings rejects malformed mobile navigation'
+);
+
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000044',
+        '10000000-0000-4000-8000-000000000001',
+        'settings.update',
+        'settings',
+        '00000000-0000-4000-8000-000000000001',
+        1,
+        '{"mobileNavigation":["notes","trips","groceries"],"suppressUnpricedPurchaseWarning":true}',
+        43
+      )
+    )->>'status'
+  ),
+  'applied',
+  'settings persists valid navigation and purchase-warning suppression'
+);
+
+select is(
+  (
+    select jsonb_build_object(
+      'navigation', mobile_navigation,
+      'suppressed', suppress_unpriced_purchase_warning
+    )
+    from public.profiles
+    where user_id = '00000000-0000-4000-8000-000000000001'
+  ),
+  '{"navigation":["notes","trips","groceries"],"suppressed":true}'::jsonb,
+  'settings stores both new profile preferences'
+);
+
+select set_config(
+  'request.jwt.claim.sub',
+  '00000000-0000-4000-8000-000000000002',
+  true
+);
+
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000045',
+        '10000000-0000-4000-8000-000000000001',
+        'settings.update',
+        'settings',
+        '00000000-0000-4000-8000-000000000001',
+        2,
+        '{"suppressUnpricedPurchaseWarning":false}',
+        44
+      )
+    )->>'code'
+  ),
+  'settings_not_owned',
+  'a household member cannot update another user profile preferences'
+);
+
+select set_config(
+  'request.jwt.claim.sub',
+  '00000000-0000-4000-8000-000000000001',
+  true
+);
+
 select * from finish();
 rollback;

@@ -55,7 +55,7 @@ export function ConfirmDialog({
           ]}
         >
           <Text style={[styles.title, { color: tokens.ink }]}>{title}</Text>
-          <Text style={[styles.description, { color: tokens.muted }]}> 
+          <Text style={[styles.description, { color: tokens.muted }]}>
             {description}
           </Text>
           {children ? <View style={styles.extra}>{children}</View> : null}
