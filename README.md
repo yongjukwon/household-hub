@@ -41,8 +41,9 @@ npx supabase start
 npx supabase status
 ```
 
-The status output contains the local anon key and service-role key. Keep the
-service-role key out of committed files.
+The status output contains a local **Publishable** key and **Secret** key.
+Publishable replaces the legacy anon key; Secret replaces the legacy
+service-role key. Keep the Secret key out of committed files.
 
 ### 3. Configure the web application
 
@@ -54,7 +55,7 @@ Set the following values in `.env.local`:
 
 ```dotenv
 VITE_SUPABASE_URL=http://127.0.0.1:55321
-VITE_SUPABASE_ANON_KEY=<anon-key-from-supabase-status>
+VITE_SUPABASE_ANON_KEY=<publishable-key-from-supabase-status>
 VITE_ENABLE_TEST_AUTH=true
 ```
 
@@ -68,7 +69,7 @@ For the iOS Simulator, set:
 
 ```dotenv
 EXPO_PUBLIC_SUPABASE_URL=http://127.0.0.1:55321
-EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon-key-from-supabase-status>
+EXPO_PUBLIC_SUPABASE_ANON_KEY=<publishable-key-from-supabase-status>
 EXPO_PUBLIC_ENABLE_TEST_AUTH=true
 ```
 
@@ -81,12 +82,14 @@ Only public, anon-scoped values belong in `EXPO_PUBLIC_*` variables.
 
 ### 5. Seed the test household
 
-Replace the key placeholders with values from `npx supabase status`:
+Replace the key placeholders with the **Publishable** and **Secret** values
+from your local `npx supabase status` output. Do not use JWT examples copied
+from Supabase documentation:
 
 ```bash
 SUPABASE_URL=http://127.0.0.1:55321 \
-SUPABASE_ANON_KEY=<anon-key> \
-SUPABASE_SERVICE_ROLE_KEY=<service-role-key> \
+SUPABASE_ANON_KEY=<publishable-key> \
+SUPABASE_SERVICE_ROLE_KEY=<secret-key> \
 npx tsx scripts/seed-household.ts \
   --name "🐰 & 🐧 Test" \
   --member "yongju@test.local:household123:Yongju" \
@@ -95,6 +98,26 @@ npx tsx scripts/seed-household.ts \
 
 The seed command creates the two accounts and their household. Re-running it
 preserves existing feature data and refreshes the test passwords.
+
+### Native Node module troubleshooting
+
+If `npx tsx` reports that `@esbuild/darwin-x64` is installed but your
+platform needs `@esbuild/darwin-arm64`, Node and the dependencies were
+installed under different macOS architectures. Confirm the current runtime:
+
+```bash
+node -p "process.arch"
+```
+
+On Apple Silicon, reinstall dependencies from an arm64 Node shell:
+
+```bash
+rm -rf node_modules
+npm install
+```
+
+Then rerun the seed command. Do not mix Rosetta/x64 Node with arm64 Node in the
+same checkout.
 
 ## Run the web application
 
