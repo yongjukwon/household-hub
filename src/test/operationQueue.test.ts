@@ -569,7 +569,12 @@ describe('optimistic overlay', () => {
     const merged = await withOptimisticOverlay(server, 'calendar_event')
 
     expect(merged).toEqual([
-      { id: EVENT_A, title: 'Dentist (moved)', note: 'from partner' },
+      {
+        id: EVENT_A,
+        title: 'Dentist (moved)',
+        note: 'from partner',
+        revision: 1,
+      },
     ])
   })
 
@@ -612,7 +617,7 @@ describe('optimistic overlay', () => {
       [{ id: EVENT_A, title: 'Server' }],
       'calendar_event',
     )
-    expect(merged).toEqual([{ id: EVENT_A, title: 'Second' }])
+    expect(merged).toEqual([{ id: EVENT_A, title: 'Second', revision: 1 }])
   })
 
   it('ignores commands for other entity types', () => {

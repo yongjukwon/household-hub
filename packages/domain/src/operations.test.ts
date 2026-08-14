@@ -3,6 +3,26 @@ import { isOperationCommand, isOperationResult } from './index'
 
 const uuid = '550e8400-e29b-41d4-a716-446655440000'
 
+function command(
+  type: string,
+  entityType: string,
+  payload: Record<string, unknown>,
+) {
+  return {
+    schemaVersion: 1,
+    operationId: uuid,
+    deviceId: '550e8400-e29b-41d4-a716-446655440001',
+    localSequence: 0,
+    householdId: '550e8400-e29b-41d4-a716-446655440002',
+    type,
+    entityType,
+    entityId: '550e8400-e29b-41d4-a716-446655440003',
+    baseRevision: null,
+    enqueuedAt: '2026-07-24T12:30:00.000Z',
+    payload,
+  }
+}
+
 describe('operation contracts', () => {
   it('accepts an optimistic command only when its concurrency metadata is valid', () => {
     expect(
@@ -38,13 +58,13 @@ describe('operation contracts', () => {
   })
 
   it('allows every required Ledger write family', () => {
-    for (const type of [
-      'ledger.year.upsert',
-      'ledger.year.clear',
-      'ledger.category.upsert',
-      'ledger.limit.upsert',
-      'ledger.transfer.upsert',
-      'ledger.schedule.upsert',
+    for (const [type, entityType] of [
+      ['ledger.year.upsert', 'ledger_year'],
+      ['ledger.year.clear', 'ledger_year'],
+      ['ledger.category.upsert', 'ledger_category'],
+      ['ledger.limit.upsert', 'ledger_limit'],
+      ['ledger.transfer.upsert', 'ledger_transfer'],
+      ['ledger.schedule.upsert', 'ledger_schedule'],
     ]) {
       expect(
         isOperationCommand({
@@ -54,7 +74,7 @@ describe('operation contracts', () => {
           localSequence: 0,
           householdId: '550e8400-e29b-41d4-a716-446655440002',
           type,
-          entityType: 'ledger_entity',
+          entityType,
           entityId: '550e8400-e29b-41d4-a716-446655440003',
           baseRevision: null,
           enqueuedAt: '2026-07-24T12:30:00.000Z',
@@ -80,6 +100,157 @@ describe('operation contracts', () => {
         payload: {},
       })).toBe(true)
     }
+  })
+
+  it('enforces the shared operation-to-entity mapping', () => {
+    expect(isOperationCommand(command('grocery.item.upsert', 'grocery_item', {
+      listId: '550e8400-e29b-41d4-a716-446655440004',
+      name: 'Milk',
+      quantity: '1',
+      checked: false,
+      unitPriceCents: null,
+      sortOrder: 0,
+    }))).toBe(true)
+    expect(isOperationCommand(command('grocery.item.upsert', 'notification', {
+      listId: '550e8400-e29b-41d4-a716-446655440004',
+      name: 'Milk',
+      quantity: '1',
+      checked: false,
+      unitPriceCents: null,
+      sortOrder: 0,
+    }))).toBe(false)
+    expect(isOperationCommand(command('notification.clear', 'notification', {})))
+      .toBe(true)
+    expect(isOperationCommand(command('notification.clear', 'settings', {})))
+      .toBe(false)
+  })
+
+  it('accepts legacy-only and canonical Grocery item payloads', () => {
+    const legacy = {
+      listId: '550e8400-e29b-41d4-a716-446655440004',
+      name: 'Milk',
+      quantity: '2',
+      checked: false,
+      unitPriceCents: 499,
+      sortOrder: 0,
+    }
+    const canonical = {
+      ...legacy,
+      checked: true,
+      unitPriceCents: 250,
+      purchaseQuantity: 2,
+      totalPriceCents: 500,
+      purchaseOccurrenceId: '550e8400-e29b-41d4-a716-446655440005',
+    }
+
+    expect(isOperationCommand(command('grocery.item.upsert', 'grocery_item', legacy)))
+      .toBe(true)
+    expect(isOperationCommand(command('grocery.item.upsert', 'grocery_item', canonical)))
+      .toBe(true)
+
+    for (const producerState of [
+      {
+        ...canonical,
+        checked: false,
+        unitPriceCents: null,
+        purchaseQuantity: null,
+        totalPriceCents: null,
+        purchaseOccurrenceId: null,
+      },
+      {
+        ...canonical,
+        checked: false,
+        purchaseOccurrenceId: null,
+      },
+      {
+        ...canonical,
+        checked: false,
+        unitPriceCents: null,
+        totalPriceCents: null,
+        purchaseOccurrenceId: null,
+      },
+      {
+        ...canonical,
+        checked: true,
+        unitPriceCents: null,
+        purchaseQuantity: null,
+        totalPriceCents: null,
+      },
+    ]) {
+      expect(isOperationCommand(command(
+        'grocery.item.upsert',
+        'grocery_item',
+        producerState,
+      ))).toBe(true)
+    }
+  })
+
+  it('rejects partial, nonpositive, and inconsistent canonical Grocery payloads', () => {
+    const canonical = {
+      listId: '550e8400-e29b-41d4-a716-446655440004',
+      name: 'Milk',
+      quantity: '2',
+      checked: true,
+      unitPriceCents: 250,
+      purchaseQuantity: 2,
+      totalPriceCents: 500,
+      purchaseOccurrenceId: '550e8400-e29b-41d4-a716-446655440005',
+      sortOrder: 0,
+    }
+
+    expect(isOperationCommand(command('grocery.item.upsert', 'grocery_item', {
+      ...canonical,
+      purchaseQuantity: 0,
+    }))).toBe(false)
+    expect(isOperationCommand(command('grocery.item.upsert', 'grocery_item', {
+      ...canonical,
+      totalPriceCents: -1,
+    }))).toBe(false)
+    expect(isOperationCommand(command('grocery.item.upsert', 'grocery_item', {
+      ...canonical,
+      unitPriceCents: 0,
+      purchaseQuantity: 3,
+      totalPriceCents: 1,
+    }))).toBe(false)
+    expect(isOperationCommand(command('grocery.item.upsert', 'grocery_item', {
+      ...canonical,
+      purchaseOccurrenceId: null,
+    }))).toBe(false)
+    expect(isOperationCommand(command('grocery.item.upsert', 'grocery_item', {
+      ...canonical,
+      checked: false,
+    }))).toBe(false)
+    const partial = Object.fromEntries(
+      Object.entries(canonical).filter(([key]) => key !== 'totalPriceCents'),
+    )
+    expect(isOperationCommand(command('grocery.item.upsert', 'grocery_item', partial)))
+      .toBe(false)
+  })
+
+  it('validates settings and notification-removal payloads at the shared boundary', () => {
+    expect(isOperationCommand(command('settings.update', 'settings', {
+      appearance: 'dark',
+      notificationsEnabled: false,
+    }))).toBe(true)
+    expect(isOperationCommand(command('settings.update', 'settings', {
+      displayName: 'Yongju',
+      appearance: 'system',
+      notificationsEnabled: true,
+      mobileNavigation: ['notes', 'trips', 'groceries'],
+      suppressUnpricedPurchaseWarning: true,
+    }))).toBe(true)
+    expect(isOperationCommand(command('settings.update', 'settings', {})))
+      .toBe(false)
+    expect(isOperationCommand(command('settings.update', 'settings', {
+      mobileNavigation: ['notes', 'notes', 'groceries'],
+    }))).toBe(false)
+    expect(isOperationCommand(command('settings.update', 'settings', {
+      appearance: 'dark',
+      actorUserId: uuid,
+    }))).toBe(false)
+    expect(isOperationCommand(command('notification.delete', 'notification', {
+      recipientUserId: uuid,
+    }))).toBe(false)
   })
 
   it('accepts applied results with a negative Asset-balance warning', () => {

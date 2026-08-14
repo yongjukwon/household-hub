@@ -1,34 +1,19 @@
-export const CONFIGURABLE_MOBILE_DESTINATIONS = [
-  'groceries',
-  'ledger',
-  'notes',
-  'trips',
-] as const
+import {
+  CONFIGURABLE_MOBILE_DESTINATIONS,
+  DEFAULT_MOBILE_NAVIGATION,
+  isMobileNavigation,
+  normalizeMobileNavigation,
+  type MobileDestinationKey,
+  type MobileNavigation,
+} from '@household-hub/domain'
 
-export type MobileDestinationKey =
-  (typeof CONFIGURABLE_MOBILE_DESTINATIONS)[number]
-
-export type MobileNavigation = readonly [
-  MobileDestinationKey,
-  MobileDestinationKey,
-  MobileDestinationKey,
-]
-
-export const DEFAULT_MOBILE_NAVIGATION: MobileNavigation = [
-  'groceries',
-  'ledger',
-  'trips',
-]
-
-export function isMobileNavigation(value: unknown): value is MobileNavigation {
-  return Array.isArray(value)
-    && value.length === 3
-    && value.every((key) => CONFIGURABLE_MOBILE_DESTINATIONS.includes(key))
-    && new Set(value).size === 3
-}
-
-export function normalizeMobileNavigation(value: unknown): MobileNavigation {
-  return isMobileNavigation(value) ? value : DEFAULT_MOBILE_NAVIGATION
+export {
+  CONFIGURABLE_MOBILE_DESTINATIONS,
+  DEFAULT_MOBILE_NAVIGATION,
+  isMobileNavigation,
+  normalizeMobileNavigation,
+  type MobileDestinationKey,
+  type MobileNavigation,
 }
 
 export function omittedDestination(

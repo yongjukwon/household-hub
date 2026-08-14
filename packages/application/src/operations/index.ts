@@ -5,6 +5,11 @@ import type {
   OperationWarning,
 } from '@household-hub/domain'
 
+export {
+  applyOptimisticOverlay,
+  type EntityRow,
+} from './overlay'
+
 export type { OperationCommand, OperationResult } from '@household-hub/domain'
 
 export interface QueuedOperation {
