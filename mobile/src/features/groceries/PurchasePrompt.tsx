@@ -30,7 +30,9 @@ export function PurchasePrompt({
     const parsedQuantity = parsePurchaseQuantity(quantity)
     const total = parseDollarsToCents(price)
     if (parsedQuantity === null) return setError('Quantity must be a positive number.')
-    if (total === null || total <= 0) return setError('Price must be greater than zero.')
+    if (/[-−]/.test(price) || total === null || total <= 0) {
+      return setError('Price must be greater than zero.')
+    }
     setError(null)
     onSavePrice(parsedQuantity, total)
   }

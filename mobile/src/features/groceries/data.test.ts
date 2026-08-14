@@ -108,12 +108,12 @@ describe('displayedPriceHistory', () => {
 
   it('ranks canonical purchases by their exact total-to-quantity ratio', () => {
     const result = displayedPriceHistory([
-      price(100, { id: 'a', totalPriceCents: 600, purchaseQuantity: 5 }),
-      price(100, { id: 'b', totalPriceCents: 550, purchaseQuantity: 5 }),
-      price(100, { id: 'c', totalPriceCents: 500, purchaseQuantity: 5 }),
-      price(100, { id: 'd', totalPriceCents: 450, purchaseQuantity: 5 }),
-      price(100, { id: 'e', totalPriceCents: 400, purchaseQuantity: 5 }),
-      price(100, { id: 'f', totalPriceCents: 350, purchaseQuantity: 5 }),
+      price(100, { id: 'a', totalPriceCents: 1004, purchaseQuantity: 10 }),
+      price(100, { id: 'b', totalPriceCents: 1003, purchaseQuantity: 10 }),
+      price(100, { id: 'c', totalPriceCents: 1002, purchaseQuantity: 10 }),
+      price(100, { id: 'd', totalPriceCents: 1001, purchaseQuantity: 10 }),
+      price(100, { id: 'e', totalPriceCents: 2001, purchaseQuantity: 20 }),
+      price(100, { id: 'f', totalPriceCents: 1000, purchaseQuantity: 10 }),
     ], 'eggs')
 
     expect(result.map((entry) => entry.id)).toEqual(['f', 'e', 'd', 'a', 'b', 'c'])

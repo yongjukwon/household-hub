@@ -1,6 +1,6 @@
 import { formatMoney } from '@household-hub/domain'
 import { useLocalSearchParams } from 'expo-router'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
   FlatList,
   Pressable,
@@ -68,6 +68,10 @@ export default function GroceryListScreen() {
   const [deleteItem, setDeleteItem] = useState<GroceryItem | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const pendingToggleItemIdsRef = useRef(new Set<string>())
+  const [pendingToggleItemIds, setPendingToggleItemIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  )
 
   const items = useMemo(() => query.data?.items ?? [], [query.data?.items])
   const profile = useProfile()
@@ -196,10 +200,13 @@ export default function GroceryListScreen() {
 
   async function handleToggle(item: GroceryItem) {
     if (!householdId) return
+    if (pendingToggleItemIdsRef.current.has(item.id)) return
     if (!item.checked && (item.totalPriceCents === null || item.purchaseQuantity === null)) {
       setPurchaseItem(item)
       return
     }
+    pendingToggleItemIdsRef.current.add(item.id)
+    setPendingToggleItemIds(new Set(pendingToggleItemIdsRef.current))
     setError(null)
     try {
       const outcome = await toggleGroceryItem(
@@ -211,6 +218,9 @@ export default function GroceryListScreen() {
       if (outcomeError) setError(outcomeError)
     } catch (failure) {
       setError(operationThrownError(failure, 'Could not update this item.'))
+    } finally {
+      pendingToggleItemIdsRef.current.delete(item.id)
+      setPendingToggleItemIds(new Set(pendingToggleItemIdsRef.current))
     }
   }
 
@@ -410,6 +420,7 @@ export default function GroceryListScreen() {
           ) : (
             <ItemRow
               item={row.item}
+              togglePending={pendingToggleItemIds.has(row.item.id)}
               onToggle={() => void handleToggle(row.item)}
               onEdit={() => setEditing(row.item)}
               onDelete={() => {
@@ -506,12 +517,14 @@ export default function GroceryListScreen() {
 
 function ItemRow({
   item,
+  togglePending,
   onToggle,
   onEdit,
   onDelete,
   onHistory,
 }: {
   item: GroceryItem
+  togglePending: boolean
   onToggle: () => void
   onEdit: () => void
   onDelete: () => void
@@ -522,8 +535,9 @@ function ItemRow({
     <ListCard style={styles.itemRow}>
       <Pressable
         accessibilityRole="checkbox"
-        accessibilityState={{ checked: item.checked }}
+        accessibilityState={{ checked: item.checked, disabled: togglePending }}
         accessibilityLabel={`Check ${item.name}`}
+        disabled={togglePending}
         onPress={onToggle}
         style={[
           styles.checkbox,
@@ -531,6 +545,7 @@ function ItemRow({
             borderColor: item.checked ? 'transparent' : tokens.line,
             backgroundColor: item.checked ? tokens.accent : 'transparent',
           },
+          togglePending && styles.togglePending,
         ]}
       >
         {item.checked ? <Text style={styles.checkMark}>✓</Text> : null}
@@ -648,6 +663,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkMark: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
+  togglePending: { opacity: 0.5 },
   itemMain: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   itemNameCol: { flexShrink: 1 },
   itemName: { fontSize: 15, fontWeight: '600' },

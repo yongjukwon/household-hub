@@ -66,6 +66,17 @@ describe('PurchasePrompt', () => {
     expect(props.onSavePrice).not.toHaveBeenCalled()
   })
 
+  it('rejects a negative raw total instead of stripping its sign', async () => {
+    const props = await renderPrompt()
+
+    await fireEvent.changeText(screen.getByLabelText('Purchase quantity'), '2')
+    await fireEvent.changeText(screen.getByLabelText('Purchase price'), '-12.50')
+    await fireEvent.press(screen.getByText('Save price and check'))
+
+    expect(screen.getByText('Price must be greater than zero.')).toBeOnTheScreen()
+    expect(props.onSavePrice).not.toHaveBeenCalled()
+  })
+
   it('offers both an unpriced check and cancellation without recording a price', async () => {
     const props = await renderPrompt()
 

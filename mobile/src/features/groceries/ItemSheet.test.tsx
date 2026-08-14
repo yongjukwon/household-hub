@@ -92,4 +92,14 @@ describe('ItemSheet purchase fields', () => {
     expect(screen.getByText('Price must be greater than zero.')).toBeOnTheScreen()
     expect(mockedSaveItem).not.toHaveBeenCalled()
   })
+
+  it('rejects a negative raw total instead of saving its absolute value', async () => {
+    await renderSheet()
+
+    await fireEvent.changeText(screen.getByLabelText('Price'), '-12.50')
+    await fireEvent.press(screen.getByText('Save'))
+
+    expect(screen.getByText('Price must be greater than zero.')).toBeOnTheScreen()
+    expect(mockedSaveItem).not.toHaveBeenCalled()
+  })
 })

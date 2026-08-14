@@ -46,7 +46,10 @@ export function ItemSheet({
       setError('Quantity must be a positive number.')
       return
     }
-    if (price.trim() && (totalPriceCents === null || totalPriceCents <= 0)) {
+    if (
+      price.trim() &&
+      (/[-−]/.test(price) || totalPriceCents === null || totalPriceCents <= 0)
+    ) {
       setError('Price must be greater than zero.')
       return
     }

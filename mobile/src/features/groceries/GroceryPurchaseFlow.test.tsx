@@ -179,6 +179,20 @@ describe('Grocery purchase flow', () => {
     expect(screen.queryByText('Purchase Milk')).toBeNull()
   })
 
+  it('disables a priced-item checkbox while its toggle is pending and enqueues once', async () => {
+    let releaseToggle!: (value: Awaited<ReturnType<typeof toggleGroceryItem>>) => void
+    mockedToggleItem.mockReturnValue(new Promise((resolve) => { releaseToggle = resolve }))
+    await renderScreen()
+
+    await fireEvent.press(screen.getByLabelText('Check Milk'))
+    expect(screen.getByLabelText('Check Milk')).toBeDisabled()
+    await fireEvent.press(screen.getByLabelText('Check Milk'))
+
+    expect(mockedToggleItem).toHaveBeenCalledTimes(1)
+    releaseToggle({ status: 'queued', operationId: crypto.randomUUID() })
+    await waitFor(() => expect(screen.getByLabelText('Check Milk')).not.toBeDisabled())
+  })
+
   it('opens purchase entry for an unpriced item and calculates unit price', async () => {
     await renderScreen()
 
