@@ -2,17 +2,39 @@ jest.mock('@/lib/operations', () => ({
   enqueueOperation: jest.fn(),
   withOptimisticOverlay: jest.fn(async (rows) => rows),
 }))
-jest.mock('@/lib/supabase', () => ({ supabase: {} }))
+jest.mock('@/lib/supabase', () => {
+  const query: Record<string, jest.Mock> = {}
+  query.select = jest.fn(() => query)
+  query.eq = jest.fn(() => query)
+  query.in = jest.fn(() => query)
+  query.order = jest.fn(() => query)
+  query.returns = jest.fn()
+  return {
+    supabase: { from: jest.fn(() => query), __query: query },
+  }
+})
 
 import { enqueueOperation } from '@/lib/operations'
+import { supabase } from '@/lib/supabase'
 import {
   clearNotifications,
+  fetchNotifications,
   markEventNotificationsRead,
   notificationCopy,
   removeNotification,
   scheduleActivityState,
   type InboxNotification,
 } from './notifications'
+
+const mockedFrom = supabase.from as jest.Mock
+const mockedQuery = (supabase as unknown as {
+  __query: Record<string, jest.Mock>
+}).__query
+const mockedSelect = mockedQuery.select
+const mockedEq = mockedQuery.eq
+const mockedIn = mockedQuery.in
+const mockedOrder = mockedQuery.order
+const mockedReturns = mockedQuery.returns
 
 const HOUSEHOLD = '11111111-1111-4111-8111-111111111111'
 const USER = '22222222-2222-4222-8222-222222222222'
@@ -46,9 +68,27 @@ beforeEach(() => {
     status: 'queued',
     operationId: '55555555-5555-4555-8555-555555555555',
   })
+  mockedFrom.mockClear()
+  mockedSelect.mockClear()
+  mockedEq.mockClear()
+  mockedIn.mockClear()
+  mockedOrder.mockClear()
+  mockedReturns.mockReset().mockResolvedValue({ data: [], error: null })
 })
 
 describe('Schedule activity notifications', () => {
+  it('scopes activity reads to the active household before filtering kinds', async () => {
+    await fetchNotifications(HOUSEHOLD)
+
+    expect(mockedFrom).toHaveBeenCalledWith('notifications')
+    expect(mockedEq).toHaveBeenCalledWith('household_id', HOUSEHOLD)
+    expect(mockedIn).toHaveBeenCalledWith('kind', [
+      'calendar.event.created',
+      'calendar.event.updated',
+      'calendar.event.deleted',
+    ])
+  })
+
   it('uses the snapshotted actor, event title, timezone, and action copy', () => {
     expect(notificationCopy(activity())).toEqual({
       title: 'Claire added Dinner',

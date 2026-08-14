@@ -502,6 +502,34 @@ describe('durable operation queue', () => {
     expect(merged).toEqual([])
   })
 
+  it('keeps another household activity when overlaying a notification clear', () => {
+    const otherHousehold = uuid('99999999-9999-4999-8999-999999999999')
+    const merged = applyOptimisticOverlay(
+      [{ id: EVENT_A, title: 'Current household activity' }],
+      [
+        {
+          operationId: uuid('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+          localSequence: 1,
+          householdId: otherHousehold,
+          entityType: 'notification',
+          entityId: EVENT_B,
+          command: {
+            type: 'notification.clear',
+            baseRevision: null,
+          } as never,
+          optimistic: null,
+          enqueuedAt: '2026-08-13T00:00:00.000Z',
+          attempts: 0,
+          lastError: null,
+        },
+      ],
+      'notification',
+      HOUSEHOLD,
+    )
+
+    expect(merged).toEqual([{ id: EVENT_A, title: 'Current household activity' }])
+  })
+
   it('treats a legacy queued Statement clear as destructive', () => {
     const statement = {
       id: EVENT_A,

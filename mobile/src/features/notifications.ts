@@ -40,27 +40,36 @@ export function useNotifications(householdId: string | undefined) {
       ? queryKeys.notifications(householdId)
       : ['notifications', 'off'],
     enabled: !!householdId,
-    queryFn: async (): Promise<InboxNotification[]> => {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .in('kind', [...CALENDAR_ACTIVITY_KINDS])
-        .order('created_at', { ascending: false })
-        .returns<Tables<'notifications'>[]>()
-      if (error) throw error
-      return withOptimisticOverlay((data ?? []).map((row) => ({
-        id: row.id,
-        actorUserId: row.actor_user_id,
-        kind: row.kind,
-        entityType: row.entity_type,
-        entityId: row.entity_id,
-        payload: row.payload,
-        readAt: row.read_at,
-        createdAt: row.created_at,
-        revision: row.revision,
-      })), 'notification')
-    },
+    queryFn: () => fetchNotifications(householdId!),
   })
+}
+
+export async function fetchNotifications(
+  householdId: string,
+): Promise<InboxNotification[]> {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('household_id', householdId)
+    .in('kind', [...CALENDAR_ACTIVITY_KINDS])
+    .order('created_at', { ascending: false })
+    .returns<Tables<'notifications'>[]>()
+  if (error) throw error
+  return withOptimisticOverlay(
+    (data ?? []).map((row) => ({
+      id: row.id,
+      actorUserId: row.actor_user_id,
+      kind: row.kind,
+      entityType: row.entity_type,
+      entityId: row.entity_id,
+      payload: row.payload,
+      readAt: row.read_at,
+      createdAt: row.created_at,
+      revision: row.revision,
+    })),
+    'notification',
+    householdId,
+  )
 }
 
 export function markNotificationRead(

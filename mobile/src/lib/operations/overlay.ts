@@ -26,9 +26,14 @@ export function applyOptimisticOverlay<Row extends EntityRow>(
   rows: Row[],
   operations: QueuedOperation[],
   entityType: string,
+  householdId?: string,
 ): Row[] {
   const relevant = operations
-    .filter((operation) => operation.entityType === entityType)
+    .filter(
+      (operation) =>
+        operation.entityType === entityType &&
+        (!householdId || operation.householdId === householdId),
+    )
     .sort((a, b) => a.localSequence - b.localSequence)
 
   if (relevant.length === 0) return rows
@@ -70,9 +75,10 @@ export function applyOptimisticOverlay<Row extends EntityRow>(
 export async function withOptimisticOverlay<Row extends EntityRow>(
   rows: Row[],
   entityType: string,
+  householdId?: string,
 ): Promise<Row[]> {
   const operations = await getOperationStore().listOperations()
-  return applyOptimisticOverlay(rows, operations, entityType)
+  return applyOptimisticOverlay(rows, operations, entityType, householdId)
 }
 
 /** True while any command for this entity is still unsent. */

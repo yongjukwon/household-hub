@@ -252,19 +252,24 @@ begin
   if actor_id is null then
     raise insufficient_privilege using message = 'authentication required';
   end if;
-  if not exists (
-    select 1
-    from public.household_members member
-    where member.household_id = household_id
-      and member.user_id = actor_id
-  ) then
-    raise insufficient_privilege
-      using message = 'caller is not a member of the household';
-  end if;
 
   perform 1 from public.households household
   where household.id = household_id
   for update;
+
+  -- Hold the authorization row through commit. Membership is checked only
+  -- after the household lock so removal cannot race this SECURITY DEFINER
+  -- mutation after an earlier authorization read.
+  perform 1
+  from public.household_members member
+  where member.household_id = household_id
+    and member.user_id = actor_id
+  for key share;
+  if not found then
+    raise insufficient_privilege
+      using message = 'caller is not a member of the household';
+  end if;
+
   command_hash := extensions.digest(command::text, 'sha256');
 
   select *

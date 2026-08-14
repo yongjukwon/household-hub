@@ -238,6 +238,11 @@ export default function CalendarScreen() {
         </View>
         {dotTone !== 'none' ? (
           <View
+            testID={
+              dotTone === 'unread'
+                ? `calendar-unread-dot-${cell.date}`
+                : `calendar-event-dot-${cell.date}`
+            }
             style={[
               styles.dot,
               {
