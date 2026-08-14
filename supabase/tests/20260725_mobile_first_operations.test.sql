@@ -230,6 +230,7 @@ select is(
       'household_grocery_lists',
       'household_grocery_items',
       'household_grocery_price_history',
+      'household_grocery_purchase_occurrences',
       'calendar_event_reminders',
       'notifications',
       'household_trips',
@@ -245,7 +246,7 @@ select is(
       and c.relkind = 'r'
       and c.relrowsecurity
   ),
-  24,
+  25,
   'every new household table has RLS enabled'
 );
 
@@ -269,6 +270,7 @@ select is(
       'household_grocery_lists',
       'household_grocery_items',
       'household_grocery_price_history',
+      'household_grocery_purchase_occurrences',
       'calendar_event_reminders',
       'notifications',
       'household_trips',

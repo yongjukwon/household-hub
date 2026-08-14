@@ -1923,5 +1923,68 @@ select is(
   'the other household keeps its item unchanged'
 );
 
+-- Deleting a whole household is a supported operation, and the append-only
+-- occurrence ledger must not be the thing that blocks it. The trigger exempts
+-- exactly one removal: the cascade, which deletes the household row first.
+select lives_ok(
+  $$
+    insert into public.household_grocery_purchase_occurrences (
+      household_id, purchase_occurrence_id
+    )
+    values (
+      '10000000-0000-4000-8000-0000000000e2',
+      '60000000-0000-4000-8000-0000000000ee'
+    )
+  $$,
+  'the occurrence ledger still accepts appends'
+);
+
+select ok(
+  (
+    select count(*) > 0
+    from public.household_grocery_purchase_occurrences
+    where household_id = '10000000-0000-4000-8000-0000000000e1'
+  ),
+  'the household being deleted really holds occurrence ledger rows'
+);
+
+select lives_ok(
+  $$
+    delete from public.households
+    where id = '10000000-0000-4000-8000-0000000000e1'
+  $$,
+  'a household with occurrence ledger rows can still be deleted'
+);
+
+select is(
+  (
+    select count(*)::integer
+    from public.household_grocery_purchase_occurrences
+    where household_id = '10000000-0000-4000-8000-0000000000e1'
+  ),
+  0,
+  'the cascade removes the deleted household ledger rows'
+);
+
+select is(
+  (
+    select count(*)::integer
+    from public.household_grocery_purchase_occurrences
+    where household_id = '10000000-0000-4000-8000-0000000000e2'
+  ),
+  1,
+  'another household keeps its occurrence ledger through the cascade'
+);
+
+select throws_ok(
+  $$
+    delete from public.household_grocery_purchase_occurrences
+    where household_id = '10000000-0000-4000-8000-0000000000e2'
+  $$,
+  '23001',
+  'grocery purchase occurrences are append-only',
+  'the surviving household ledger is still append-only after a cascade'
+);
+
 select * from finish();
 rollback;

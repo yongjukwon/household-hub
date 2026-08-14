@@ -337,3 +337,189 @@ No ESLint run was needed: no TypeScript file changed in this round.
   directory. Noted only; deliberately not moved.
 - Concurrency is still proven only structurally (household row lock) — the
   two-session test remains deferred per the findings document.
+
+## Fix round 2
+
+Three follow-up items from the scoped re-review of `5507f7c`. No production SQL
+changed in this round: the migration is untouched, and the legacy six-key
+price-clear path is deliberately left as-is (parked by decision, not oversight).
+
+### 1. Regenerated database types
+
+Both `src/types/database.ts` and `mobile/src/types/database.ts` were
+regenerated from the local stack, which already has the amended migration
+applied, so no hosted credentials were needed:
+
+```
+supabase gen types typescript --local --schema public \
+  | perl -0pe 's/\n+\z/\n/' > src/types/database.ts
+supabase gen types typescript --local --schema public \
+  | perl -0pe 's/\n+\z/\n/' > mobile/src/types/database.ts
+```
+
+`--schema public` matches what the committed files contained (no
+`graphql_public` block). The `perl` step is a deterministic trailing-newline
+trim, not an edit: the CLI emits a final `\n\n`, the previously committed files
+ended in a single `\n`, and without the trim `git diff --check` reports "new
+blank line at EOF". Apart from that one byte, the files are byte-identical to
+generator output — verified by piping a fresh generation straight into `diff`:
+
+```
+$ supabase gen types typescript --local --schema public | diff - src/types/database.ts
+src: byte-identical to generator output
+$ supabase gen types typescript --local --schema public | diff - mobile/src/types/database.ts
+mobile: byte-identical to generator output
+```
+
+(That check was run before the newline trim was introduced; the two files
+remain identical to each other, confirmed with `diff`.) Nothing was
+hand-edited, and nothing was hand-reverted.
+
+**The diff is 184 lines per file and most of it is honest pre-existing drift.**
+The committed files had clearly been maintained by hand — new columns were
+appended to the end of each `Row`/`Insert`/`Update` block instead of being
+regenerated, so the generator's alphabetical ordering accounts for a large
+share of the churn. Beyond ordering, regeneration adds these previously missing
+entries, only two of which come from this branch's amended migration:
+
+- From **this branch's Task 4 migration**:
+  `household_grocery_price_history.source_list_id` and the
+  `household_grocery_purchase_occurrences` table.
+- **Pre-existing drift from Task 2** (`20260813020000`):
+  the `calendar_event_deletion_snapshots` table.
+- **Pre-existing drift from earlier phases**: the internal RPC wrappers and
+  helpers that were never regenerated —
+  `apply_household_operation_v1` … `_v4`,
+  `mobile_operation_payload_valid_v1` … `_v3`,
+  `mobile_expected_entity_type_v2`, `mobile_apply_notification_removal`,
+  `mobile_apply_grocery_item_upsert`,
+  `mobile_upsert_grocery_purchase_history`, and the
+  `trip_expenses` foreign-key relationship ordering.
+
+Per instruction, none of that unrelated churn was reverted by hand.
+
+Generated output is not Prettier-formatted in this repo, and that is
+pre-existing convention rather than a new lapse: `npx prettier --check` warns
+on the `HEAD` version of `src/types/database.ts` exactly as it warns on the
+regenerated one.
+
+Both typechecks pass:
+
+```
+$ npx tsc -b
+web tsc exit=0
+
+$ cd mobile && npm run typecheck
+> mobile@1.0.0 typecheck
+> tsc --noEmit
+mobile tsc exit=0
+```
+
+### 2. Occurrence ledger added to the shared RLS/grant coverage arrays
+
+`supabase/tests/20260725_mobile_first_operations.test.sql:233` adds
+`household_grocery_purchase_occurrences` to the RLS-enabled array (expected
+count 24 → 25), and `:273` adds it to the array asserting authenticated clients
+hold no INSERT/UPDATE/DELETE/TRUNCATE grant.
+
+Neither addition can produce a natural RED, because the table's posture is
+already correct — adding a correct row to a coverage array passes immediately.
+So the deliverable was proved load-bearing by mutation instead: each array's
+oracle was re-evaluated against a deliberately broken posture inside a rolled-
+back transaction.
+
+```
+=== ARRAY ORACLE: RLS-enabled count (expected 25) ===
+ rls_enabled_now
+-----------------
+              25
+ALTER TABLE                      -- disable row level security on the ledger
+ rls_enabled_after_mutation
+----------------------------
+                          24
+ROLLBACK
+
+=== ARRAY ORACLE: authenticated write grants (expected 0) ===
+ write_grants_now
+------------------
+                0
+GRANT                            -- grant insert on the ledger to authenticated
+ write_grants_after_mutation
+-----------------------------
+                            1
+ROLLBACK
+```
+
+Both mutations move the count off its asserted value, so the sweep now really
+covers the ledger.
+
+### 3. Household-deletion-with-ledger-rows cascade test
+
+**The exemption is correct — this is not a finding.** The trigger's cascade
+carve-out behaves as the re-review traced, and the test now proves it.
+
+Added at `supabase/tests/20260813_grocery_purchase_history.test.sql:1926-1988`:
+an append into a second household's ledger (proving inserts stay legal), a
+precondition check that the household about to be deleted really holds ledger
+rows, the household delete itself, then assertions that the deleted household's
+ledger rows are gone, that the other household's row survived, and that the
+surviving household's ledger is still append-only afterwards.
+
+RED-equivalent: the assertion is only meaningful if the cascade carve-out is
+what makes the delete succeed, so the trigger was temporarily replaced with an
+unconditional raise inside a rolled-back transaction.
+
+```
+=== CONTROL: real trigger, household with ledger rows is deletable ===
+INSERT 0 1
+DELETE 1
+ ledger_rows_left
+------------------
+                0
+ROLLBACK
+
+=== MUTATION A: trigger without the cascade exemption ===
+CREATE FUNCTION
+INSERT 0 1
+DELETE ...
+ERROR:  grocery purchase occurrences are append-only
+CONTEXT:  PL/pgSQL function mobile_grocery_occurrence_ledger_append_only() line 3 at RAISE
+SQL statement "DELETE FROM ONLY "public"."household_grocery_purchase_occurrences" WHERE $1 OPERATOR(pg_catalog.=) "household_id""
+ROLLBACK
+```
+
+Without the exemption, household deletion is blocked outright by the cascade's
+own child DELETE — the highest-blast-radius path the re-review flagged. With
+the shipped trigger it succeeds and cleans up. The new test fails if that ever
+regresses.
+
+### GREEN — full verification
+
+`supabase test db --local`
+
+```
+All tests successful.
+Files=8, Tests=480,  1 wallclock secs
+Result: PASS
+```
+
+(474 → 480: six new assertions, all in the cascade section; the two coverage
+arrays were extended in place rather than added to.)
+
+`npm test -- --run packages/domain/src/operations.test.ts packages/domain/src/mobileNavigation.test.ts src/test/applicationOperations.test.ts src/test/operationQueue.test.ts`
+
+```
+ Test Files  4 passed (4)
+      Tests  42 passed (42)
+```
+
+`cd mobile && npm test -- --runInBand src/components/mobileNavigation.test.ts src/lib/operations/queue.test.ts src/features/notifications.test.ts`
+
+```
+Test Suites: 3 passed, 3 total
+Tests:       27 passed, 27 total
+```
+
+`npx tsc -b` — exit 0. `cd mobile && npm run typecheck` — exit 0.
+
+`git diff --check` — no output.
