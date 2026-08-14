@@ -5,11 +5,12 @@ import { lightTokens } from '@/theme/tokens'
 import { FloatingTabBar, TAB_BAR_FLOAT_OFFSET, TAB_BAR_HEIGHT } from './FloatingTabBar'
 
 const mockedReplace = jest.fn()
+const mockedPush = jest.fn()
 let mockedPathname = '/ledger'
 
 jest.mock('expo-router', () => ({
   usePathname: () => mockedPathname,
-  useRouter: () => ({ replace: mockedReplace }),
+  useRouter: () => ({ replace: mockedReplace, push: mockedPush }),
 }))
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -19,6 +20,7 @@ jest.mock('react-native-safe-area-context', () => ({
 describe('FloatingTabBar', () => {
   beforeEach(() => {
     mockedReplace.mockReset()
+    mockedPush.mockReset()
     mockedPathname = '/ledger'
   })
 
@@ -80,6 +82,16 @@ describe('FloatingTabBar', () => {
     await fireEvent.press(view.getByLabelText('More'))
     expect(view.getByLabelText('Open Ledger')).toBeTruthy()
     expect(view.getByLabelText('Open Settings')).toBeTruthy()
+  })
+
+  it('offers Purchase history in More and pushes it so it can be backed out of', async () => {
+    const view = await render(<FloatingTabBar />)
+
+    await fireEvent.press(view.getByLabelText('More'))
+    await fireEvent.press(view.getByLabelText('Open Purchase history'))
+
+    expect(mockedPush).toHaveBeenCalledWith('/purchase-history')
+    expect(mockedReplace).not.toHaveBeenCalledWith('/purchase-history')
   })
 
   it('keeps More active while the omitted destination is open', async () => {

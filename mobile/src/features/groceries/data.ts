@@ -70,6 +70,23 @@ function toItem(row: Tables<'household_grocery_items'>): GroceryItem {
   }
 }
 
+function toPriceHistoryEntry(
+  row: Tables<'household_grocery_price_history'>,
+): PriceHistoryEntry {
+  return {
+    id: row.id,
+    itemNameNormalized: row.item_name_normalized,
+    itemName: row.item_name,
+    priceCents: row.price_cents,
+    recordedAt: row.recorded_at,
+    listName: row.store_name,
+    purchaseQuantity: row.purchase_quantity,
+    totalPriceCents: row.total_price_cents,
+    sourceItemId: row.source_item_id,
+    purchaseOccurrenceId: row.purchase_occurrence_id,
+  }
+}
+
 /** All grocery lists in the household, ordered for display. */
 export function useGroceryLists(householdId: string | undefined) {
   return useQuery({
@@ -134,23 +151,38 @@ export function useGroceryList(
       )
       return {
         items: overlaidItems,
-        history: (history.data ?? []).map((r) => ({
-          id: r.id,
-          itemNameNormalized: r.item_name_normalized,
-          itemName: r.item_name,
-          priceCents: r.price_cents,
-          recordedAt: r.recorded_at,
-          listName: r.store_name,
-          purchaseQuantity: r.purchase_quantity,
-          totalPriceCents: r.total_price_cents,
-          sourceItemId: r.source_item_id,
-          purchaseOccurrenceId: r.purchase_occurrence_id,
-        })),
+        history: (history.data ?? []).map(toPriceHistoryEntry),
         knowledgeItems: [
           ...(knowledge.data ?? []),
           ...overlaidItems.map((item) => ({ name: item.name })),
         ],
       }
+    },
+  })
+}
+
+/**
+ * Every purchase the household has recorded, across every list, newest first.
+ * `useGroceryList`'s copy is fetched alongside one list's items; the Purchase
+ * history page needs the same rows without a list in hand, so it gets its own
+ * query key rather than borrowing an arbitrary list's cache entry. Rows carry
+ * a stored `store_name` snapshot, so purchases outlive their list and item.
+ */
+export function useHouseholdPurchaseHistory(householdId: string | undefined) {
+  return useQuery({
+    queryKey: householdId
+      ? queryKeys.groceries.purchaseHistory(householdId)
+      : ['groceries', 'purchase-history', 'off'],
+    enabled: !!householdId,
+    queryFn: async (): Promise<PriceHistoryEntry[]> => {
+      const { data, error } = await supabase
+        .from('household_grocery_price_history')
+        .select('*')
+        .eq('household_id', householdId!)
+        .order('recorded_at', { ascending: false })
+        .returns<Tables<'household_grocery_price_history'>[]>()
+      if (error) throw error
+      return (data ?? []).map(toPriceHistoryEntry)
     },
   })
 }
