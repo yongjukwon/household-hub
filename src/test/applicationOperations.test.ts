@@ -134,7 +134,7 @@ describe('shared optimistic operation projection', () => {
         entityType: string,
         options?: {
           householdId?: string
-          repairLegacyRevisions?: boolean
+          repairLegacyPayloads?: boolean
         },
       ) => Row[]
     }
@@ -204,13 +204,16 @@ describe('shared optimistic operation projection', () => {
     // Native opts in: its store can still hold pre-b7e4958 payloads.
     expect(applyOptimisticOverlay?.([], [create], 'trip', {
       householdId,
-      repairLegacyRevisions: true,
+      repairLegacyPayloads: true,
     })).toEqual([{ id: create.entityId, name: 'London', revision: 1 }])
 
     // Web does not, and must get its row back untouched.
     expect(applyOptimisticOverlay?.([], [create], 'trip', { householdId }))
       .toEqual([{ id: create.entityId, name: 'London' }])
 
+  })
+
+  it('treats a payload-carrying Ledger clear as destructive only when the caller opts in', () => {
     const clear = operation(2, '77777777-7777-4777-8777-777777777775')
     clear.entityType = 'ledger_year'
     clear.entityId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaac'
@@ -218,12 +221,44 @@ describe('shared optimistic operation projection', () => {
     clear.command.entityType = 'ledger_year'
     clear.command.entityId = clear.entityId as never
     clear.optimistic = { year: 2026, confirmation: '2026' }
+    const server = [{ id: clear.entityId, year: 2026, revision: 2 }]
 
+    // Native opts in: older builds stored this clear as an update.
     expect(applyOptimisticOverlay?.(
-      [{ id: clear.entityId, year: 2026, revision: 2 }],
+      server,
+      [clear],
+      'ledger_year',
+      { householdId, repairLegacyPayloads: true },
+    )).toEqual([])
+
+    // Web does not: its clear deliberately carries a payload, because clearing
+    // a year empties it rather than removing it from the list.
+    expect(applyOptimisticOverlay?.(
+      server,
       [clear],
       'ledger_year',
       { householdId },
-    )).toEqual([])
+    )).toEqual([
+      { id: clear.entityId, year: 2026, confirmation: '2026', revision: 2 },
+    ])
+  })
+
+  it('removes an entity whose command carries no optimistic state, always', () => {
+    const remove = operation(3, '77777777-7777-4777-8777-777777777776')
+    remove.entityType = 'ledger_year'
+    remove.entityId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaad'
+    remove.command.type = 'ledger.year.clear'
+    remove.command.entityType = 'ledger_year'
+    remove.command.entityId = remove.entityId as never
+    remove.optimistic = null
+    const server = [{ id: remove.entityId, year: 2026, revision: 2 }]
+
+    for (const options of [
+      { householdId },
+      { householdId, repairLegacyPayloads: true },
+    ]) {
+      expect(applyOptimisticOverlay?.(server, [remove], 'ledger_year', options))
+        .toEqual([])
+    }
   })
 })

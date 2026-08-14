@@ -10,18 +10,26 @@ export interface OptimisticOverlayOptions {
   /** Restrict the projection to one tenant's queued commands. */
   householdId?: string
   /**
-   * Stamp a revision onto projected rows that do not already carry a valid
-   * one. Off by default, and deliberately so: this is a storage-format repair,
-   * not a projection rule.
+   * Compensate for operations persisted by older native builds whose payload
+   * shape was wrong. Off by default, and deliberately so: these are
+   * storage-format repairs, not projection rules. Only the native adapter opts
+   * in, because only the native store can still hold those rows — and applying
+   * them to web rewrites data the web client got right.
    *
-   * Native builds shipped before `b7e4958` persisted optimistic payloads with
-   * no `revision`, and the native store can still hold them, so the native
-   * adapter opts in. The web queue never had that shape, and web rows are
-   * legitimately revision-free (a Calendar row projected for display) or carry
-   * their own value with its own meaning (a Note uses revision 0 for "no
-   * server row yet"). Stamping there would rewrite correct data.
+   * Every repair this covers must be listed here:
+   *
+   * 1. **Missing revision.** Builds before `b7e4958` stored optimistic payloads
+   *    with no `revision`. Web rows are legitimately revision-free (a Calendar
+   *    row projected for display) or carry their own meaning (a Note uses
+   *    revision 0 for "no server row yet"), so stamping there destroys data.
+   * 2. **`ledger.year.clear` stored as an update.** Older builds persisted the
+   *    clear with a non-null `optimistic`, so it projected as an edit instead
+   *    of a removal. Native's current mutation sends `optimistic: null` and is
+   *    already handled by the generic destructive rule below; web deliberately
+   *    sends a real payload, because clearing a year empties it rather than
+   *    deleting it — the year must stay in the list.
    */
-  repairLegacyRevisions?: boolean
+  repairLegacyPayloads?: boolean
 }
 
 /** Pure durable-queue projection shared by the web and native adapters. */
@@ -31,7 +39,7 @@ export function applyOptimisticOverlay<Row extends EntityRow>(
   entityType: string,
   options: OptimisticOverlayOptions = {},
 ): Row[] {
-  const { householdId, repairLegacyRevisions = false } = options
+  const { householdId, repairLegacyPayloads = false } = options
   const relevant = operations
     .filter(
       (operation) =>
@@ -51,8 +59,11 @@ export function applyOptimisticOverlay<Row extends EntityRow>(
       continue
     }
 
+    // A command that carries no optimistic state can only mean removal. Any
+    // command that does carry one is an update, on every platform.
     const destructive = operation.optimistic === null
-      || operation.command.type === 'ledger.year.clear'
+      || (repairLegacyPayloads
+        && operation.command.type === 'ledger.year.clear')
     if (destructive) {
       merged.delete(operation.entityId)
       continue
@@ -64,7 +75,7 @@ export function applyOptimisticOverlay<Row extends EntityRow>(
       ...operation.optimistic,
       id: operation.entityId,
     } as Row & { revision?: unknown }
-    if (repairLegacyRevisions && !isRevision(projected.revision)) {
+    if (repairLegacyPayloads && !isRevision(projected.revision)) {
       projected.revision = operation.command.baseRevision ?? 1
     }
     merged.set(operation.entityId, projected)

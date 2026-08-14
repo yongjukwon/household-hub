@@ -22,6 +22,7 @@ import {
   withOptimisticOverlay,
   type EnqueueInput,
 } from '@/lib/operations'
+import { clearYear } from '@/features/ledger/statementMutations'
 import { mockRpc, resetSupabaseMocks } from './mocks/supabase'
 
 vi.mock('@/lib/supabase', async () => {
@@ -613,6 +614,19 @@ describe('optimistic overlay', () => {
       'calendar_event',
     )
     expect(merged).toEqual([{ id: EVENT_A, title: 'Second' }])
+  })
+
+  it('keeps a Ledger year visible while its clear is still queued', async () => {
+    // The web clear carries a real payload, so it is an update to project, not
+    // a deletion. Clearing a year empties it; the year itself stays in the list.
+    await clearYear(HOUSEHOLD, EVENT_A, 2026, revision(3))
+
+    const merged = await withOptimisticOverlay(
+      [{ id: EVENT_A, year: 2026, revision: 3 }],
+      'ledger_year',
+    )
+
+    expect(merged.map((row) => row.id)).toEqual([EVENT_A])
   })
 
   it('ignores commands for other entity types', () => {

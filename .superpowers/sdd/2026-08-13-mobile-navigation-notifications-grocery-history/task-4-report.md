@@ -713,3 +713,218 @@ Still exactly the 12 known pre-existing errors, in the same four files:
 
 `npx eslint` over the seven changed files — exit 0.
 `git diff --check` — no output.
+
+## Ledger clear regression + shared overlay audit
+
+Same failure mode as the previous round, on the destructive-operation axis:
+`4652c99` promoted a native-only legacy repair to a shared projection rule.
+
+### The bug
+
+`packages/application/src/operations/overlay.ts` treated
+`command.type === 'ledger.year.clear'` as destructive unconditionally.
+
+- **Native** `clearYear` sends `optimistic: null`
+  (`mobile/src/features/ledger/statementMutations.ts:37`), so the generic
+  `optimistic === null` rule already removes it. The type check is dead code
+  today; it exists only to repair operations stored by older native builds that
+  persisted the clear as an update.
+- **Web** `clearYear` deliberately sends a real payload
+  (`src/features/ledger/statementMutations.ts:37` — `optimistic: payload`),
+  because clearing a year *empties* it rather than deleting it. The year must
+  stay in the list. The promoted rule deleted it, so an offline clear made the
+  year vanish until sync.
+
+### The fix — one option, not two
+
+Both native-only rules are the same thing: compensation for operations
+persisted by older native builds whose payload shape was wrong. Rather than
+bolt on a second flag, the existing option is generalised and renamed to say
+what it actually governs — `repairLegacyRevisions` → **`repairLegacyPayloads`**
+(`packages/application/src/operations/overlay.ts:9-33`), with a docblock that
+enumerates the repairs it covers, so a third one cannot be added silently
+without a doc line:
+
+1. missing `revision` on pre-`b7e4958` payloads;
+2. `ledger.year.clear` stored as an update.
+
+Both rules are now gated on it (`:64-66` destructive, `:78` revision), the
+native adapter opts in (`mobile/src/lib/operations/overlay.ts:19-22`), and the
+web adapter does not. The generic rule keeps its unconditional meaning, and the
+code now says so: a command carrying no optimistic state can only mean removal;
+a command that carries one is an update, on every platform.
+
+Native behavior is unchanged. The two native direct-call sites in
+`mobile/src/lib/operations/queue.test.ts:443,561` are mechanical signature
+updates opting the tests into the repair they are explicitly testing — no
+native assertion changed.
+
+### The missing web test
+
+`src/test/operationQueue.test.ts:619-630` — new, and it drives the **real**
+production mutation rather than a synthetic operation, so it proves the web
+payload actually reaches the rule:
+
+```ts
+await clearYear(HOUSEHOLD, EVENT_A, 2026, revision(3))
+const merged = await withOptimisticOverlay(
+  [{ id: EVENT_A, year: 2026, revision: 3 }], 'ledger_year')
+expect(merged.map((row) => row.id)).toEqual([EVENT_A])
+```
+
+`src/test/applicationOperations.test.ts:216-262` pins the axis in both
+directions the way the revision axis is pinned, plus a third test that the
+generic `optimistic === null` removal holds under **both** option settings.
+
+### RED
+
+`npm test -- --run src/test/operationQueue.test.ts`
+
+```
+ FAIL  src/test/operationQueue.test.ts > optimistic overlay > keeps a Ledger year visible while its clear is still queued
+AssertionError: expected [] to deeply equal [ Array(1) ]
+
+- Expected
++ Received
+
+- [
+-   "22222222-2222-4222-8222-222222222222",
+- ]
++ []
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 23 passed (24)
+```
+
+No existing test was edited to produce this.
+
+### Audit of every rule in the shared module
+
+**Method.** The authoritative source of truth for "was this rule promoted from
+native?" is the branch base itself, so I diffed the two pre-branch
+implementations directly:
+
+```
+$ git show cf0a6d1:src/lib/operations/overlay.ts        > web_base.ts
+$ git show cf0a6d1:mobile/src/lib/operations/overlay.ts > mobile_base.ts
+$ diff web_base.ts mobile_base.ts
+```
+
+Ignoring imports, comments and the storage adapter, that diff contains
+**exactly two behavioral differences** — the `ledger.year.clear` destructive
+override and the revision stamp. Both are now gated. So a third promoted rule
+cannot exist by construction; any remaining risk is confined to rules this
+branch *added*, which the table treats separately.
+
+| # | Rule (line) | Kind | Reachable from web? | Verdict |
+|---|---|---|---|---|
+| 1 | entityType filter (`:46`) | shared projection | yes | identical in both pre-branch impls |
+| 2 | `householdId` filter (`:47`) | shared projection, **added this branch** | no web call site passes it; `!householdId` short-circuits | no web behavior change |
+| 3 | sort by `localSequence` (`:49`) | shared projection | yes | identical in both pre-branch impls |
+| 4 | early return when nothing relevant (`:51`) | shared projection | yes | identical in both pre-branch impls |
+| 5 | `notification.clear` → `merged.clear()` (`:57-59`) | shared projection, **added this branch** | **no** — web enqueues no `notification.clear`/`.delete` anywhere | unreachable on web; correct semantics for native |
+| 6 | `optimistic === null` → delete (`:64`) | shared projection | yes | identical in both pre-branch impls; ungated deliberately |
+| 7 | `ledger.year.clear` → delete (`:65-66`) | **native legacy repair** | **yes — was the bug** | now gated on `repairLegacyPayloads` |
+| 8 | merge `{...existing, ...optimistic, id}` (`:72-76`) | shared projection | yes | identical in both pre-branch impls |
+| 9 | revision stamp (`:78-79`) | **native legacy repair** | yes — previous round's bug | gated on `repairLegacyPayloads` |
+
+**Result: there is no third instance.** Rules 7 and 9 were the only two, and
+both are now behind the opt-in.
+
+**Empirical confirmation.** Rather than rest on reading, I built a throwaway
+differential harness that runs the branch-base web overlay (copied verbatim
+from `cf0a6d1`) and the current shared module side by side over the full cross
+product of 11 entity types × 22 web-reachable command types × 9 optimistic
+payload shapes × 3 base revisions × 5 row sets × 2 target ids, plus
+multi-operation ordering cases:
+
+```
+differential cases compared: 65351
+divergences: 0
+```
+
+Sensitivity check, so that zero is not a false negative — the same harness run
+with the native options (`repairLegacyPayloads: true`), i.e. the pre-fix state:
+
+```
+differential cases compared: 65351
+divergences: 42152
+destructive-axis divergences: 330
+calendar_event/ledger.year.clear/{"year":2026,"confirmation":"2026"} base=null rows=[] => base [{"year":2026,...}] vs shared []
+```
+
+The harness detects both axes and was deleted after the run; it is reproducible
+from this description.
+
+**One latent hazard, not a regression.** Rule 5 wipes the whole *filtered*
+projection, and web's `useNotifications`
+(`src/features/notifications/data.ts:43`) overlays without a `householdId`. Web
+cannot enqueue a clear today so nothing is broken, but if a web "clear all"
+were ever added, that projection would clear across households unless the call
+site starts passing `householdId`. Flagging rather than changing it — out of
+scope, and web's notifications query is RLS-scoped rather than
+household-filtered today, so a fix belongs with that feature.
+
+**Correction accepted.** The reviewer is right that `settings` and
+`ledger_year:37` were never reachable by the revision stamp — both always carry
+a server revision ≥ 1 by the time they are merged. `ledger_category`,
+`ledger_limit` and `ledger_transaction` were the genuine ones. The differential
+harness above is now the accurate picture and supersedes my earlier hand
+analysis.
+
+### GREEN
+
+`npm test -- --run` (full root suite)
+
+```
+ Test Files  56 passed (56)
+      Tests  267 passed (267)
+```
+
+264 → 267: the new web test plus the two shared contract tests.
+
+`cd mobile && npm test -- --runInBand`
+
+```
+Test Suites: 61 passed, 61 total
+Tests:       245 passed, 245 total
+```
+
+`cd mobile && npm run typecheck`
+
+```
+> mobile@1.0.0 typecheck
+> tsc --noEmit
+```
+
+`supabase test db --local`
+
+```
+All tests successful.
+Files=8, Tests=480,  2 wallclock secs
+Result: PASS
+```
+
+`npm run build`
+
+```
+PWA v1.3.0
+mode      generateSW
+precache  108 entries (4575.59 KiB)
+files generated
+  dist/sw.js
+  dist/workbox-9c191d2f.js
+```
+
+`npm run lint`
+
+```
+✖ 12 problems (12 errors, 0 warnings)
+```
+
+Same four files as before: `mobile/app/(tabs)/index.test.tsx`,
+`mobile/app/(tabs)/index.tsx`, `mobile/src/components/AppChrome.tsx`,
+`mobile/src/features/settings/MobileNavigationEditor.tsx`.
+
+`npx eslint` over the five changed files — exit 0.
+`git diff --check` — no output.

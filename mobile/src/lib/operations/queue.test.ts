@@ -440,7 +440,7 @@ describe('durable operation queue', () => {
         },
       ],
       'trip',
-      { repairLegacyRevisions: true },
+      { repairLegacyPayloads: true },
     )
 
     expect(merged).toEqual([
@@ -558,6 +558,7 @@ describe('durable operation queue', () => {
         },
       ],
       'ledger_year',
+      { repairLegacyPayloads: true },
     )
 
     expect(merged).toEqual([])
