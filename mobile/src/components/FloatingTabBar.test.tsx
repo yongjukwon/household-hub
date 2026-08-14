@@ -92,4 +92,10 @@ describe('FloatingTabBar', () => {
       expanded: false,
     })
   })
+
+  it('shows unread Schedule activity on the Schedule destination', async () => {
+    const view = await render(<FloatingTabBar hasUnreadScheduleActivity />)
+
+    expect(view.getByTestId('schedule-unread-indicator')).toBeTruthy()
+  })
 })

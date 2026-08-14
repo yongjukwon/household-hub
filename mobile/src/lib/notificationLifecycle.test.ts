@@ -27,6 +27,10 @@ describe('notification lifecycle', () => {
     ).toEqual({ pathname: '/', params: { event: 'event-1' } })
   })
 
+  it('keeps non-event push responses on Schedule instead of opening an inbox page', () => {
+    expect(notificationRoute({ kind: 'calendar.reminder' })).toEqual({ pathname: '/' })
+  })
+
   it('registers the device token with the server', async () => {
     ;(getDeviceId as jest.Mock).mockResolvedValue(
       '20000000-0000-4000-8000-000000000001',

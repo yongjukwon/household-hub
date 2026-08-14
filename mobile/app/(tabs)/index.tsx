@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   FlatList,
   Pressable,
@@ -18,6 +18,7 @@ import { ListCard } from '@/components/ListCard'
 import { EmptyState, ErrorState, LoadingState } from '@/components/states'
 import { deviceTimeZone, useActiveHousehold } from '@/features/household'
 import { EventSheet } from '@/features/calendar/EventSheet'
+import { calendarDotTone } from '@/features/calendar/activityIndicators'
 import { useAuth } from '@/lib/auth/AuthContext'
 import {
   eventDatesInRange,
@@ -40,6 +41,11 @@ import {
   CALENDAR_TODAY_RADIUS,
 } from '@/features/calendar/layout'
 import { useCalendarEvents } from '@/features/calendar/useCalendarEvents'
+import {
+  markEventNotificationsRead,
+  scheduleActivityState,
+  useNotifications,
+} from '@/features/notifications'
 import { useTheme } from '@/theme/tokens'
 
 /** Calendar destination (default tab): month grid + selected-day agenda. */
@@ -62,6 +68,11 @@ export default function CalendarScreen() {
 
   const events = useCalendarEvents(householdId)
   const eventList = useMemo(() => events.data ?? [], [events.data])
+  const notifications = useNotifications(householdId)
+  const activityState = useMemo(
+    () => scheduleActivityState(notifications.data ?? []),
+    [notifications.data],
+  )
 
   const { session } = useAuth()
   const ownerColors = useMemo(
@@ -75,15 +86,36 @@ export default function CalendarScreen() {
     () => (deepLinkId ? eventList.find((e) => e.id === deepLinkId) ?? null : null),
     [deepLinkId, eventList],
   )
-  if (deepLinked && !sheetOpen && editing?.id !== deepLinked.id) {
+  useEffect(() => {
+    if (!deepLinked || sheetOpen || editing?.id === deepLinked.id) return
     setEditing(deepLinked)
-    setSelected(
-      eventDatesInRange(deepLinked, `${cursor.year}-01-01`, `${cursor.year}-12-31`, tz)[0] ??
-        selected,
+    setSelected((current) =>
+      eventDatesInRange(
+        deepLinked,
+        `${cursor.year}-01-01`,
+        `${cursor.year}-12-31`,
+        tz,
+      )[0] ?? current,
     )
     setSheetOpen(true)
+    if (householdId) {
+      void markEventNotificationsRead(
+        householdId,
+        deepLinked.id,
+        activityState.activity,
+      )
+    }
     router.setParams({ event: undefined })
-  }
+  }, [
+    activityState.activity,
+    cursor.year,
+    deepLinked,
+    editing?.id,
+    householdId,
+    router,
+    sheetOpen,
+    tz,
+  ])
 
   const grid = useMemo(() => buildMonthGrid(cursor.year, cursor.month1), [cursor])
   // Chunked into 7-day rows and rendered as explicit `flex:1` rows rather
@@ -108,6 +140,19 @@ export default function CalendarScreen() {
     return set
   }, [eventList, grid, tz])
 
+  const daysWithUnreadActivity = useMemo(() => {
+    const rangeStart = grid[0].date
+    const rangeEnd = grid[grid.length - 1].date
+    const set = new Set<string>()
+    for (const event of eventList) {
+      if (!activityState.unreadEventKinds.has(event.id)) continue
+      for (const date of eventDatesInRange(event, rangeStart, rangeEnd, tz)) {
+        set.add(date)
+      }
+    }
+    return set
+  }, [activityState.unreadEventKinds, eventList, grid, tz])
+
   const selectedEvents = useMemo(
     () =>
       eventList
@@ -126,6 +171,13 @@ export default function CalendarScreen() {
   }
 
   function openEvent(event: CalendarEventItem) {
+    if (householdId) {
+      void markEventNotificationsRead(
+        householdId,
+        event.id,
+        activityState.activity,
+      )
+    }
     setEditing(event)
     setSheetOpen(true)
   }
@@ -141,6 +193,10 @@ export default function CalendarScreen() {
     const isSelected = cell.date === selected
     const isToday = cell.date === today
     const hasEvent = daysWithEvents.has(cell.date)
+    const dotTone = calendarDotTone(
+      hasEvent,
+      daysWithUnreadActivity.has(cell.date),
+    )
     return (
       <Pressable
         key={cell.date}
@@ -180,11 +236,14 @@ export default function CalendarScreen() {
             {cell.day}
           </Text>
         </View>
-        {hasEvent ? (
+        {dotTone !== 'none' ? (
           <View
             style={[
               styles.dot,
-              { backgroundColor: isSelected ? tokens.accentContrast : tokens.accent },
+              {
+                backgroundColor:
+                  dotTone === 'unread' ? tokens.danger : tokens.accent,
+              },
             ]}
           />
         ) : null}
@@ -277,6 +336,16 @@ export default function CalendarScreen() {
               <Text style={[styles.eventTitle, { color: tokens.ink }]}>
                 {item.title}
               </Text>
+              {activityState.unreadEventKinds.get(item.id) ? (
+                <View
+                  accessibilityLabel={activityState.unreadEventKinds.get(item.id)}
+                  style={[styles.activityBadge, { backgroundColor: tokens.danger }]}
+                >
+                  <Text style={styles.activityBadgeText}>
+                    {activityState.unreadEventKinds.get(item.id)}
+                  </Text>
+                </View>
+              ) : null}
               <View style={styles.ownerBadge}>
                 <View
                   style={[
@@ -349,7 +418,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: CALENDAR_DAY_CELL_HEIGHT,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
   },
   dateSurface: {
     width: CALENDAR_DATE_SURFACE_SIZE,
@@ -364,7 +433,7 @@ const styles = StyleSheet.create({
   cellDay: { fontSize: 12 },
   dot: {
     position: 'absolute',
-    bottom: 3,
+    bottom: 0,
     width: 4,
     height: 4,
     borderRadius: 2,
@@ -380,6 +449,8 @@ const styles = StyleSheet.create({
   eventRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },
   eventTime: { fontSize: 13, fontWeight: '600' },
   eventTitle: { flex: 1, fontSize: 14, fontWeight: '600' },
+  activityBadge: { borderRadius: 8, paddingHorizontal: 6, paddingVertical: 3 },
+  activityBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
   ownerBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
   ownerDot: { width: 6, height: 6, borderRadius: 3 },
   ownerLabel: { fontSize: 11, fontWeight: '700' },

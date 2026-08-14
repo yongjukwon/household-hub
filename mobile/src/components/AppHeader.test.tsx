@@ -9,11 +9,12 @@ import {
 } from './appHeaderTitle'
 
 const mockedReplace = jest.fn()
+const mockedPush = jest.fn()
 let mockedPathname = '/ledger/year-id'
 
 jest.mock('expo-router', () => ({
   usePathname: () => mockedPathname,
-  useRouter: () => ({ push: jest.fn(), replace: mockedReplace }),
+  useRouter: () => ({ push: mockedPush, replace: mockedReplace }),
 }))
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -24,6 +25,7 @@ describe('AppHeader', () => {
   beforeEach(() => {
     mockedPathname = '/ledger/year-id'
     mockedReplace.mockReset()
+    mockedPush.mockReset()
   })
 
   it('names a Ledger year detail Budget', () => {
@@ -92,6 +94,19 @@ describe('AppHeader', () => {
       height: 40,
     })
     expect(view.queryByLabelText('Settings')).toBeNull()
+  })
+
+  it('opens the anchored activity popover and marks unread activity on the bell', async () => {
+    mockedPathname = '/'
+    const openActivity = jest.fn()
+    const view = await render(
+      <AppHeader hasUnreadActivity onNotificationsPress={openActivity} />,
+    )
+
+    expect(view.getByTestId('notification-unread-indicator')).toBeTruthy()
+    await fireEvent.press(view.getByLabelText('Notifications'))
+    expect(openActivity).toHaveBeenCalledTimes(1)
+    expect(mockedPush).not.toHaveBeenCalled()
   })
 
   it('uses a route registration for the inline edit controls and centered title editor', async () => {

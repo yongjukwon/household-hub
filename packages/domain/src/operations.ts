@@ -43,6 +43,8 @@ export const operationTypes = [
   'trip.checklist.upsert',
   'trip.checklist.delete',
   'notification.read',
+  'notification.delete',
+  'notification.clear',
   'settings.update',
 ] as const
 

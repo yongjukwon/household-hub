@@ -473,6 +473,35 @@ describe('durable operation queue', () => {
     expect(merged).toEqual([{ id: EVENT_B, title: 'B' }])
   })
 
+  it('applyOptimisticOverlay removes every notification for a queued clear', () => {
+    const merged = applyOptimisticOverlay(
+      [
+        { id: EVENT_A, title: 'A' },
+        { id: EVENT_B, title: 'B' },
+      ],
+      [
+        {
+          operationId: uuid('55555555-5555-4555-8555-555555555555'),
+          localSequence: 1,
+          householdId: HOUSEHOLD,
+          entityType: 'notification',
+          entityId: EVENT_A,
+          command: {
+            type: 'notification.clear',
+            baseRevision: null,
+          } as never,
+          optimistic: null,
+          enqueuedAt: '2026-07-25T00:00:00.000Z',
+          attempts: 0,
+          lastError: null,
+        },
+      ],
+      'notification',
+    )
+
+    expect(merged).toEqual([])
+  })
+
   it('treats a legacy queued Statement clear as destructive', () => {
     const statement = {
       id: EVENT_A,

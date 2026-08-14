@@ -73,6 +73,31 @@ as $$
   );
 $$;
 
+create function pg_temp.notification_command(
+  operation_id uuid,
+  operation_type text,
+  entity_id uuid,
+  base_revision bigint,
+  local_sequence bigint
+)
+returns jsonb
+language sql
+as $$
+  select jsonb_build_object(
+    'schemaVersion', 1,
+    'operationId', operation_id,
+    'deviceId', '20000000-0000-4000-8000-0000000000d2',
+    'localSequence', local_sequence,
+    'householdId', '10000000-0000-4000-8000-0000000000d1',
+    'type', operation_type,
+    'entityType', 'notification',
+    'entityId', entity_id,
+    'baseRevision', base_revision,
+    'enqueuedAt', '2026-08-13T20:00:00.000Z',
+    'payload', '{}'::jsonb
+  );
+$$;
+
 -- --- Schema, RLS, and privilege floor ---------------------------------------
 select has_table('public', 'notification_devices', 'device registry exists');
 select has_table(
@@ -317,6 +342,27 @@ select is(
   'Dentist',
   'the activity payload carries the event title for the inbox row'
 );
+select is(
+  (select payload->>'actorName' from public.notifications
+     where entity_id = '31000000-0000-4000-8000-0000000000d1'
+       and kind = 'calendar.event.created'),
+  'Ann',
+  'the activity payload snapshots the actor display name'
+);
+select is(
+  (select payload->>'startAt' from public.notifications
+     where entity_id = '31000000-0000-4000-8000-0000000000d1'
+       and kind = 'calendar.event.created'),
+  '2026-08-05T14:00:00+00:00',
+  'the activity payload snapshots the event start instant'
+);
+select is(
+  (select payload->>'timezone' from public.notifications
+     where entity_id = '31000000-0000-4000-8000-0000000000d1'
+       and kind = 'calendar.event.created'),
+  'America/Toronto',
+  'the activity payload snapshots the event timezone'
+);
 
 select is(
   (public.apply_household_operation(pg_temp.operation_command(
@@ -348,6 +394,154 @@ select is(
   1,
   'an edit produces an update notification, not a second create'
 );
+
+select is(
+  (public.apply_household_operation(pg_temp.operation_command(
+    '40000000-0000-4000-8000-0000000000d3',
+    'calendar.event.upsert',
+    '31000000-0000-4000-8000-0000000000d2',
+    null,
+    jsonb_build_object(
+      'title', 'Dinner',
+      'note', null,
+      'ownerId', null,
+      'allDay', false,
+      'startAt', '2026-08-07T18:00:00.000Z',
+      'endAt', '2026-08-07T19:00:00.000Z',
+      'timezone', 'America/Vancouver',
+      'recurrenceFrequency', 'none',
+      'recurrenceUntil', null,
+      'reminders', jsonb_build_array()
+    ),
+    3
+  )))->>'status',
+  'applied',
+  'a second Calendar event is created for deletion snapshot coverage'
+);
+select is(
+  (public.apply_household_operation(pg_temp.operation_command(
+    '40000000-0000-4000-8000-0000000000d4',
+    'calendar.event.delete',
+    '31000000-0000-4000-8000-0000000000d2',
+    1,
+    '{}'::jsonb,
+    4
+  )))->>'status',
+  'applied',
+  'the second Calendar event is deleted'
+);
+select is(
+  (select payload->>'title' from public.notifications
+     where entity_id = '31000000-0000-4000-8000-0000000000d2'
+       and kind = 'calendar.event.deleted'),
+  'Dinner',
+  'deleted activity retains the event title snapshot'
+);
+select is(
+  (select payload->>'startAt' from public.notifications
+     where entity_id = '31000000-0000-4000-8000-0000000000d2'
+       and kind = 'calendar.event.deleted'),
+  '2026-08-07T18:00:00+00:00',
+  'deleted activity retains the event time snapshot'
+);
+select ok(
+  (select payload ? 'deletedAt' from public.notifications
+     where entity_id = '31000000-0000-4000-8000-0000000000d2'
+       and kind = 'calendar.event.deleted'),
+  'deleted activity snapshots deletion details'
+);
+
+-- --- Durable Schedule activity removal --------------------------------------
+select set_config(
+  'tests.activity_notification',
+  (select id::text from public.notifications
+     where recipient_user_id = '00000000-0000-4000-8000-0000000000d2'
+       and kind = 'calendar.event.updated'
+     limit 1),
+  true
+);
+
+select pg_temp.act_as('00000000-0000-4000-8000-0000000000d1');
+select is(
+  (public.apply_household_operation(pg_temp.notification_command(
+    '40000000-0000-4000-8000-0000000000d5',
+    'notification.delete',
+    current_setting('tests.activity_notification')::uuid,
+    1,
+    5
+  )))->>'code',
+  'notification_not_owned',
+  'a member cannot remove another recipient activity row'
+);
+
+select pg_temp.act_as('00000000-0000-4000-8000-0000000000d2');
+select is(
+  (public.apply_household_operation(pg_temp.notification_command(
+    '40000000-0000-4000-8000-0000000000d6',
+    'notification.delete',
+    current_setting('tests.activity_notification')::uuid,
+    1,
+    6
+  )))->>'status',
+  'applied',
+  'a recipient can durably remove one activity row'
+);
+select is(
+  (public.apply_household_operation(pg_temp.notification_command(
+    '40000000-0000-4000-8000-0000000000d6',
+    'notification.delete',
+    current_setting('tests.activity_notification')::uuid,
+    1,
+    6
+  )))->>'status',
+  'duplicate',
+  'notification removal replay is idempotent'
+);
+
+insert into public.notifications (
+  id, household_id, recipient_user_id, kind, entity_type, entity_id, payload
+)
+values (
+  '39000000-0000-4000-8000-0000000000d9',
+  '10000000-0000-4000-8000-0000000000d1',
+  '00000000-0000-4000-8000-0000000000d2',
+  'calendar.reminder',
+  'calendar_event',
+  '31000000-0000-4000-8000-0000000000d1',
+  '{}'::jsonb
+);
+select is(
+  (public.apply_household_operation(pg_temp.notification_command(
+    '40000000-0000-4000-8000-0000000000d7',
+    'notification.clear',
+    '00000000-0000-4000-8000-0000000000d2',
+    null,
+    7
+  )))->>'status',
+  'applied',
+  'Clear all is a durable recipient-scoped operation'
+);
+select is(
+  (select count(*)::int from public.notifications
+     where recipient_user_id = '00000000-0000-4000-8000-0000000000d2'
+       and kind in (
+         'calendar.event.created',
+         'calendar.event.updated',
+         'calendar.event.deleted'
+       )),
+  0,
+  'Clear all removes every visible Schedule activity row'
+);
+select is(
+  (select count(*)::int from public.notifications
+     where id = '39000000-0000-4000-8000-0000000000d9'),
+  1,
+  'Clear all preserves hidden push-only reminder rows'
+);
+delete from public.notifications
+where id = '39000000-0000-4000-8000-0000000000d9';
+
+select pg_temp.act_as('00000000-0000-4000-8000-0000000000d1');
 
 -- --- Reminder scheduling contract -------------------------------------------
 select set_config(
@@ -542,6 +736,29 @@ update public.profiles set notifications_enabled = true
   where user_id = '00000000-0000-4000-8000-0000000000d1';
 
 -- --- Read-notification cleanup ----------------------------------------------
+insert into public.notifications (
+  id, household_id, recipient_user_id, actor_user_id, kind,
+  entity_type, entity_id, payload, read_at, created_at
+)
+values
+  (
+    '39000000-0000-4000-8000-0000000000da',
+    '10000000-0000-4000-8000-0000000000d1',
+    '00000000-0000-4000-8000-0000000000d1',
+    '00000000-0000-4000-8000-0000000000d2',
+    'calendar.event.updated', 'calendar_event',
+    '31000000-0000-4000-8000-0000000000d1', '{}'::jsonb,
+    now() - interval '120 days', now() - interval '120 days'
+  ),
+  (
+    '39000000-0000-4000-8000-0000000000db',
+    '10000000-0000-4000-8000-0000000000d1',
+    '00000000-0000-4000-8000-0000000000d1',
+    '00000000-0000-4000-8000-0000000000d2',
+    'calendar.event.created', 'calendar_event',
+    '31000000-0000-4000-8000-0000000000d1', '{}'::jsonb,
+    null, now() - interval '120 days'
+  );
 update public.notifications
   set read_at = now() - interval '120 days'
   where id = current_setting('tests.notification')::uuid;
@@ -563,8 +780,12 @@ select is(
   'the expired inbox row is gone'
 );
 select ok(
-  (select count(*) > 0 from public.notifications where read_at is null),
-  'unread inbox rows survive cleanup regardless of age'
+  (select count(*) = 2 from public.notifications
+     where id in (
+       '39000000-0000-4000-8000-0000000000da',
+       '39000000-0000-4000-8000-0000000000db'
+     )),
+  'read and unread visible Calendar activity survive cleanup regardless of age'
 );
 
 -- --- Recurring Asset transfers ----------------------------------------------

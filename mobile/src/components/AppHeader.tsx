@@ -15,7 +15,13 @@ import { BellIcon, ChevronLeftIcon, PlusIcon } from './icons'
  * Persistent header around tab routes. Each screen registers its centered
  * title and only the actions that make sense in its current state.
  */
-export function AppHeader() {
+export function AppHeader({
+  hasUnreadActivity = false,
+  onNotificationsPress,
+}: {
+  hasUnreadActivity?: boolean
+  onNotificationsPress?: () => void
+} = {}) {
   const { tokens, scheme } = useTheme()
   const router = useRouter()
   const pathname = usePathname()
@@ -94,7 +100,7 @@ export function AppHeader() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Notifications"
-            onPress={() => router.push('/notifications')}
+            onPress={onNotificationsPress}
           >
             <BlurView
               intensity={30}
@@ -109,6 +115,12 @@ export function AppHeader() {
               ]}
             >
               <BellIcon size={18} color={tokens.muted} />
+              {hasUnreadActivity ? (
+                <View
+                  testID="notification-unread-indicator"
+                  style={[styles.unreadDot, { backgroundColor: tokens.danger }]}
+                />
+              ) : null}
             </BlurView>
           </Pressable>
         ) : null}
@@ -177,6 +189,14 @@ const styles = StyleSheet.create({
     // behind the rounded button. No shadow here, so no masksToBounds
     // tradeoff to worry about (see Card.tsx for that case).
     overflow: 'hidden',
+  },
+  unreadDot: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
   },
   addButton: {
     width: 40,

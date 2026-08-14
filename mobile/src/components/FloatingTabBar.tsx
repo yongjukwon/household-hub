@@ -25,8 +25,10 @@ export const TAB_BAR_HEIGHT = 66
  */
 export function FloatingTabBar({
   navigation = DEFAULT_MOBILE_NAVIGATION,
+  hasUnreadScheduleActivity = false,
 }: {
   navigation?: MobileNavigation
+  hasUnreadScheduleActivity?: boolean
 }) {
   const { tokens, scheme } = useTheme()
   const router = useRouter()
@@ -78,6 +80,12 @@ export function FloatingTabBar({
               style={styles.item}
             >
               <TabIcon size={21} color={active ? tokens.accent : tokens.muted} />
+              {path === '/' && hasUnreadScheduleActivity ? (
+                <View
+                  testID="schedule-unread-indicator"
+                  style={[styles.scheduleUnreadDot, { backgroundColor: tokens.danger }]}
+                />
+              ) : null}
               <Text style={itemLabelStyle(tokens, active)}>{label}</Text>
             </Pressable>
           )
@@ -159,11 +167,20 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   item: {
+    position: 'relative',
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
     height: '100%',
+  },
+  scheduleUnreadDot: {
+    position: 'absolute',
+    top: 12,
+    left: '57%',
+    width: 7,
+    height: 7,
+    borderRadius: 4,
   },
   backdrop: { flex: 1 },
   moreMenu: {
