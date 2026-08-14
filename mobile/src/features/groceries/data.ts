@@ -145,10 +145,12 @@ export function useGroceryList(
       if (items.error) throw items.error
       if (history.error) throw history.error
       if (knowledge.error) throw knowledge.error
-      const overlaidItems = await withOptimisticOverlay(
-        (items.data ?? []).map(toItem),
-        'grocery_item',
-      )
+      const overlaidItems = (
+        await withOptimisticOverlay(
+          (items.data ?? []).map(toItem),
+          'grocery_item',
+        )
+      ).filter((item) => item.listId === listId)
       return {
         items: overlaidItems,
         history: (history.data ?? []).map(toPriceHistoryEntry),

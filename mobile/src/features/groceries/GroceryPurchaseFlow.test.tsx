@@ -9,6 +9,7 @@ import { useGroceryList, useGroceryLists, type GroceryItem, type PriceHistoryEnt
 
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ listId: LIST_ID }),
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
 }))
 
 jest.mock('@/features/household', () => ({ useActiveHousehold: jest.fn() }))

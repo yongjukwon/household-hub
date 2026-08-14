@@ -9,7 +9,7 @@ import {
   backDestinationForPath,
   titleForPath,
 } from './appHeaderTitle'
-import { BellIcon, ChevronLeftIcon, PlusIcon } from './icons'
+import { BellIcon, ChartBarIcon, ChevronLeftIcon, PencilIcon, PlusIcon } from './icons'
 
 /**
  * Persistent header around tab routes. Each screen registers its centered
@@ -47,13 +47,27 @@ export function AppHeader({
     >
       <View
         testID="app-header-title-layer"
-        pointerEvents={typeof chrome.title === 'string' ? 'none' : 'auto'}
+        pointerEvents={typeof chrome.title === 'string' && !(chrome.mode === 'detail' && chrome.onEdit) ? 'none' : 'auto'}
         style={styles.titleLayer}
       >
         {typeof chrome.title === 'string' ? (
-          <Text accessibilityRole="header" style={[styles.title, { color: tokens.ink }]}>
-            {chrome.title}
-          </Text>
+          chrome.mode === 'detail' && chrome.onEdit ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Edit"
+              onPress={chrome.onEdit}
+              style={styles.titleWithEdit}
+            >
+              <Text accessibilityRole="header" style={[styles.title, { color: tokens.ink }]} numberOfLines={1}>
+                {chrome.title}
+              </Text>
+              <PencilIcon size={16} color={tokens.muted} />
+            </Pressable>
+          ) : (
+            <Text accessibilityRole="header" style={[styles.title, { color: tokens.ink }]}>
+              {chrome.title}
+            </Text>
+          )
         ) : (
           <View accessibilityRole="header" style={styles.titleEditor}>
             {chrome.title}
@@ -134,9 +148,22 @@ export function AppHeader({
           >
             <PlusIcon size={22} color={tokens.accentContrast} />
           </Pressable>
-        ) : chrome.mode === 'detail' && chrome.onEdit ? (
-          <Pressable accessibilityRole="button" accessibilityLabel="Edit" onPress={chrome.onEdit} style={styles.textAction}>
-            <Text style={[styles.textActionLabel, { color: tokens.accent }]}>Edit</Text>
+        ) : chrome.mode === 'detail' && chrome.onHistory ? (
+          <Pressable accessibilityRole="button" accessibilityLabel="Purchase history" onPress={chrome.onHistory}>
+            <BlurView
+              intensity={30}
+              tint={scheme}
+              style={[
+                styles.iconButton,
+                {
+                  backgroundColor: tokens.glass.fill,
+                  borderColor: tokens.glass.border,
+                  borderWidth: 1,
+                },
+              ]}
+            >
+              <ChartBarIcon size={18} color={tokens.muted} />
+            </BlurView>
           </Pressable>
         ) : chrome.mode === 'editing' ? (
           <Pressable
@@ -173,7 +200,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { fontSize: 20, fontWeight: '800', letterSpacing: -0.2 },
+  title: { fontSize: 20, fontWeight: '800', letterSpacing: -0.2, flexShrink: 1 },
+  titleWithEdit: { flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '80%' },
   titleEditor: { alignSelf: 'stretch', alignItems: 'center' },
   leftSpacer: { width: 36, height: 36 },
   rightSpacer: { width: 40, height: 40 },

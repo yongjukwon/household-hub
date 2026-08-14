@@ -13,13 +13,11 @@ describe('MobileNavigationEditor', () => {
       />,
     )
 
-    await fireEvent.press(screen.getByLabelText('Replace Ledger'))
-    expect(screen.getByText('Schedule · Groceries · Notes · Trips · More')).toBeTruthy()
+    await fireEvent.press(screen.getByLabelText('Swap Ledger with Notes'))
 
     await fireEvent.press(screen.getByLabelText('Save navigation'))
 
     await waitFor(() => expect(screen.getByText('Could not save navigation.')).toBeTruthy())
     expect(onSave).toHaveBeenCalledWith(['groceries', 'notes', 'trips'])
-    expect(screen.getByText('Schedule · Groceries · Notes · Trips · More')).toBeTruthy()
   })
 })

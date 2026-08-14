@@ -17,6 +17,8 @@ export interface AppChromeConfiguration {
   onCancel?: () => void
   onSave?: () => void
   saveDisabled?: boolean
+  /** When set, renders a history icon in the right action slot (detail mode). */
+  onHistory?: () => void
 }
 
 export const AppChromeStateContext = createContext<AppChromeConfiguration | null>(null)

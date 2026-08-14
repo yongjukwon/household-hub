@@ -127,7 +127,7 @@ export function FloatingTabBar({
               accessibilityLabel="Open Settings"
               onPress={() => {
                 setMoreOpen(false)
-                router.replace('/settings')
+                router.push('/settings')
               }}
               style={styles.menuRow}
             >

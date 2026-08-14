@@ -132,7 +132,6 @@ export async function enqueueOperation(
 
   await getOperationStore().addOperation(queued)
   if (queryClient) projectOperationIntoQueryCache(queryClient, queued)
-  await invalidateHousehold(input.householdId)
 
   if (!(await isOnline())) return { status: 'queued', operationId }
 
