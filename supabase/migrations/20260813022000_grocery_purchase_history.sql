@@ -32,6 +32,10 @@ create unique index household_grocery_items_purchase_occurrence_key
 
 alter table public.household_grocery_price_history
   add column store_name text,
+  -- Deliberately no foreign key: list_id keeps its ON DELETE SET NULL live
+  -- reference for joins, while source_list_id is an immutable purchase-time
+  -- identity so two deleted lists never collapse into one history bucket.
+  add column source_list_id uuid,
   add column source_item_id uuid,
   add column purchase_occurrence_id uuid,
   add column purchase_quantity numeric,
@@ -48,6 +52,9 @@ set
     ),
     'Unknown list'
   ),
+  -- Rows whose list was already deleted have lost their provenance. Give each
+  -- one a private identity rather than merging unrelated purchases together.
+  source_list_id = coalesce(history.list_id, gen_random_uuid()),
   purchase_quantity = 1,
   total_price_cents = history.price_cents;
 
@@ -60,7 +67,7 @@ with ranked_history as (
       partition by
         household_id,
         item_name_normalized,
-        list_id,
+        source_list_id,
         store_name,
         price_cents
       order by recorded_at desc, id desc
@@ -74,6 +81,7 @@ where history.id = ranked.id
 
 alter table public.household_grocery_price_history
   alter column store_name set not null,
+  alter column source_list_id set not null,
   alter column purchase_quantity set default 1,
   alter column purchase_quantity set not null,
   alter column total_price_cents set not null,
@@ -95,10 +103,63 @@ create index household_grocery_price_history_purchase_lookup_idx
   on public.household_grocery_price_history(
     household_id,
     item_name_normalized,
-    list_id,
+    source_list_id,
     store_name,
     recorded_at desc
   );
+
+-- Append-only ledger of every purchase occurrence this household has ever
+-- used. Exact-ratio merges displace an occurrence from the history row that
+-- carried it, so history alone cannot prove an occurrence is unused; this
+-- ledger can. Deliberately internal: no client role reads or writes it.
+create table public.household_grocery_purchase_occurrences (
+  household_id uuid not null references public.households(id) on delete cascade,
+  purchase_occurrence_id uuid not null,
+  first_recorded_at timestamptz not null default now(),
+  primary key (household_id, purchase_occurrence_id)
+);
+
+alter table public.household_grocery_purchase_occurrences
+  enable row level security;
+revoke all on table public.household_grocery_purchase_occurrences
+  from public, anon, authenticated;
+
+create function public.mobile_grocery_occurrence_ledger_append_only()
+returns trigger
+language plpgsql
+set search_path = pg_catalog, public
+as $$
+begin
+  -- The household cascade deletes the parent row first, so a missing household
+  -- is the one removal that cannot enable occurrence reuse.
+  if tg_op = 'DELETE'
+     and not exists (
+       select 1
+       from public.households household
+       where household.id = old.household_id
+     )
+  then
+    return old;
+  end if;
+
+  raise restrict_violation
+    using message = 'grocery purchase occurrences are append-only';
+end;
+$$;
+
+create trigger trg_mobile_grocery_occurrence_ledger_append_only
+before update or delete on public.household_grocery_purchase_occurrences
+for each row
+execute function public.mobile_grocery_occurrence_ledger_append_only();
+
+insert into public.household_grocery_purchase_occurrences (
+  household_id,
+  purchase_occurrence_id
+)
+select item.household_id, item.purchase_occurrence_id
+from public.household_grocery_items item
+where item.purchase_occurrence_id is not null
+on conflict do nothing;
 
 -- Extend only the Grocery branch while retaining all profile, notification,
 -- Trip, and legacy validator composition beneath it.
@@ -257,8 +318,9 @@ begin
 
   if occurrence_found then
     -- Store identity is a purchase-time snapshot and never follows later list
-    -- moves or renames while the same occurrence is edited.
-    bucket_list_id := occurrence_history.list_id;
+    -- moves or renames while the same occurrence is edited. source_list_id is
+    -- immutable, so deleting the list cannot merge this bucket into another.
+    bucket_list_id := occurrence_history.source_list_id;
     bucket_store_name := occurrence_history.store_name;
   end if;
 
@@ -267,7 +329,7 @@ begin
   from public.household_grocery_price_history history
   where history.household_id = target_household_id
     and history.item_name_normalized = normalized_name
-    and history.list_id is not distinct from bucket_list_id
+    and history.source_list_id = bucket_list_id
     and history.store_name = bucket_store_name
     and history.total_price_cents::numeric * target_purchase_quantity
       = target_total_price_cents::numeric * history.purchase_quantity
@@ -317,6 +379,7 @@ begin
   insert into public.household_grocery_price_history (
     household_id,
     list_id,
+    source_list_id,
     item_name,
     item_name_normalized,
     price_cents,
@@ -330,6 +393,7 @@ begin
   )
   values (
     target_household_id,
+    target_list_id,
     target_list_id,
     target_item_name,
     normalized_name,
@@ -600,6 +664,23 @@ begin
   for update;
   has_old_item := found;
 
+  -- The item primary key is global, so a base-null command carrying another
+  -- household's item UUID would otherwise reach a raw 23505 and bypass durable
+  -- rejection and receipt handling entirely.
+  if not has_old_item
+     and exists (
+       select 1
+       from public.household_grocery_items item
+       where item.id = entity_id
+     )
+  then
+    return public.mobile_store_rejection(
+      household_id, actor_id, device_id, local_sequence, operation_id,
+      command_hash, 'entity_owned_by_other_household',
+      'Entity ID already belongs to another household'
+    );
+  end if;
+
   canonical_payload := payload ? 'purchaseQuantity';
   if canonical_payload then
     purchase_quantity := case
@@ -625,8 +706,31 @@ begin
         'A checked purchase occurrence cannot change before unchecking'
       );
     end if;
+    -- Consult the append-only ledger, not history: an exact-ratio merge can
+    -- displace an occurrence from the row that carried it, and a displaced
+    -- occurrence must still never be reusable.
     if (not has_old_item or not old_item.checked)
        and (payload->>'checked')::boolean
+       and exists (
+         select 1
+         from public.household_grocery_purchase_occurrences ledger
+         where ledger.household_id = household_id
+           and ledger.purchase_occurrence_id = purchase_occurrence_id
+       )
+    then
+      return public.mobile_store_rejection(
+        household_id, actor_id, device_id, local_sequence, operation_id,
+        command_hash, 'purchase_occurrence_reused',
+        'A rechecked item requires a new purchase occurrence'
+      );
+    end if;
+
+    -- Clearing the price of a purchase that is already recorded would leave a
+    -- history row nothing can correct, so the command is rejected instead.
+    if has_old_item and old_item.checked
+       and (payload->>'checked')::boolean
+       and purchase_occurrence_id = old_item.purchase_occurrence_id
+       and total_price_cents is null
        and exists (
          select 1
          from public.household_grocery_price_history history
@@ -636,8 +740,8 @@ begin
     then
       return public.mobile_store_rejection(
         household_id, actor_id, device_id, local_sequence, operation_id,
-        command_hash, 'purchase_occurrence_reused',
-        'A rechecked item requires a new purchase occurrence'
+        command_hash, 'purchase_price_cleared',
+        'A recorded purchase price cannot be cleared while it stays checked'
       );
     end if;
   else
@@ -658,6 +762,16 @@ begin
         then old_item.purchase_occurrence_id
       else gen_random_uuid()
     end;
+  end if;
+
+  if purchase_occurrence_id is not null then
+    insert into public.household_grocery_purchase_occurrences (
+      household_id,
+      purchase_occurrence_id
+    )
+    values (household_id, purchase_occurrence_id)
+    on conflict on constraint household_grocery_purchase_occurrences_pkey
+      do nothing;
   end if;
 
   next_revision := case
@@ -720,17 +834,11 @@ begin
   from public.household_grocery_items item
   where item.id = entity_id;
 
-  if canonical_payload then
-    should_record_history := (payload->>'checked')::boolean
-      and total_price_cents is not null;
-  else
-    should_record_history := total_price_cents is not null
-      and (
-        not has_old_item
-        or old_item.unit_price_cents is distinct from total_price_cents
-        or ((payload->>'checked')::boolean and not old_item.checked)
-      );
-  end if;
+  -- Price history records purchases, never merely entered prices, so both the
+  -- canonical and the legacy six-key payload gate on the checked state. A
+  -- repeated write for the same occurrence corrects that occurrence's row.
+  should_record_history := (payload->>'checked')::boolean
+    and total_price_cents is not null;
 
   if should_record_history then
     perform public.mobile_upsert_grocery_purchase_history(
@@ -870,6 +978,13 @@ revoke execute on function public.mobile_operation_payload_valid_v3(text, jsonb)
 revoke execute on function public.mobile_operation_payload_valid(text, jsonb)
   from public, anon, authenticated;
 revoke execute on function public.mobile_valid_navigation(jsonb)
+  from public, anon, authenticated;
+-- The notification-aware wrapper introduced in 20260813020000 was created
+-- without revoking the default PUBLIC execute the older version had lost.
+revoke execute on function public.mobile_expected_entity_type(text)
+  from public, anon, authenticated;
+revoke execute on function
+  public.mobile_grocery_occurrence_ledger_append_only()
   from public, anon, authenticated;
 revoke execute on function public.mobile_upsert_grocery_purchase_history(
   uuid, uuid, text, uuid, text, numeric, bigint, uuid, uuid, timestamptz

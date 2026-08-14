@@ -81,3 +81,259 @@ DONE_WITH_CONCERNS. Task 4 is implemented in one new forward migration and share
 - Native manual QA is deferred to Task 5.
 - Repository-wide `npm run lint` still reports 12 pre-existing errors in Task 1/2 mobile UI files (`index.test.tsx`, `index.tsx`, `AppChrome.tsx`, and `MobileNavigationEditor.tsx`); every Task 4 TypeScript file passes targeted ESLint.
 - Clearing canonical price fields from an already recorded checked occurrence preserves the historical purchase row; no product rule requested destructive history removal.
+
+## Fix round 1
+
+All six round-1 findings are fixed. No TypeScript changed: every finding was
+server-side, so the shared contracts, overlays, and native/web adapters are
+untouched.
+
+### Migration strategy
+
+`20260813022000_grocery_purchase_history.sql` was **amended in place** rather
+than followed by a new forward migration. Reasoning:
+
+- It is unpushed and unmerged, and lives on this same branch, so no deployed
+  ledger anywhere references its old body.
+- Findings 4 and 5 change the shape of the very backfills that migration
+  performs: `source_list_id` must be populated *before* the legacy exact-ratio
+  dedupe runs (that dedupe partitions on it now), and the occurrence ledger
+  must be seeded from the same `gen_random_uuid()` occurrence ids the item
+  backfill mints. Splitting those into a follow-on would have run the legacy
+  dedupe once on the wrong key and then required a second corrective pass.
+- Amending keeps one coherent Task 4 migration for the phase, matching the
+  repo's "one migration per build phase" convention.
+
+Because it was amended, the local stack was rebuilt with `supabase db reset
+--local`, then verified with `supabase migration up --local` (no pending
+migrations) and `supabase migration list --local` (local and remote ledgers
+match through `20260813022000`).
+
+### Behavior visible to the web app
+
+1. **Entering a price on an unchecked item no longer records purchase
+   history** (finding 1). The six-key web payload is still accepted verbatim
+   and still derives `purchase_quantity = 1` / `total_price_cents = unit
+   price` onto the item; only the history write now waits for `checked=true`.
+   This is the brief's rule that history represents purchases, not entered
+   prices.
+2. **Editing the price of an already-checked item corrects that purchase's
+   history row instead of appending a new one.** Both payload shapes now share
+   one occurrence-keyed history path.
+3. Legacy payloads are deliberately *not* subject to the finding-6 rejection:
+   a six-key command may still clear the price of a checked item (existing web
+   behavior). Only canonical commands, which own an occurrence id, are
+   rejected for it.
+
+### Finding 1 — legacy unchecked priced writes created history
+
+Changed `supabase/migrations/20260813022000_grocery_purchase_history.sql:837-841`
+(the `should_record_history` branch) from a canonical/legacy split to a single
+`checked AND total_price_cents is not null` gate.
+
+Tests: replaced the assertion that codified unchecked history in
+`supabase/tests/20260813_grocery_purchase_history.test.sql:1155-1231` with a
+no-history assertion plus a follow-on checked purchase; updated the two other
+tests that codified it —
+`supabase/tests/20260725_mobile_first_operations.test.sql:1497` (now expects 0,
+with a new purchase assertion at :1547-1559) and
+`supabase/tests/20260727_grocery_price_history_list_deletion.test.sql:124,233`
+(its two priced items are now actual purchases).
+
+RED — `supabase test db --local supabase/tests/20260813_grocery_purchase_history.test.sql`:
+
+```
+# Failed test 60: "a legacy unchecked priced write records no purchase history"
+#         have: 1
+#         want: 0
+```
+
+RED — `supabase test db --local supabase/tests/20260725_mobile_first_operations.test.sql supabase/tests/20260727_grocery_price_history_list_deletion.test.sql`:
+
+```
+# Failed test 76: "an entered price on an unchecked item is not yet a purchase"
+#         have: 1
+#         want: 0
+```
+
+GREEN — see the combined run at the end of this section.
+
+### Finding 2 — cross-household entity-ID collision bypassed durable rejection
+
+Added a foreign-owner guard at
+`supabase/migrations/20260813022000_grocery_purchase_history.sql:667-682`,
+immediately after the household-scoped item lookup: a base-null command whose
+`entityId` already exists under any household now returns
+`mobile_store_rejection(... 'entity_owned_by_other_household' ...)`.
+
+Test: `supabase/tests/20260813_grocery_purchase_history.test.sql:1844-1930`
+(other household claims a UUID, this household is rejected, rejection receipt
+stored, foreign item unchanged).
+
+RED (old function, trimmed copy of the same scenarios):
+
+```
+psql:.../zz_red_scenarios.test.sql:1553: ERROR:  duplicate key value violates unique constraint "household_grocery_items_pkey"
+DETAIL:  Key (id)=(50000000-0000-4000-8000-0000000000fe) already exists.
+```
+
+A raw 23505 aborting the transaction — exactly the bypass of durable
+rejection/receipt handling the finding describes.
+
+### Finding 3 — `mobile_expected_entity_type(text)` kept default PUBLIC execute
+
+Added the revoke at
+`supabase/migrations/20260813022000_grocery_purchase_history.sql:982-984`
+(with a comment naming `20260813020000` as the migration that reintroduced it).
+Extended the privilege coverage test at
+`supabase/tests/20260725_mobile_first_operations.test.sql:199-209`.
+
+RED — `supabase test db --local supabase/tests/20260725_mobile_first_operations.test.sql`:
+
+```
+# Failed test 4: "navigation validation helpers are not client-callable"
+```
+
+### Finding 4 — exact-ratio identity used the nullable live `list_id`
+
+Added the immutable, FK-free `source_list_id` column at
+`supabase/migrations/20260813022000_grocery_purchase_history.sql:35-38`,
+backfilled it at :55-57 (`coalesce(list_id, gen_random_uuid())` — rows whose
+list was already gone get a private identity rather than merging unrelated
+purchases), repartitioned the legacy dedupe on it at :70, made it `not null`
+at :84, and moved the purchase-lookup index onto it at :106. Matching now uses
+it in `mobile_upsert_grocery_purchase_history`: the bucket is taken from
+`occurrence_history.source_list_id` (:323) and the collision predicate is a
+plain equality (:332). Inserts stamp it from the authoritative list id
+(:382,:397); no update path ever rewrites it.
+
+Test: `supabase/tests/20260813_grocery_purchase_history.test.sql:1475-1642` —
+two same-named child pages each record an identical Widget purchase, one item
+moves to a surviving page, both pages are deleted, and correcting the surviving
+occurrence must leave two rows with two distinct `source_list_id`s. Schema
+assertions (column present, not null, no foreign key) at :150-179.
+
+RED (old function): the two purchases collapsed into one.
+
+```
+# Failed test 78: "identical purchases from two deleted pages never merge"
+#         have: 1
+#         want: 2
+```
+
+### Finding 5 — exact-ratio merge let a displaced occurrence be reused
+
+Added the append-only ledger
+`public.household_grocery_purchase_occurrences` at
+`supabase/migrations/20260813022000_grocery_purchase_history.sql:111-162`
+(household-scoped PK, RLS on, all privileges revoked from `public`/`anon`/
+`authenticated`, a `before update or delete` trigger raising `23001`
+"grocery purchase occurrences are append-only" — the sole exception being the
+household cascade, which deletes the parent row first, and a backfill from the
+existing checked items). The reuse check now consults the ledger rather than
+history at :709-725, and every newly attached occurrence is appended at
+:767-775 after all rejection paths.
+
+Test: `supabase/tests/20260813_grocery_purchase_history.test.sql:1643-1776` —
+occurrence A recorded, occurrence B merged over it, the merged row proven to
+carry only B, then reuse of A rejected with a durable receipt; plus ledger
+privilege and append-only assertions.
+
+RED (old function): reuse of the displaced occurrence was not rejected at all
+and instead blew up on the item-level occurrence index.
+
+```
+psql:.../zz_red_scenarios.test.sql:1680: ERROR:  duplicate key value violates unique constraint "household_grocery_items_purchase_occurrence_key"
+DETAIL:  Key (household_id, purchase_occurrence_id)=(10000000-0000-4000-8000-0000000000e1, 60000000-0000-4000-8000-0000000000d1) already exists.
+```
+
+### Finding 6 — clearing a canonical price left stale history
+
+Added the rejection at
+`supabase/migrations/20260813022000_grocery_purchase_history.sql:728-746`: a
+canonical checked command that keeps the same occurrence, carries no total
+price, and targets an occurrence that already has a history row is rejected as
+`purchase_price_cleared`.
+
+Test: `supabase/tests/20260813_grocery_purchase_history.test.sql:1779-1842`.
+
+RED (old function): the clear applied, leaving the item unpriced while history
+still held the purchase.
+
+```
+# Failed test 71: "clearing the price of a recorded purchase is rejected"
+#         have: NULL
+#         want: purchase_price_cleared
+# Failed test 72: "the rejected clear leaves the purchase and its item untouched"
+#         have: {"itemTotal": null, "historyTotal": 400}
+#         want: {"itemTotal": 400, "historyTotal": 400}
+```
+
+### GREEN — full verification
+
+`npm test -- --run packages/domain/src/operations.test.ts packages/domain/src/mobileNavigation.test.ts src/test/applicationOperations.test.ts src/test/operationQueue.test.ts`
+
+```
+ Test Files  4 passed (4)
+      Tests  42 passed (42)
+```
+
+`cd mobile && npm test -- --runInBand src/components/mobileNavigation.test.ts src/lib/operations/queue.test.ts src/features/notifications.test.ts && npm run typecheck`
+
+```
+Test Suites: 3 passed, 3 total
+Tests:       27 passed, 27 total
+
+> mobile@1.0.0 typecheck
+> tsc --noEmit
+```
+
+`supabase migration up --local`
+
+```
+{"applied":[],"message":"Migrations applied"}
+```
+
+`supabase migration list --local` — local and remote ledgers match through
+`20260813022000`.
+
+`supabase test db --local supabase/tests/20260813_grocery_purchase_history.test.sql`
+
+```
+All tests successful.
+Files=1, Tests=100,  0 wallclock secs
+Result: PASS
+```
+
+`supabase test db --local supabase/tests/20260725_mobile_first_operations.test.sql`
+
+```
+All tests successful.
+Files=1, Tests=108,  1 wallclock secs
+Result: PASS
+```
+
+`supabase test db --local`
+
+```
+All tests successful.
+Files=8, Tests=474,  1 wallclock secs
+Result: PASS
+```
+
+`git diff --check` — no output.
+
+No ESLint run was needed: no TypeScript file changed in this round.
+
+### Observations (not acted on)
+
+- `src/types/database.ts` and `mobile/src/types/database.ts` predate this
+  migration's new `source_list_id` column and
+  `household_grocery_purchase_occurrences` table. Nothing reads either, and
+  both typechecks pass, but CLAUDE.md's "regenerate types after any migration"
+  rule is technically outstanding for Task 4 as a whole. Left alone as
+  out-of-scope for these six findings.
+- `mobile/app/(tabs)/index.test.tsx` still sits inside the Expo Router `app/`
+  directory. Noted only; deliberately not moved.
+- Concurrency is still proven only structurally (household row lock) — the
+  two-session test remains deferred per the findings document.

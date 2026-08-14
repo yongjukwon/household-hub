@@ -81,6 +81,22 @@ values
     '30000000-0000-4000-8000-0000000000ef',
     '10000000-0000-4000-8000-0000000000e2',
     'Foreign Store', 0, '00000000-0000-4000-8000-0000000000e3'
+  ),
+  -- Two same-named child pages plus a page that outlives them both.
+  (
+    '30000000-0000-4000-8000-0000000000c1',
+    '10000000-0000-4000-8000-0000000000e1',
+    'Corner', 2, '00000000-0000-4000-8000-0000000000e1'
+  ),
+  (
+    '30000000-0000-4000-8000-0000000000c2',
+    '10000000-0000-4000-8000-0000000000e1',
+    'Corner', 3, '00000000-0000-4000-8000-0000000000e1'
+  ),
+  (
+    '30000000-0000-4000-8000-0000000000c3',
+    '10000000-0000-4000-8000-0000000000e1',
+    'Keeper', 4, '00000000-0000-4000-8000-0000000000e1'
   );
 
 create function pg_temp.operation_command(
@@ -130,6 +146,36 @@ select has_column(
 select has_column(
   'public', 'household_grocery_price_history', 'source_item_id',
   'Grocery history retains its source item identity'
+);
+select has_column(
+  'public', 'household_grocery_price_history', 'source_list_id',
+  'Grocery history retains an immutable purchase-time list identity'
+);
+select col_not_null(
+  'public', 'household_grocery_price_history', 'source_list_id',
+  'the immutable list identity is never erased'
+);
+select is(
+  (
+    select count(*)::integer
+    from pg_constraint
+    where conrelid = 'public.household_grocery_price_history'::regclass
+      and contype = 'f'
+      and conkey = array[
+        (
+          select attnum
+          from pg_attribute
+          where attrelid = 'public.household_grocery_price_history'::regclass
+            and attname = 'source_list_id'
+        )
+      ]::smallint[]
+  ),
+  0,
+  'the immutable list identity has no foreign key to erase it'
+);
+select has_table(
+  'public', 'household_grocery_purchase_occurrences',
+  'the household purchase occurrence ledger exists'
 );
 select has_column(
   'public', 'household_grocery_price_history', 'purchase_occurrence_id',
@@ -1114,12 +1160,58 @@ select is(
 select is(
   (
     select jsonb_build_object(
+      'itemQuantity', purchase_quantity,
+      'itemTotal', total_price_cents,
+      'occurrence', purchase_occurrence_id
+    )
+    from public.household_grocery_items
+    where id = '50000000-0000-4000-8000-0000000000f9'
+  ),
+  '{"itemQuantity":1,"itemTotal":450,"occurrence":null}'::jsonb,
+  'a legacy unchecked price derives canonical item fields without a purchase'
+);
+
+select is(
+  (
+    select count(*)::integer
+    from public.household_grocery_price_history
+    where source_item_id = '50000000-0000-4000-8000-0000000000f9'
+  ),
+  0,
+  'a legacy unchecked priced write records no purchase history'
+);
+
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000101',
+        '10000000-0000-4000-8000-0000000000e1',
+        'grocery.item.upsert', 'grocery_item',
+        '50000000-0000-4000-8000-0000000000f9', 1,
+        jsonb_build_object(
+          'listId', '30000000-0000-4000-8000-0000000000e1',
+          'name', 'Legacy eggs', 'quantity', null, 'checked', true,
+          'unitPriceCents', 450, 'sortOrder', 3
+        ),
+        33
+      )
+    )->>'status'
+  ),
+  'applied',
+  'checking a legacy priced item records its purchase'
+);
+
+select is(
+  (
+    select jsonb_build_object(
       'itemQuantity', item.purchase_quantity,
       'itemTotal', item.total_price_cents,
       'historyQuantity', history.purchase_quantity,
       'historyTotal', history.total_price_cents,
       'source', history.source_item_id,
-      'store', history.store_name
+      'store', history.store_name,
+      'sourceList', history.source_list_id
     )
     from public.household_grocery_items item
     join public.household_grocery_price_history history
@@ -1132,9 +1224,10 @@ select is(
     'historyQuantity', 1,
     'historyTotal', 450,
     'source', '50000000-0000-4000-8000-0000000000f9'::uuid,
-    'store', 'Market'
+    'store', 'Market',
+    'sourceList', '30000000-0000-4000-8000-0000000000e1'::uuid
   ),
-  'legacy prices derive quantity one, total equal to price, and snapshots'
+  'legacy purchases derive quantity one, total equal to price, and snapshots'
 );
 
 -- Tenant ownership and authoritative list lookup happen server-side.
@@ -1377,6 +1470,457 @@ select is(
   ),
   1,
   'idempotent Grocery replay stores one change-log row'
+);
+
+-- Two distinct child pages can carry the same name and the same exact ratio.
+-- Deleting both nulls their live list reference, and the immutable purchase
+-- identity is what keeps the two purchases from collapsing into one row.
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000110',
+        '10000000-0000-4000-8000-0000000000e1',
+        'grocery.item.upsert', 'grocery_item',
+        '50000000-0000-4000-8000-0000000000c1', null,
+        jsonb_build_object(
+          'listId', '30000000-0000-4000-8000-0000000000c1',
+          'name', 'Widget', 'quantity', '1', 'checked', true,
+          'unitPriceCents', 500, 'purchaseQuantity', 1,
+          'totalPriceCents', 500,
+          'purchaseOccurrenceId', '60000000-0000-4000-8000-0000000000c1',
+          'sortOrder', 0
+        ),
+        40
+      )
+    )->>'status'
+  ),
+  'applied',
+  'the first Corner page records a Widget purchase'
+);
+
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000111',
+        '10000000-0000-4000-8000-0000000000e1',
+        'grocery.item.upsert', 'grocery_item',
+        '50000000-0000-4000-8000-0000000000c2', null,
+        jsonb_build_object(
+          'listId', '30000000-0000-4000-8000-0000000000c2',
+          'name', 'Widget', 'quantity', '1', 'checked', true,
+          'unitPriceCents', 500, 'purchaseQuantity', 1,
+          'totalPriceCents', 500,
+          'purchaseOccurrenceId', '60000000-0000-4000-8000-0000000000c2',
+          'sortOrder', 0
+        ),
+        41
+      )
+    )->>'status'
+  ),
+  'applied',
+  'the second Corner page records its own Widget purchase'
+);
+
+select is(
+  (
+    select count(*)::integer
+    from public.household_grocery_price_history
+    where item_name_normalized = 'widget'
+  ),
+  2,
+  'same-named pages keep their identical purchases separate'
+);
+
+-- Move the second item onto the page that survives, so its occurrence can
+-- still be edited after both Corner pages are gone.
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000112',
+        '10000000-0000-4000-8000-0000000000e1',
+        'grocery.item.upsert', 'grocery_item',
+        '50000000-0000-4000-8000-0000000000c2', 1,
+        jsonb_build_object(
+          'listId', '30000000-0000-4000-8000-0000000000c3',
+          'name', 'Widget', 'quantity', '1', 'checked', true,
+          'unitPriceCents', 500, 'purchaseQuantity', 1,
+          'totalPriceCents', 500,
+          'purchaseOccurrenceId', '60000000-0000-4000-8000-0000000000c2',
+          'sortOrder', 0
+        ),
+        42
+      )
+    )->>'status'
+  ),
+  'applied',
+  'a purchased item can move to a surviving page'
+);
+
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000113',
+        '10000000-0000-4000-8000-0000000000e1',
+        'grocery.list.delete', 'grocery_list',
+        '30000000-0000-4000-8000-0000000000c1', null,
+        '{}'::jsonb,
+        43
+      )
+    )->>'status'
+  ),
+  'applied',
+  'the first Corner page is deleted'
+);
+
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000114',
+        '10000000-0000-4000-8000-0000000000e1',
+        'grocery.list.delete', 'grocery_list',
+        '30000000-0000-4000-8000-0000000000c2', null,
+        '{}'::jsonb,
+        44
+      )
+    )->>'status'
+  ),
+  'applied',
+  'the second Corner page is deleted'
+);
+
+select is(
+  (
+    select count(*)::integer
+    from public.household_grocery_price_history
+    where item_name_normalized = 'widget' and list_id is null
+  ),
+  2,
+  'both Widget purchases outlive their deleted pages'
+);
+
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000115',
+        '10000000-0000-4000-8000-0000000000e1',
+        'grocery.item.upsert', 'grocery_item',
+        '50000000-0000-4000-8000-0000000000c2', 2,
+        jsonb_build_object(
+          'listId', '30000000-0000-4000-8000-0000000000c3',
+          'name', 'Widget', 'quantity', '2', 'checked', true,
+          'unitPriceCents', 500, 'purchaseQuantity', 2,
+          'totalPriceCents', 1000,
+          'purchaseOccurrenceId', '60000000-0000-4000-8000-0000000000c2',
+          'sortOrder', 0
+        ),
+        45
+      )
+    )->>'status'
+  ),
+  'applied',
+  'the surviving occurrence can still be corrected'
+);
+
+select is(
+  (
+    select jsonb_build_object(
+      'rows', count(*),
+      'distinctSourceLists', count(distinct source_list_id)
+    )
+    from public.household_grocery_price_history
+    where item_name_normalized = 'widget'
+  ),
+  '{"rows":2,"distinctSourceLists":2}'::jsonb,
+  'identical purchases from two deleted pages never merge'
+);
+
+-- An exact-ratio merge displaces an occurrence from the row that carried it.
+-- The append-only ledger, not the surviving history row, decides reuse.
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000120',
+        '10000000-0000-4000-8000-0000000000e1',
+        'grocery.item.upsert', 'grocery_item',
+        '50000000-0000-4000-8000-0000000000d1', null,
+        jsonb_build_object(
+          'listId', '30000000-0000-4000-8000-0000000000c3',
+          'name', 'Gadget', 'quantity', '1', 'checked', true,
+          'unitPriceCents', 300, 'purchaseQuantity', 1,
+          'totalPriceCents', 300,
+          'purchaseOccurrenceId', '60000000-0000-4000-8000-0000000000d1',
+          'sortOrder', 1
+        ),
+        46
+      )
+    )->>'status'
+  ),
+  'applied',
+  'purchase occurrence A is recorded'
+);
+
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000121',
+        '10000000-0000-4000-8000-0000000000e1',
+        'grocery.item.upsert', 'grocery_item',
+        '50000000-0000-4000-8000-0000000000d2', null,
+        jsonb_build_object(
+          'listId', '30000000-0000-4000-8000-0000000000c3',
+          'name', 'Gadget', 'quantity', '1', 'checked', true,
+          'unitPriceCents', 300, 'purchaseQuantity', 1,
+          'totalPriceCents', 300,
+          'purchaseOccurrenceId', '60000000-0000-4000-8000-0000000000d2',
+          'sortOrder', 2
+        ),
+        47
+      )
+    )->>'status'
+  ),
+  'applied',
+  'purchase occurrence B merges over occurrence A'
+);
+
+select is(
+  (
+    select jsonb_build_object(
+      'rows', count(*),
+      'occurrence', max(purchase_occurrence_id::text)
+    )
+    from public.household_grocery_price_history
+    where item_name_normalized = 'gadget'
+  ),
+  '{"rows":1,"occurrence":"60000000-0000-4000-8000-0000000000d2"}'::jsonb,
+  'the merged row carries only the later occurrence'
+);
+
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000122',
+        '10000000-0000-4000-8000-0000000000e1',
+        'grocery.item.upsert', 'grocery_item',
+        '50000000-0000-4000-8000-0000000000d3', null,
+        jsonb_build_object(
+          'listId', '30000000-0000-4000-8000-0000000000c3',
+          'name', 'Gadget', 'quantity', '1', 'checked', true,
+          'unitPriceCents', 900, 'purchaseQuantity', 1,
+          'totalPriceCents', 900,
+          'purchaseOccurrenceId', '60000000-0000-4000-8000-0000000000d1',
+          'sortOrder', 3
+        ),
+        48
+      )
+    )->>'code'
+  ),
+  'purchase_occurrence_reused',
+  'a displaced purchase occurrence can never be reused'
+);
+
+select is(
+  (
+    select count(*)::integer
+    from public.operation_receipts
+    where operation_id = '40000000-0000-4000-8000-000000000122'
+      and status = 'rejected'
+  ),
+  1,
+  'the displaced-occurrence rejection is durable'
+);
+
+reset role;
+
+select ok(
+  not has_table_privilege(
+    'authenticated', 'public.household_grocery_purchase_occurrences', 'SELECT'
+  )
+  and not has_table_privilege(
+    'authenticated', 'public.household_grocery_purchase_occurrences', 'INSERT'
+  )
+  and not has_table_privilege(
+    'anon', 'public.household_grocery_purchase_occurrences', 'SELECT'
+  ),
+  'the occurrence ledger is not reachable by any API role'
+);
+
+select throws_ok(
+  $$
+    update public.household_grocery_purchase_occurrences
+    set first_recorded_at = now()
+    where purchase_occurrence_id = '60000000-0000-4000-8000-0000000000d1'
+  $$,
+  '23001',
+  'grocery purchase occurrences are append-only',
+  'the occurrence ledger rejects updates'
+);
+
+select throws_ok(
+  $$
+    delete from public.household_grocery_purchase_occurrences
+    where purchase_occurrence_id = '60000000-0000-4000-8000-0000000000d1'
+  $$,
+  '23001',
+  'grocery purchase occurrences are append-only',
+  'the occurrence ledger rejects deletes'
+);
+
+set local role authenticated;
+
+-- A recorded purchase price cannot be cleared while the purchase stands.
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000130',
+        '10000000-0000-4000-8000-0000000000e1',
+        'grocery.item.upsert', 'grocery_item',
+        '50000000-0000-4000-8000-0000000000d4', null,
+        jsonb_build_object(
+          'listId', '30000000-0000-4000-8000-0000000000c3',
+          'name', 'Gizmo', 'quantity', '1', 'checked', true,
+          'unitPriceCents', 400, 'purchaseQuantity', 1,
+          'totalPriceCents', 400,
+          'purchaseOccurrenceId', '60000000-0000-4000-8000-0000000000d4',
+          'sortOrder', 4
+        ),
+        49
+      )
+    )->>'status'
+  ),
+  'applied',
+  'a priced Gizmo purchase is recorded'
+);
+
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000131',
+        '10000000-0000-4000-8000-0000000000e1',
+        'grocery.item.upsert', 'grocery_item',
+        '50000000-0000-4000-8000-0000000000d4', 1,
+        jsonb_build_object(
+          'listId', '30000000-0000-4000-8000-0000000000c3',
+          'name', 'Gizmo', 'quantity', '1', 'checked', true,
+          'unitPriceCents', null, 'purchaseQuantity', null,
+          'totalPriceCents', null,
+          'purchaseOccurrenceId', '60000000-0000-4000-8000-0000000000d4',
+          'sortOrder', 4
+        ),
+        50
+      )
+    )->>'code'
+  ),
+  'purchase_price_cleared',
+  'clearing the price of a recorded purchase is rejected'
+);
+
+select is(
+  (
+    select jsonb_build_object(
+      'historyTotal', history.total_price_cents,
+      'itemTotal', item.total_price_cents
+    )
+    from public.household_grocery_price_history history
+    join public.household_grocery_items item
+      on item.purchase_occurrence_id = history.purchase_occurrence_id
+    where history.purchase_occurrence_id =
+      '60000000-0000-4000-8000-0000000000d4'
+  ),
+  '{"historyTotal":400,"itemTotal":400}'::jsonb,
+  'the rejected clear leaves the purchase and its item untouched'
+);
+
+-- A base-null command carrying another household's item UUID must be a durable
+-- rejection, not a raw primary-key violation.
+select set_config(
+  'request.jwt.claim.sub', '00000000-0000-4000-8000-0000000000e3', true
+);
+
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000140',
+        '10000000-0000-4000-8000-0000000000e2',
+        'grocery.item.upsert', 'grocery_item',
+        '50000000-0000-4000-8000-0000000000fe', null,
+        jsonb_build_object(
+          'listId', '30000000-0000-4000-8000-0000000000ef',
+          'name', 'Foreign staple', 'quantity', null, 'checked', false,
+          'unitPriceCents', null, 'purchaseQuantity', null,
+          'totalPriceCents', null, 'purchaseOccurrenceId', null,
+          'sortOrder', 0
+        ),
+        51
+      )
+    )->>'status'
+  ),
+  'applied',
+  'the other household owns an item UUID'
+);
+
+select set_config(
+  'request.jwt.claim.sub', '00000000-0000-4000-8000-0000000000e1', true
+);
+
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000141',
+        '10000000-0000-4000-8000-0000000000e1',
+        'grocery.item.upsert', 'grocery_item',
+        '50000000-0000-4000-8000-0000000000fe', null,
+        jsonb_build_object(
+          'listId', '30000000-0000-4000-8000-0000000000c3',
+          'name', 'Collision', 'quantity', null, 'checked', false,
+          'unitPriceCents', null, 'purchaseQuantity', null,
+          'totalPriceCents', null, 'purchaseOccurrenceId', null,
+          'sortOrder', 5
+        ),
+        52
+      )
+    )->>'code'
+  ),
+  'entity_owned_by_other_household',
+  'a foreign-owned entity UUID is durably rejected'
+);
+
+select is(
+  (
+    select count(*)::integer
+    from public.operation_receipts
+    where operation_id = '40000000-0000-4000-8000-000000000141'
+      and status = 'rejected'
+  ),
+  1,
+  'the cross-household collision stores a rejection receipt'
+);
+
+reset role;
+
+select is(
+  (
+    select jsonb_build_object('household', household_id, 'name', name)
+    from public.household_grocery_items
+    where id = '50000000-0000-4000-8000-0000000000fe'
+  ),
+  jsonb_build_object(
+    'household', '10000000-0000-4000-8000-0000000000e2',
+    'name', 'Foreign staple'
+  ),
+  'the other household keeps its item unchanged'
 );
 
 select * from finish();

@@ -197,6 +197,15 @@ select ok(
   )
   and not has_function_privilege(
     'authenticated', 'public.mobile_operation_payload_valid(text,jsonb)', 'EXECUTE'
+  )
+  and not has_function_privilege(
+    'public', 'public.mobile_expected_entity_type(text)', 'EXECUTE'
+  )
+  and not has_function_privilege(
+    'anon', 'public.mobile_expected_entity_type(text)', 'EXECUTE'
+  )
+  and not has_function_privilege(
+    'authenticated', 'public.mobile_expected_entity_type(text)', 'EXECUTE'
   ),
   'navigation validation helpers are not client-callable'
 );
@@ -1484,8 +1493,8 @@ select is(
       and item_name_normalized = 'milk'
       and price_cents = 499
   ),
-  1,
-  'a Grocery price is appended to immutable CAD history'
+  0,
+  'an entered price on an unchecked item is not yet a purchase'
 );
 
 select is(
@@ -1536,6 +1545,18 @@ where id = '30000000-0000-4000-8000-00000000000f';
 select ok(
   (select first_checked_at is not null from grocery_check_times),
   'checking an item assigns its purchase timestamp'
+);
+
+select is(
+  (
+    select count(*)::integer
+    from public.household_grocery_price_history
+    where list_id = '30000000-0000-4000-8000-00000000000e'
+      and item_name_normalized = 'milk'
+      and price_cents = 499
+  ),
+  1,
+  'checking the item appends the purchase to household-wide history'
 );
 
 select is(
