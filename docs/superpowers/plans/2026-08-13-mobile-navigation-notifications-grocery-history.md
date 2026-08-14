@@ -57,9 +57,22 @@
 - Snapshot calendar activity fields in the notification trigger and stop cleanup from deleting visible calendar activity while retaining reminder housekeeping.
 - Add database tests for constraints, ownership, idempotency, history merging, notification snapshots, and cleanup operations.
 
-## Task 5: Full Verification and Native Manual QA
+## Task 5: Household Purchase History Page
+
+Added after Task 4 at the human partner's request; mobile only.
+
+- Add a `Purchase history` page at `app/purchase-history.tsx`, reached from a third More-menu row beneath the omitted destination and Settings. It is a standalone route like `/settings`, not a tab destination, so Task 1's configurable-three-destinations contract is unchanged.
+- The page lists every distinct purchased item in the household, aggregated across all lists by normalized name, newest purchase first. Each row shows the display name, the most recent purchase date, and that item's latest unit price.
+- A search bar filters the list by item name. Matching is case- and accent-insensitive and uses the same normalization the server records history under.
+- Tapping a row opens that item's detail history: its purchase occurrences from the last 365 days, newest first, each showing date, store/list snapshot, quantity, total paid, and unit price. The 365-day window applies to the detail view only — the searchable list still shows every item ever purchased, so an older item remains findable.
+- Unit price is the exact total-price/quantity ratio, rounded only for display, consistent with Task 3 and Task 4.
+- History rows survive item and list deletion, so the page must render rows whose source item or list no longer exists without crashing or showing a blank name.
+- Empty states: no purchases at all, no search matches, and an item with no purchases inside the 365-day window.
+- Test list aggregation and ordering, search filtering and normalization, the 365-day detail boundary, deleted-source rendering, and all three empty states.
+
+## Task 6: Full Verification and Native Manual QA
 
 - Run `npm test -- --runInBand` and `npm run typecheck` from `mobile/`.
 - Run root domain/application tests and `npm run test:functions`.
 - Run `supabase test db --local`.
-- Manually verify iOS light and dark modes on compact screens with long titles, offline operations, relaunch persistence, warning suppression, inline history placement, and calendar-dot clearance.
+- Manually verify iOS light and dark modes on compact screens with long titles, offline operations, relaunch persistence, warning suppression, inline history placement, calendar-dot clearance, and the Purchase history page's search and detail views.
