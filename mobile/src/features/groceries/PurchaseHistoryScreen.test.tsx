@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react-native'
+import { act, fireEvent, render, screen } from '@testing-library/react-native'
+import { BackHandler } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import PurchaseHistoryScreen from '../../../app/purchase-history'
@@ -7,9 +8,19 @@ import { useHouseholdPurchaseHistory, type PriceHistoryEntry } from './data'
 
 jest.mock('expo-router', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const React = require('react')
-  const Stack = { Screen: () => null }
-  return { Stack, useRouter: () => ({ back: jest.fn(), push: jest.fn() }), __esModule: true, React }
+  const { useEffect } = require('react')
+  return {
+    __esModule: true,
+    Stack: { Screen: () => null },
+    useRouter: () => ({ back: jest.fn(), push: jest.fn() }),
+    // Stands in for a focused route. expo-router's real `useFocusEffect` runs
+    // the effect immediately when the route is focused and tears it down on
+    // dependency change and on unmount (see its `React.useEffect` teardown in
+    // expo-router/build/useFocusEffect.js), which is what this reproduces.
+    // What it cannot reproduce here is blur/refocus — see the report.
+    useFocusEffect: (effect: () => undefined | (() => void)) =>
+      useEffect(effect, [effect]),
+  }
 })
 
 jest.mock('@/features/household', () => ({ useActiveHousehold: jest.fn() }))
@@ -70,14 +81,39 @@ async function renderScreen() {
   )
 }
 
+const removeSubscription = jest.fn()
+let addBackListener: jest.SpiedFunction<typeof BackHandler.addEventListener>
+
+/**
+ * Fires the handler the screen currently has registered for the Android
+ * hardware Back button, and reports what it told the platform: `true` for
+ * "handled, do not pop", `false` for "not mine, let the native stack pop".
+ */
+async function pressHardwareBack(): Promise<boolean | null | undefined> {
+  const registration = addBackListener.mock.calls.at(-1)
+  if (!registration) throw new Error('No hardwareBackPress handler is registered.')
+  let handled: boolean | null | undefined
+  await act(async () => {
+    handled = registration[1]({ type: 'hardwareBackPress', timeStamp: 0 })
+  })
+  return handled
+}
+
 beforeEach(() => {
   jest.clearAllMocks()
+  addBackListener = jest
+    .spyOn(BackHandler, 'addEventListener')
+    .mockReturnValue({ remove: removeSubscription })
   mockedHousehold.mockReturnValue({
     data: { id: HOUSEHOLD_ID, name: 'Rabbit and Penguin', members: [] },
     isLoading: false,
     isError: false,
   } as unknown as ReturnType<typeof useActiveHousehold>)
   mockHistory([])
+})
+
+afterEach(() => {
+  addBackListener.mockRestore()
 })
 
 describe('Purchase history page', () => {
@@ -226,5 +262,68 @@ describe('Purchase history page', () => {
 
     expect(screen.getByLabelText('Search purchased items')).toBeTruthy()
     expect(screen.getByLabelText('Eggs purchase history')).toBeTruthy()
+  })
+})
+
+describe('Purchase history Android hardware Back', () => {
+  it('registers a hardwareBackPress handler while the page is mounted', async () => {
+    mockHistory([entry()])
+
+    await renderScreen()
+
+    expect(addBackListener).toHaveBeenCalledWith(
+      'hardwareBackPress',
+      expect.any(Function),
+    )
+  })
+
+  it('returns to the item list with the search text intact, instead of leaving the page', async () => {
+    mockHistory([entry(), entry({ itemNameNormalized: 'milk', itemName: 'Milk' })])
+
+    await renderScreen()
+    await fireEvent.changeText(screen.getByLabelText('Search purchased items'), 'egg')
+    await fireEvent.press(screen.getByLabelText('Eggs purchase history'))
+    expect(screen.getByLabelText('Eggs purchase occurrences')).toBeTruthy()
+
+    expect(await pressHardwareBack()).toBe(true)
+
+    const search = screen.getByLabelText('Search purchased items')
+    expect(search.props.value).toBe('egg')
+    expect(screen.getByLabelText('Eggs purchase history')).toBeTruthy()
+    expect(screen.queryByLabelText('Milk purchase history')).toBeNull()
+    expect(screen.queryByLabelText('Eggs purchase occurrences')).toBeNull()
+  })
+
+  it('declines the press when the list is already showing, so the native stack pops the page', async () => {
+    mockHistory([entry()])
+
+    await renderScreen()
+
+    expect(await pressHardwareBack()).toBe(false)
+    expect(screen.getByLabelText('Search purchased items')).toBeTruthy()
+  })
+
+  it('declines again once the item view has been closed', async () => {
+    mockHistory([entry()])
+
+    await renderScreen()
+    await fireEvent.press(screen.getByLabelText('Eggs purchase history'))
+    expect(await pressHardwareBack()).toBe(true)
+
+    expect(await pressHardwareBack()).toBe(false)
+  })
+
+  it('removes every subscription it opened, leaving none behind on unmount', async () => {
+    mockHistory([entry()])
+
+    const view = await renderScreen()
+    await fireEvent.press(screen.getByLabelText('Eggs purchase history'))
+    await fireEvent.press(screen.getByLabelText('Back to all items'))
+    await act(async () => {
+      view.unmount()
+    })
+
+    expect(addBackListener).toHaveBeenCalled()
+    expect(removeSubscription).toHaveBeenCalledTimes(addBackListener.mock.calls.length)
   })
 })

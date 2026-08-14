@@ -1,7 +1,15 @@
 import { formatMoney } from '@household-hub/domain'
-import { Stack } from 'expo-router'
-import { useMemo, useState } from 'react'
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Stack, useFocusEffect } from 'expo-router'
+import { useCallback, useMemo, useState } from 'react'
+import {
+  BackHandler,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Card } from '@/components/Card'
@@ -54,6 +62,30 @@ export default function PurchaseHistoryScreen() {
   const occurrences = useMemo(
     () => (selected ? recentPurchasesForItem(history, selected.normalizedName) : []),
     [history, selected],
+  )
+
+  // Android hardware Back. With an item open it does what the in-page "All
+  // items" control does — back to the searchable list, search text intact —
+  // rather than leaving the page from under the reader. With the list already
+  // showing it declines the event (returns false) so the native stack pops the
+  // page and returns to the tab the user came from.
+  //
+  // iOS is untouched by construction: react-native's BackHandler.ios.js is a
+  // no-op stub whose addEventListener never fires and returns a subscription
+  // whose remove() does nothing, so neither the swipe-back gesture nor the
+  // header back button changes. `useFocusEffect` (not `useEffect`) keeps the
+  // listener off while the route is blurred, and its cleanup removes the
+  // subscription on blur, on dependency change, and on unmount.
+  const detailOpen = selected !== null
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+        if (!detailOpen) return false
+        setSelectedName(null)
+        return true
+      })
+      return () => subscription.remove()
+    }, [detailOpen]),
   )
 
   return (
