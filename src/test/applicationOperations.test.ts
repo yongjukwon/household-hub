@@ -132,7 +132,10 @@ describe('shared optimistic operation projection', () => {
         rows: Row[],
         operations: QueuedOperation[],
         entityType: string,
-        householdId?: string,
+        options?: {
+          householdId?: string
+          repairLegacyRevisions?: boolean
+        },
       ) => Row[]
     }
   ).applyOptimisticOverlay
@@ -159,7 +162,7 @@ describe('shared optimistic operation projection', () => {
         suppressUnpricedPurchaseWarning: false,
         revision: 3,
       },
-    ], [second, first], 'settings', householdId)).toEqual([
+    ], [second, first], 'settings', { householdId })).toEqual([
       {
         id: first.entityId,
         displayName: 'Yongju',
@@ -178,17 +181,18 @@ describe('shared optimistic operation projection', () => {
     clear.optimistic = null
 
     const rows = [{ id: '99999999-9999-4999-8999-999999999999' }]
-    expect(applyOptimisticOverlay?.(rows, [clear], 'notification', householdId))
-      .toEqual([])
+    expect(
+      applyOptimisticOverlay?.(rows, [clear], 'notification', { householdId }),
+    ).toEqual([])
     expect(applyOptimisticOverlay?.(
       rows,
       [clear],
       'notification',
-      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      { householdId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' },
     )).toEqual(rows)
   })
 
-  it('repairs legacy create revisions and treats legacy Ledger clears as destructive', () => {
+  it('repairs legacy create revisions only when the caller opts in', () => {
     const create = operation(1, '77777777-7777-4777-8777-777777777774')
     create.entityType = 'trip'
     create.entityId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab'
@@ -197,8 +201,15 @@ describe('shared optimistic operation projection', () => {
     create.command.entityId = create.entityId as never
     create.optimistic = { name: 'London' }
 
-    expect(applyOptimisticOverlay?.([], [create], 'trip', householdId))
-      .toEqual([{ id: create.entityId, name: 'London', revision: 1 }])
+    // Native opts in: its store can still hold pre-b7e4958 payloads.
+    expect(applyOptimisticOverlay?.([], [create], 'trip', {
+      householdId,
+      repairLegacyRevisions: true,
+    })).toEqual([{ id: create.entityId, name: 'London', revision: 1 }])
+
+    // Web does not, and must get its row back untouched.
+    expect(applyOptimisticOverlay?.([], [create], 'trip', { householdId }))
+      .toEqual([{ id: create.entityId, name: 'London' }])
 
     const clear = operation(2, '77777777-7777-4777-8777-777777777775')
     clear.entityType = 'ledger_year'
@@ -212,7 +223,7 @@ describe('shared optimistic operation projection', () => {
       [{ id: clear.entityId, year: 2026, revision: 2 }],
       [clear],
       'ledger_year',
-      householdId,
+      { householdId },
     )).toEqual([])
   })
 })

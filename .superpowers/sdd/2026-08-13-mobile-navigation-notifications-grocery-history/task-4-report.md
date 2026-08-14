@@ -523,3 +523,193 @@ Tests:       27 passed, 27 total
 `npx tsc -b` — exit 0. `cd mobile && npm run typecheck` — exit 0.
 
 `git diff --check` — no output.
+
+## Task 6 regression fix
+
+The Task 6 sweep was right, and the cause is narrower than "grocery needed it".
+
+### What actually happened
+
+Stamping `revision` was **never load-bearing for the grocery/purchase path**. It
+was not written for this branch at all. Before `4652c99` there were two
+divergent overlay implementations:
+
+- `src/lib/operations/overlay.ts` (web) — no revision stamping, ever.
+- `mobile/src/lib/operations/overlay.ts` (native) — stamping, added in
+  `b7e4958` "fix(mobile): repair legacy optimistic revisions". Its own test
+  names the reason: *"Mobile builds before the revision projection fix stored
+  this shape"* — native builds shipped before that fix persisted optimistic
+  payloads with no `revision`, and the native SQLite store can still hold them.
+
+`4652c99` merged the two into `packages/application/src/operations/overlay.ts`
+and took the native variant wholesale, so a **native storage-format repair got
+silently imposed on web**. That is the regression: not a grocery rule leaking,
+but a platform migration hack promoted to a shared projection rule.
+
+So the answer to "load-bearing or incidental" is: load-bearing, but for native
+only, and for a reason that has nothing to do with entity type. Special-casing
+by entity name would have been wrong — the real axis is *which queue's storage
+format you are reading*.
+
+### The fix
+
+`packages/application/src/operations/overlay.ts:9-25` replaces the trailing
+positional `householdId?: string` with an explicit options object:
+
+```ts
+export interface OptimisticOverlayOptions {
+  householdId?: string
+  repairLegacyRevisions?: boolean   // default false
+}
+```
+
+The repair is documented in place as a storage-format repair rather than a
+projection rule, and it now runs only when asked
+(`overlay.ts:67` — `if (repairLegacyRevisions && !isRevision(...))`). The type
+is re-exported from `packages/application/src/operations/index.ts:11`.
+
+The two adapters state their own contract, each with a comment saying why:
+
+- `src/lib/operations/overlay.ts:19` — `{ householdId }`; the Dexie queue never
+  stored revision-less optimistic payloads and web rows own their revision
+  semantics.
+- `mobile/src/lib/operations/overlay.ts:19-22` —
+  `{ householdId, repairLegacyRevisions: true }`.
+
+Because native opts in at the adapter, every native feature keeps the exact
+behavior it had before this branch; `mobile/src/lib/operations/queue.test.ts`
+needed only two mechanical signature updates (`:443` opts the direct
+`applyOptimisticOverlay` call into the repair it is explicitly testing, `:528`
+passes `{ householdId: HOUSEHOLD }` instead of the positional argument). No
+native assertion changed.
+
+### A second regression the sweep had not yet reached
+
+`4652c99` also edited **two web assertions** in
+`src/test/operationQueue.test.ts` to accommodate the new stamping — the same
+class of breakage as the two reported failures, just papered over instead of
+surfacing:
+
+```
+$ git diff cf0a6d1..HEAD -- src/test/operationQueue.test.ts   # before this fix
+-      { id: EVENT_A, title: 'Dentist (moved)', note: 'from partner' },
++      { ... note: 'from partner', revision: 1 },
+-    expect(merged).toEqual([{ id: EVENT_A, title: 'Second' }])
++    expect(merged).toEqual([{ id: EVENT_A, title: 'Second', revision: 1 }])
+```
+
+Both are reverted to their `cf0a6d1` form (`:572` and `:615`). That diff is
+now empty for this file.
+
+`src/test/applicationOperations.test.ts` is a file this branch added, so its
+overlay tests were updated to the new signature, and the revision case was
+split to pin **both** directions of the contract at `:204-212`: native opt-in
+still yields `revision: 1`, and the default leaves the row untouched.
+
+### Also silently affected, but untested
+
+Yes — and worth recording. The stamp only fired when a projected row ended
+without a valid revision (`isRevision` requires an integer >= 1), so any web
+feature whose mutation already writes `revision` into its optimistic payload
+was unaffected: `calendar_event` upserts, `note` upserts, `grocery_item`,
+`trip` / `trip_expense` / `trip_itinerary` / `trip_booking`, `ledger_asset`,
+`ledger_transfer`, `ledger_schedule`.
+
+The web mutations that do **not** carry a revision in their optimistic payload
+were silently receiving a fabricated `revision: 1` on an optimistic create,
+with no test to catch it:
+
+- `settings` (`src/features/settings/profile.ts:80` — `optimistic: payload`)
+- `ledger_year`, `ledger_category`, `ledger_limit`, `ledger_transaction`
+  (`src/features/ledger/statementMutations.ts:37,70,113,151`)
+
+For rows that do have a server row the merge keeps the server's revision, so
+the practical exposure was optimistic creates. All five are restored to
+pre-branch behavior by this fix. The two reported failures were the visible tip:
+a `calendar_event` row shaped `{ id, title }` with no revision concept, and a
+Note using `revision: 0` as its "no server row yet" sentinel — which
+`isRevision` rejects, so the overlay was overwriting a correct 0 with 1.
+
+### RED
+
+`npm test -- --run src/test/householdRealtime.test.tsx src/test/notesData.test.ts`
+
+```
+ FAIL  src/test/householdRealtime.test.tsx > useHouseholdRealtime > a partner's change does not erase this device's unsent edit
+AssertionError: expected [ { …(3) } ] to deeply equal [ { …(2) } ]
+  [
+    {
+      "id": "22222222-2222-4222-8222-222222222222",
++     "revision": 1,
+      "title": "Mine",
+    },
+  ]
+
+ FAIL  src/test/notesData.test.ts > useNote > reconstructs a note from the optimistic overlay when it has no server row yet
+AssertionError: expected { title: 'Grocery list', …(3) } to deeply equal { …(4) }
+    "id": "22222222-2222-4222-8222-222222222222",
+-   "revision": 0,
++   "revision": 1,
+    "title": "Grocery list",
+
+ Test Files  2 failed (2)
+      Tests  2 failed | 5 passed (7)
+```
+
+Neither test file was edited.
+
+### GREEN
+
+`npm test -- --run` (full root suite)
+
+```
+ Test Files  56 passed (56)
+      Tests  264 passed (264)
+```
+
+`cd mobile && npm test -- --runInBand`
+
+```
+Test Suites: 61 passed, 61 total
+Tests:       240 passed, 240 total
+```
+
+`cd mobile && npm run typecheck`
+
+```
+> mobile@1.0.0 typecheck
+> tsc --noEmit
+```
+
+`npm run build`
+
+```
+PWA v1.3.0
+mode      generateSW
+precache  108 entries (4575.59 KiB)
+files generated
+  dist/sw.js
+  dist/workbox-9c191d2f.js
+```
+
+`supabase test db --local`
+
+```
+All tests successful.
+Files=8, Tests=480,  2 wallclock secs
+Result: PASS
+```
+
+`npm run lint`
+
+```
+✖ 12 problems (12 errors, 0 warnings)
+```
+
+Still exactly the 12 known pre-existing errors, in the same four files:
+`mobile/app/(tabs)/index.test.tsx`, `mobile/app/(tabs)/index.tsx`,
+`mobile/src/components/AppChrome.tsx`,
+`mobile/src/features/settings/MobileNavigationEditor.tsx`.
+
+`npx eslint` over the seven changed files — exit 0.
+`git diff --check` — no output.

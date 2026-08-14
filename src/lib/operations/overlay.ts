@@ -14,7 +14,9 @@ export async function withOptimisticOverlay<Row extends EntityRow>(
   householdId?: string,
 ): Promise<Row[]> {
   const operations = await db.operations.orderBy('localSequence').toArray()
-  return applyOptimisticOverlay(rows, operations, entityType, householdId)
+  // No revision repair: the Dexie queue never stored revision-less optimistic
+  // payloads, and web rows own their revision semantics.
+  return applyOptimisticOverlay(rows, operations, entityType, { householdId })
 }
 
 /** True while any command for this entity is still unsent. */

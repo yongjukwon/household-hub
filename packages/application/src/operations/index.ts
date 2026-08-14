@@ -8,6 +8,7 @@ import type {
 export {
   applyOptimisticOverlay,
   type EntityRow,
+  type OptimisticOverlayOptions,
 } from './overlay'
 
 export type { OperationCommand, OperationResult } from '@household-hub/domain'

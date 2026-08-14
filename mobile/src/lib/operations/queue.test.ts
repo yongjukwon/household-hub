@@ -440,6 +440,7 @@ describe('durable operation queue', () => {
         },
       ],
       'trip',
+      { repairLegacyRevisions: true },
     )
 
     expect(merged).toEqual([
@@ -524,7 +525,7 @@ describe('durable operation queue', () => {
         },
       ],
       'notification',
-      HOUSEHOLD,
+      { householdId: HOUSEHOLD },
     )
 
     expect(merged).toEqual([{ id: EVENT_A, title: 'Current household activity' }])

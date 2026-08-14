@@ -14,7 +14,12 @@ export async function withOptimisticOverlay<Row extends EntityRow>(
   householdId?: string,
 ): Promise<Row[]> {
   const operations = await getOperationStore().listOperations()
-  return applyOptimisticOverlay(rows, operations, entityType, householdId)
+  // The native store can still hold operations enqueued by builds that shipped
+  // before optimistic payloads carried a revision, so repair them on read.
+  return applyOptimisticOverlay(rows, operations, entityType, {
+    householdId,
+    repairLegacyRevisions: true,
+  })
 }
 
 /** True while any command for this entity is still unsent. */
