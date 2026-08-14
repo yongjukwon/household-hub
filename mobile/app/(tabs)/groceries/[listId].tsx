@@ -19,6 +19,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/states'
 import { GroceryItemActions } from '@/features/groceries/GroceryItemActions'
 import { useActiveHousehold } from '@/features/household'
 import {
+  calculateUnitPriceCents,
   displayedPriceHistory,
   groceryNameSuggestions,
   normalizeItemName,
@@ -215,28 +216,84 @@ export default function GroceryListScreen() {
 
   async function checkWithPrice(item: GroceryItem, quantity: number, totalPriceCents: number) {
     if (!householdId) return
-    const outcome = await saveGroceryItem(householdId, {
-      ...item,
-      quantity: String(quantity),
-      checked: true,
-      purchaseQuantity: quantity,
-      totalPriceCents,
-      unitPriceCents: Math.round(totalPriceCents / quantity),
-      purchaseOccurrenceId: newUuid(),
-    }, item.revision)
-    const message = operationOutcomeError(outcome)
-    if (message) setError(message)
-    else setPurchaseItem(null)
+    setBusy(true)
+    setError(null)
+    try {
+      const outcome = await saveGroceryItem(householdId, {
+        ...item,
+        quantity: String(quantity),
+        checked: true,
+        purchaseQuantity: quantity,
+        totalPriceCents,
+        unitPriceCents: Math.round(calculateUnitPriceCents(totalPriceCents, quantity)),
+        purchaseOccurrenceId: newUuid(),
+      }, item.revision)
+      const message = operationOutcomeError(outcome)
+      if (message) setError(message)
+      else setPurchaseItem(null)
+    } catch (failure) {
+      setError(operationThrownError(failure, 'Could not record this purchase.'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function persistUnpricedCheck(item: GroceryItem): Promise<boolean> {
+    if (!householdId) return false
+    try {
+      const outcome = await toggleGroceryItem(householdId, item, true)
+      const message = operationOutcomeError(outcome)
+      if (message) {
+        setError(message)
+        return false
+      }
+      setPurchaseItem(null)
+      setUnpricedWarningItem(null)
+      setSuppressWarning(false)
+      return true
+    } catch (failure) {
+      setError(operationThrownError(failure, 'Could not check this item.'))
+      return false
+    }
   }
 
   async function checkWithoutPrice(item: GroceryItem) {
-    if (!householdId) return
-    const outcome = await toggleGroceryItem(householdId, item, true)
-    const message = operationOutcomeError(outcome)
-    if (message) setError(message)
-    else {
-      setPurchaseItem(null)
-      setUnpricedWarningItem(null)
+    setBusy(true)
+    setError(null)
+    try {
+      await persistUnpricedCheck(item)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function confirmUnpricedCheck() {
+    if (!unpricedWarningItem || !householdId) return
+    setBusy(true)
+    setError(null)
+    try {
+      if (suppressWarning) {
+        if (!profile.data) {
+          setError('Your profile is not available. Try again.')
+          return
+        }
+        const outcome = await saveProfileSettings(
+          householdId,
+          profile.data.userId,
+          { suppressUnpricedPurchaseWarning: true },
+          profile.data.revision,
+        )
+        const message = operationOutcomeError(outcome)
+        if (message) {
+          setError(message)
+          return
+        }
+      }
+      await persistUnpricedCheck(unpricedWarningItem)
+    } catch (failure) {
+      setError(operationThrownError(failure, 'Could not save this preference.'))
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -274,7 +331,13 @@ export default function GroceryListScreen() {
     <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['bottom']}>
       <FlatList
         data={rows}
-        keyExtractor={(row, i) => (row.kind === 'item' ? row.item.id : `heading-${i}`)}
+        keyExtractor={(row) =>
+          row.kind === 'item'
+            ? row.item.id
+            : row.kind === 'history'
+              ? `${row.item.id}:history`
+              : 'checked-heading'
+        }
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <View>
@@ -322,7 +385,7 @@ export default function GroceryListScreen() {
                 </View>
               ) : null}
             </Card>
-            {error && !confirmClear && !deleteItem ? (
+            {error && !confirmClear && !deleteItem && !purchaseItem && !unpricedWarningItem ? (
               <Text style={[styles.error, { color: tokens.danger }]}>
                 {error}
               </Text>
@@ -375,26 +438,39 @@ export default function GroceryListScreen() {
       {purchaseItem ? (
         <PurchasePrompt
           item={purchaseItem}
-          onCancel={() => setPurchaseItem(null)}
+          saving={busy}
+          submissionError={unpricedWarningItem ? null : error}
+          onCancel={() => {
+            setError(null)
+            setPurchaseItem(null)
+          }}
           onSavePrice={(quantity, total) => void checkWithPrice(purchaseItem, quantity, total)}
           onCheckWithoutPrice={() => {
             if (profile.data?.suppressUnpricedPurchaseWarning) void checkWithoutPrice(purchaseItem)
-            else setUnpricedWarningItem(purchaseItem)
+            else {
+              setError(null)
+              setSuppressWarning(false)
+              setUnpricedWarningItem(purchaseItem)
+            }
           }}
         />
       ) : null}
       <ConfirmDialog
         open={unpricedWarningItem !== null}
-        onOpenChange={(open) => { if (!open) setUnpricedWarningItem(null) }}
+        onOpenChange={(open) => {
+          if (!open) {
+            setError(null)
+            setSuppressWarning(false)
+            setUnpricedWarningItem(null)
+          }
+        }}
         title="Check without a price?"
         description="This purchase will not enter price history."
+        error={unpricedWarningItem ? error : null}
         confirmLabel="Check without price"
-        onConfirm={() => {
-          if (suppressWarning && householdId && profile.data) {
-            void saveProfileSettings(householdId, profile.data.userId, { suppressUnpricedPurchaseWarning: true }, profile.data.revision)
-          }
-          if (unpricedWarningItem) void checkWithoutPrice(unpricedWarningItem)
-        }}
+        confirmDisabled={busy}
+        destructive={false}
+        onConfirm={() => void confirmUnpricedCheck()}
       >
         <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: suppressWarning }} onPress={() => setSuppressWarning((value) => !value)}>
           <Text style={{ color: tokens.ink }}>{suppressWarning ? '☑' : '☐'} Don’t show this warning again</Text>
@@ -483,7 +559,12 @@ function ItemRow({
         </View>
         {item.unitPriceCents !== null ? (
           <Text style={[styles.itemPrice, { color: tokens.muted }]}>
-            {formatMoney(item.unitPriceCents, 'CAD')}
+            {formatMoney(
+              item.totalPriceCents !== null && item.purchaseQuantity !== null
+                ? calculateUnitPriceCents(item.totalPriceCents, item.purchaseQuantity)
+                : item.unitPriceCents,
+              'CAD',
+            )}
           </Text>
         ) : null}
       </Pressable>
@@ -515,7 +596,9 @@ function HistoryPanel({
       ) : history.map((entry) => (
         <View key={entry.id} style={styles.historyRow}>
           <View>
-            <Text style={[styles.historyPrice, { color: tokens.ink }]}>{formatMoney(entry.priceCents, 'CAD')} each</Text>
+            <Text style={[styles.historyPrice, { color: tokens.ink }]}>
+              {formatMoney(calculateUnitPriceCents(entry.totalPriceCents, entry.purchaseQuantity), 'CAD')} each
+            </Text>
             <Text style={[styles.historyMeta, { color: tokens.muted }]}>{entry.purchaseQuantity} · {formatMoney(entry.totalPriceCents, 'CAD')} total</Text>
           </View>
           <Text style={[styles.historyMeta, { color: tokens.muted }]}>{entry.listName} · {formatPurchaseDate(entry.recordedAt)}</Text>

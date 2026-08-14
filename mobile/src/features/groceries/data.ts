@@ -194,7 +194,15 @@ export function sortGroceryItems(items: GroceryItem[]): {
   return { unchecked, checked }
 }
 
-/** Item-scoped five-cheapest purchase history, without currency conversion. */
+/** Exact per-item price in cents; callers round only when formatting for display. */
+export function calculateUnitPriceCents(
+  totalPriceCents: number,
+  purchaseQuantity: number,
+): number {
+  return totalPriceCents / purchaseQuantity
+}
+
+/** Item-scoped cheapest and most-expensive purchase history. */
 export function displayedPriceHistory(
   history: PriceHistoryEntry[],
   normalizedName: string,
@@ -203,7 +211,8 @@ export function displayedPriceHistory(
     .filter((entry) => entry.itemNameNormalized === normalizedName)
     .sort(
       (left, right) =>
-        left.priceCents - right.priceCents ||
+        calculateUnitPriceCents(left.totalPriceCents, left.purchaseQuantity) -
+          calculateUnitPriceCents(right.totalPriceCents, right.purchaseQuantity) ||
         right.recordedAt.localeCompare(left.recordedAt),
     )
   if (matching.length < 6) return matching

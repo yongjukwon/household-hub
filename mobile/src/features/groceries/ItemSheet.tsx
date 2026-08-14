@@ -103,6 +103,7 @@ export function ItemSheet({
             accessibilityLabel="Quantity"
             value={quantity}
             onChangeText={setQuantity}
+            keyboardType="decimal-pad"
             placeholder="e.g. 2"
             placeholderTextColor={tokens.muted3}
             style={[
