@@ -2,7 +2,8 @@ import { fireEvent, render } from '@testing-library/react-native'
 import { StyleSheet, TextInput } from 'react-native'
 
 import { AppHeader } from './AppHeader'
-import { AppChromeProvider, useAppChrome } from './AppChrome'
+import { useAppChrome } from './AppChrome'
+import { AppChromeProvider } from './AppChromeProvider'
 import {
   backDestinationForPath,
   titleForPath,

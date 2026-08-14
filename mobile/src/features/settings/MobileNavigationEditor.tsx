@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import {
@@ -22,13 +22,29 @@ export function MobileNavigationEditor({
   saving: boolean
   onSave: (value: MobileNavigation) => Promise<void>
 }) {
-  const { tokens } = useTheme()
-  const [draft, setDraft] = useState<MobileNavigation>(value ?? DEFAULT_MOBILE_NAVIGATION)
-  const [saveError, setSaveError] = useState<string | null>(null)
+  const initialValue = value ?? DEFAULT_MOBILE_NAVIGATION
+  return (
+    <MobileNavigationDraftEditor
+      key={initialValue.join(':')}
+      initialValue={initialValue}
+      saving={saving}
+      onSave={onSave}
+    />
+  )
+}
 
-  useEffect(() => {
-    if (value) setDraft(value)
-  }, [value])
+function MobileNavigationDraftEditor({
+  initialValue,
+  saving,
+  onSave,
+}: {
+  initialValue: MobileNavigation
+  saving: boolean
+  onSave: (value: MobileNavigation) => Promise<void>
+}) {
+  const { tokens } = useTheme()
+  const [draft, setDraft] = useState<MobileNavigation>(initialValue)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   async function save() {
     setSaveError(null)

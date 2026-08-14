@@ -1,5 +1,5 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native'
-import CalendarScreen from './index'
+import CalendarScreen from '../../../app/(tabs)/index'
 import type { InboxNotification } from '@/features/notifications'
 
 const EVENT_ID = '44444444-4444-4444-8444-444444444444'
@@ -51,18 +51,18 @@ jest.mock('expo-router', () => ({
 }))
 jest.mock('@/components/AppChrome', () => ({ useAppChrome: jest.fn() }))
 jest.mock('@/components/Card', () => {
-  const React = require('react')
-  const { View } = require('react-native')
+  const React = jest.requireActual<typeof import('react')>('react')
+  const { View } = jest.requireActual<typeof import('react-native')>('react-native')
   return { Card: (props: { children: React.ReactNode }) => React.createElement(View, null, props.children) }
 })
 jest.mock('@/components/ListCard', () => {
-  const React = require('react')
-  const { View } = require('react-native')
+  const React = jest.requireActual<typeof import('react')>('react')
+  const { View } = jest.requireActual<typeof import('react-native')>('react-native')
   return { ListCard: (props: { children: React.ReactNode }) => React.createElement(View, null, props.children) }
 })
 jest.mock('@/components/states', () => {
-  const React = require('react')
-  const { Text } = require('react-native')
+  const React = jest.requireActual<typeof import('react')>('react')
+  const { Text } = jest.requireActual<typeof import('react-native')>('react-native')
   return {
     EmptyState: (props: { title: string }) => React.createElement(Text, null, props.title),
     ErrorState: (props: { message: string }) => React.createElement(Text, null, props.message),
@@ -70,8 +70,8 @@ jest.mock('@/components/states', () => {
   }
 })
 jest.mock('@/features/calendar/EventSheet', () => {
-  const React = require('react')
-  const { View } = require('react-native')
+  const React = jest.requireActual<typeof import('react')>('react')
+  const { View } = jest.requireActual<typeof import('react-native')>('react-native')
   return {
     EventSheet: (props: { open: boolean }) => React.createElement(View, {
       testID: 'event-sheet',

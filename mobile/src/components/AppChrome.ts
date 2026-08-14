@@ -2,7 +2,6 @@ import {
   createContext,
   useContext,
   useLayoutEffect,
-  useState,
   type ReactNode,
 } from 'react'
 
@@ -20,23 +19,10 @@ export interface AppChromeConfiguration {
   saveDisabled?: boolean
 }
 
-const AppChromeStateContext = createContext<AppChromeConfiguration | null>(null)
-const AppChromeRegistrationContext = createContext<
+export const AppChromeStateContext = createContext<AppChromeConfiguration | null>(null)
+export const AppChromeRegistrationContext = createContext<
   (configuration: AppChromeConfiguration | null) => void
 >(() => undefined)
-
-/** Holds the one screen-owned header configuration visible around tab routes. */
-export function AppChromeProvider({ children }: { children: ReactNode }) {
-  const [configuration, setConfiguration] = useState<AppChromeConfiguration | null>(null)
-
-  return (
-    <AppChromeRegistrationContext.Provider value={setConfiguration}>
-      <AppChromeStateContext.Provider value={configuration}>
-        {children}
-      </AppChromeStateContext.Provider>
-    </AppChromeRegistrationContext.Provider>
-  )
-}
 
 /** Registers a route's centered title and the actions that belong in shared chrome. */
 export function useAppChrome(configuration: AppChromeConfiguration): void {

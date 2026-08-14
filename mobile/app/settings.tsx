@@ -116,7 +116,6 @@ export default function SettingsScreen() {
       { notificationsEnabled: next },
       profile.data.revision,
     )
-    void profile.refetch()
   }
 
   async function saveNavigation(next: NonNullable<typeof profile.data>['mobileNavigation']) {
@@ -132,7 +131,6 @@ export default function SettingsScreen() {
       )
       const message = operationOutcomeError(outcome)
       if (message) setNotice(message)
-      else void profile.refetch()
     } catch (failure) {
       setNotice(operationThrownError(failure, 'Could not save navigation.'))
     } finally {

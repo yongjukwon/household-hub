@@ -3,7 +3,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import NoteScreen from '../../../app/(tabs)/notes/[noteId]'
 import { AppHeader } from '@/components/AppHeader'
-import { AppChromeProvider } from '@/components/AppChrome'
+import { AppChromeProvider } from '@/components/AppChromeProvider'
 import { useActiveHousehold } from '@/features/household'
 import { useNote } from './data'
 

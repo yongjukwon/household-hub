@@ -16,7 +16,7 @@ import {
 import { useAuth } from '@/lib/auth/AuthContext'
 
 import { AppHeader } from '@/components/AppHeader'
-import { AppChromeProvider } from '@/components/AppChrome'
+import { AppChromeProvider } from '@/components/AppChromeProvider'
 import { GradientBackground } from '@/components/GradientBackground'
 import {
   FloatingTabBar,

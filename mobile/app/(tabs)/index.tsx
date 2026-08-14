@@ -86,6 +86,9 @@ export default function CalendarScreen() {
     () => (deepLinkId ? eventList.find((e) => e.id === deepLinkId) ?? null : null),
     [deepLinkId, eventList],
   )
+  /* eslint-disable react-hooks/set-state-in-effect -- Route search params are
+   * external navigation state. Opening the requested event and consuming the
+   * param is the synchronization this effect owns. */
   useEffect(() => {
     if (!deepLinked || sheetOpen || editing?.id === deepLinked.id) return
     setEditing(deepLinked)
@@ -116,6 +119,7 @@ export default function CalendarScreen() {
     sheetOpen,
     tz,
   ])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const grid = useMemo(() => buildMonthGrid(cursor.year, cursor.month1), [cursor])
   // Chunked into 7-day rows and rendered as explicit `flex:1` rows rather
