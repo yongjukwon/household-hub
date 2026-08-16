@@ -45,9 +45,9 @@ describe('normalizeItemName', () => {
 describe('latestPriceByName', () => {
   it('keeps the most recent entry per normalized name', () => {
     const latest = latestPriceByName([
-      { id: '1', itemNameNormalized: 'milk', itemName: 'Milk', priceCents: 400, recordedAt: '2026-07-01T00:00:00Z', listName: 'Market' },
-      { id: '2', itemNameNormalized: 'milk', itemName: 'Milk', priceCents: 450, recordedAt: '2026-07-05T00:00:00Z', listName: 'Costco' },
-      { id: '3', itemNameNormalized: 'eggs', itemName: 'Eggs', priceCents: 600, recordedAt: '2026-07-02T00:00:00Z', listName: 'Market' },
+      { id: '1', itemNameNormalized: 'milk', itemName: 'Milk', priceCents: 400, recordedAt: '2026-07-01T00:00:00Z', listName: 'Market', purchaseQuantity: 1, totalPriceCents: 400, sourceItemId: null, purchaseOccurrenceId: null },
+      { id: '2', itemNameNormalized: 'milk', itemName: 'Milk', priceCents: 450, recordedAt: '2026-07-05T00:00:00Z', listName: 'Costco', purchaseQuantity: 1, totalPriceCents: 450, sourceItemId: null, purchaseOccurrenceId: null },
+      { id: '3', itemNameNormalized: 'eggs', itemName: 'Eggs', priceCents: 600, recordedAt: '2026-07-02T00:00:00Z', listName: 'Market', purchaseQuantity: 1, totalPriceCents: 600, sourceItemId: null, purchaseOccurrenceId: null },
     ])
     expect(latest.get('milk')?.priceCents).toBe(450)
     expect(latest.get('eggs')?.priceCents).toBe(600)

@@ -440,6 +440,7 @@ describe('durable operation queue', () => {
         },
       ],
       'trip',
+      { repairLegacyPayloads: true },
     )
 
     expect(merged).toEqual([
@@ -473,6 +474,63 @@ describe('durable operation queue', () => {
     expect(merged).toEqual([{ id: EVENT_B, title: 'B' }])
   })
 
+  it('applyOptimisticOverlay removes every notification for a queued clear', () => {
+    const merged = applyOptimisticOverlay(
+      [
+        { id: EVENT_A, title: 'A' },
+        { id: EVENT_B, title: 'B' },
+      ],
+      [
+        {
+          operationId: uuid('55555555-5555-4555-8555-555555555555'),
+          localSequence: 1,
+          householdId: HOUSEHOLD,
+          entityType: 'notification',
+          entityId: EVENT_A,
+          command: {
+            type: 'notification.clear',
+            baseRevision: null,
+          } as never,
+          optimistic: null,
+          enqueuedAt: '2026-07-25T00:00:00.000Z',
+          attempts: 0,
+          lastError: null,
+        },
+      ],
+      'notification',
+    )
+
+    expect(merged).toEqual([])
+  })
+
+  it('keeps another household activity when overlaying a notification clear', () => {
+    const otherHousehold = uuid('99999999-9999-4999-8999-999999999999')
+    const merged = applyOptimisticOverlay(
+      [{ id: EVENT_A, title: 'Current household activity' }],
+      [
+        {
+          operationId: uuid('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+          localSequence: 1,
+          householdId: otherHousehold,
+          entityType: 'notification',
+          entityId: EVENT_B,
+          command: {
+            type: 'notification.clear',
+            baseRevision: null,
+          } as never,
+          optimistic: null,
+          enqueuedAt: '2026-08-13T00:00:00.000Z',
+          attempts: 0,
+          lastError: null,
+        },
+      ],
+      'notification',
+      { householdId: HOUSEHOLD },
+    )
+
+    expect(merged).toEqual([{ id: EVENT_A, title: 'Current household activity' }])
+  })
+
   it('treats a legacy queued Statement clear as destructive', () => {
     const statement = {
       id: EVENT_A,
@@ -500,6 +558,7 @@ describe('durable operation queue', () => {
         },
       ],
       'ledger_year',
+      { repairLegacyPayloads: true },
     )
 
     expect(merged).toEqual([])

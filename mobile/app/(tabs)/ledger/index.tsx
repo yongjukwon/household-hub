@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-import { FloatingActionButton } from '@/components/FloatingActionButton'
+import { useAppChrome } from '@/components/AppChrome'
 import { SegmentedControl } from '@/components/SegmentedControl'
 import { ErrorState } from '@/components/states'
 import { useActiveHousehold } from '@/features/household'
@@ -50,6 +50,12 @@ export default function LedgerScreen() {
     })
   }
 
+  useAppChrome({
+    mode: 'root',
+    title: 'Ledger',
+    onAdd: () => setNewYearOpen(true),
+  })
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -86,13 +92,6 @@ export default function LedgerScreen() {
           />
         )}
       </ScrollView>
-
-      {segment === 'statements' ? (
-        <FloatingActionButton
-          accessibilityLabel="New statement year"
-          onPress={() => setNewYearOpen(true)}
-        />
-      ) : null}
 
       {householdId ? (
         <NewYearSheet

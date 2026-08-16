@@ -13,6 +13,7 @@ import {
 } from './icons'
 
 export interface Destination {
+  key: 'schedule' | 'groceries' | 'ledger' | 'notes' | 'trips'
   path: '/' | '/groceries' | '/ledger' | '/notes' | '/trips'
   label: string
   icon: (props: IconProps) => React.JSX.Element
@@ -20,11 +21,11 @@ export interface Destination {
 }
 
 export const TAB_DESTINATIONS: Destination[] = [
-  { path: '/', label: 'Schedule', icon: CalendarIcon, activeIcon: CalendarIconFilled },
-  { path: '/groceries', label: 'Groceries', icon: GroceriesIcon, activeIcon: GroceriesIconFilled },
-  { path: '/ledger', label: 'Ledger', icon: LedgerIcon, activeIcon: LedgerIconFilled },
-  { path: '/notes', label: 'Notes', icon: NotesIcon, activeIcon: NotesIconFilled },
-  { path: '/trips', label: 'Trips', icon: TripsIcon, activeIcon: TripsIconFilled },
+  { key: 'schedule', path: '/', label: 'Schedule', icon: CalendarIcon, activeIcon: CalendarIconFilled },
+  { key: 'groceries', path: '/groceries', label: 'Groceries', icon: GroceriesIcon, activeIcon: GroceriesIconFilled },
+  { key: 'ledger', path: '/ledger', label: 'Ledger', icon: LedgerIcon, activeIcon: LedgerIconFilled },
+  { key: 'notes', path: '/notes', label: 'Notes', icon: NotesIcon, activeIcon: NotesIconFilled },
+  { key: 'trips', path: '/trips', label: 'Trips', icon: TripsIcon, activeIcon: TripsIconFilled },
 ]
 
 export function tabActiveForPath(

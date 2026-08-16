@@ -9,6 +9,9 @@ export const queryKeys = {
     lists: (householdId: string) => ['household', householdId, 'groceries'] as const,
     list: (householdId: string, listId: string) =>
       ['household', householdId, 'groceries', 'list', listId] as const,
+    /** Household-wide purchase history, not scoped to any one list. */
+    purchaseHistory: (householdId: string) =>
+      ['household', householdId, 'groceries', 'purchase-history'] as const,
   },
   ledger: {
     years: (householdId: string) => ['household', householdId, 'ledger', 'years'] as const,

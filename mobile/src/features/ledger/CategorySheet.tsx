@@ -84,6 +84,7 @@ export function CategorySheet({
           householdId,
           categoryId,
           categoryId,
+          yearId,
           month,
           cents,
           null,
@@ -111,6 +112,7 @@ export function CategorySheet({
       const outcome = await deleteCategory(
         householdId,
         existing.categoryId,
+        yearId,
         month,
         existing.revision,
       )

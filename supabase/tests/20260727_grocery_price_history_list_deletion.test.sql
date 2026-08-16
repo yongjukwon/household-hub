@@ -121,7 +121,7 @@ select is(
           'listId', '30000000-0000-4000-8000-0000000000d1',
           'name', 'Eggs',
           'quantity', null,
-          'checked', false,
+          'checked', true,
           'unitPriceCents', 349,
           'sortOrder', 0
         ),
@@ -130,7 +130,7 @@ select is(
     )->>'status'
   ),
   'applied',
-  'Eggs is added to Week 1 with a price'
+  'Eggs is purchased in Week 1 at $3.49'
 );
 
 select is(
@@ -230,7 +230,7 @@ select is(
           'listId', '30000000-0000-4000-8000-0000000000d3',
           'name', 'Eggs',
           'quantity', null,
-          'checked', false,
+          'checked', true,
           'unitPriceCents', 399,
           'sortOrder', 0
         ),
@@ -239,7 +239,7 @@ select is(
     )->>'status'
   ),
   'applied',
-  'Eggs is added to Week 2 with a new price'
+  'Eggs is purchased in Week 2 at a new price'
 );
 
 select is(

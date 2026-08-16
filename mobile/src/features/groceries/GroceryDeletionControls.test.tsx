@@ -5,6 +5,7 @@ import GroceryListScreen from '../../../app/(tabs)/groceries/[listId]'
 import { useActiveHousehold } from '@/features/household'
 import { ItemSheet } from './ItemSheet'
 import { useGroceryList, useGroceryLists } from './data'
+import { useProfile } from '@/features/settings/profile'
 
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({
@@ -25,12 +26,14 @@ jest.mock('./data', () => {
     useGroceryLists: jest.fn(),
   }
 })
+jest.mock('@/features/settings/profile', () => ({ useProfile: jest.fn() }))
 
 const mockedHousehold = useActiveHousehold as jest.MockedFunction<
   typeof useActiveHousehold
 >
 const mockedList = useGroceryList as jest.MockedFunction<typeof useGroceryList>
 const mockedLists = useGroceryLists as jest.MockedFunction<typeof useGroceryLists>
+const mockedProfile = useProfile as jest.MockedFunction<typeof useProfile>
 
 const item = {
   id: '33333333-3333-4333-8333-333333333333',
@@ -40,6 +43,9 @@ const item = {
   checked: false,
   checkedAt: null,
   unitPriceCents: 499,
+  purchaseQuantity: 1,
+  totalPriceCents: 499,
+  purchaseOccurrenceId: null,
   sortOrder: 0,
   revision: 1,
 }
@@ -58,6 +64,7 @@ function provider(children: React.ReactNode) {
 }
 
 beforeEach(() => {
+  mockedProfile.mockReturnValue({ data: null } as unknown as ReturnType<typeof useProfile>)
   mockedHousehold.mockReturnValue({
     data: {
       id: '11111111-1111-4111-8111-111111111111',

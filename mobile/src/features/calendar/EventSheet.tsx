@@ -175,26 +175,26 @@ export function EventSheet({
         />
       </View>
 
-      <View style={styles.dateRow}>
-        <View style={styles.dateField}>
-          <DateTimeField
-            label="Starts"
-            value={form.start}
-            mode={form.allDay ? 'date' : 'datetime'}
-            onChange={(start) =>
-              update({ start, end: form.end < start ? start : form.end })
-            }
-          />
-        </View>
-        <View style={styles.dateField}>
-          <DateTimeField
-            label="Ends"
-            value={form.end}
-            mode={form.allDay ? 'date' : 'datetime'}
-            minimumDate={form.start}
-            onChange={(end) => update({ end })}
-          />
-        </View>
+      <View style={styles.field}>
+        <DateTimeField
+          label="Starts"
+          value={form.start}
+          mode={form.allDay ? 'date' : 'datetime'}
+          iosDisplay="compact"
+          onChange={(start) =>
+            update({ start, end: form.end < start ? start : form.end })
+          }
+        />
+      </View>
+      <View style={styles.field}>
+        <DateTimeField
+          label="Ends"
+          value={form.end}
+          mode={form.allDay ? 'date' : 'datetime'}
+          minimumDate={form.start}
+          iosDisplay="compact"
+          onChange={(end) => update({ end })}
+        />
       </View>
       {!form.allDay ? (
         <Text style={[styles.hint, { color: tokens.muted }]}>Times in {tz}.</Text>
@@ -475,8 +475,6 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   switchLabel: { fontSize: 15, fontWeight: '500' },
-  dateRow: { flexDirection: 'row', gap: 12, marginBottom: 4 },
-  dateField: { flex: 1 },
   hint: { fontSize: 11.5, marginTop: 6, marginBottom: 10 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 },

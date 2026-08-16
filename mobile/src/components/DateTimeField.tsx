@@ -9,29 +9,53 @@ interface DateTimeFieldProps {
   value: Date
   mode: 'date' | 'time' | 'datetime'
   minimumDate?: Date
+  maximumDate?: Date
+  /** Override the iOS display style. Defaults to 'inline' for dates, 'spinner' for times. */
+  iosDisplay?: 'inline' | 'spinner' | 'compact'
   onChange: (date: Date) => void
 }
 
 /**
- * A labeled field that opens the platform's native date/time picker. iOS
- * renders the picker inline once opened (compact spinner popover); Android's
- * picker is an imperative dialog, so the component unmounts itself once a
- * value is picked or the dialog is dismissed — the standard cross-platform
- * pattern for `@react-native-community/datetimepicker`.
+ * iOS: renders the picker inline — a calendar for dates, a scroll wheel for
+ * times. Callers can override via `iosDisplay`.
+ * Android: tap-to-open dialog (the platform's only option).
  */
 export function DateTimeField({
   label,
   value,
   mode,
   minimumDate,
+  maximumDate,
+  iosDisplay,
   onChange,
 }: DateTimeFieldProps) {
   const { tokens } = useTheme()
   const [open, setOpen] = useState(false)
 
+  const resolvedIosDisplay = iosDisplay ?? (mode === 'time' ? 'spinner' : 'inline')
+
+  if (Platform.OS === 'ios') {
+    return (
+      <View>
+        {label ? <Text style={[styles.label, { color: tokens.muted }]}>{label}</Text> : null}
+        <DateTimePicker
+          value={value}
+          mode={mode}
+          minimumDate={minimumDate}
+          maximumDate={maximumDate}
+          display={resolvedIosDisplay}
+          onChange={(_event, date) => {
+            if (date) onChange(date)
+          }}
+          style={resolvedIosDisplay === 'spinner' ? styles.spinner : undefined}
+        />
+      </View>
+    )
+  }
+
   return (
     <View>
-      <Text style={[styles.label, { color: tokens.muted }]}>{label}</Text>
+      {label ? <Text style={[styles.label, { color: tokens.muted }]}>{label}</Text> : null}
       <Pressable
         accessibilityRole="button"
         onPress={() => setOpen(true)}
@@ -45,14 +69,15 @@ export function DateTimeField({
         </Text>
       </Pressable>
 
-      {open && (Platform.OS === 'ios' || Platform.OS === 'android') ? (
+      {open ? (
         <DateTimePicker
           value={value}
-          mode={mode}
+          mode={mode === 'datetime' ? 'date' : mode}
           minimumDate={minimumDate}
-          display={Platform.OS === 'ios' ? 'compact' : 'default'}
+          maximumDate={maximumDate}
+          display={mode === 'time' ? 'clock' : 'calendar'}
           onChange={(event, date) => {
-            if (Platform.OS === 'android') setOpen(false)
+            setOpen(false)
             if (event.type === 'dismissed') return
             if (date) onChange(date)
           }}
@@ -88,4 +113,5 @@ const styles = StyleSheet.create({
   label: { fontSize: 12.5, fontWeight: '600', marginBottom: 6 },
   field: { borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12 },
   value: { fontSize: 15 },
+  spinner: { height: 150 },
 })

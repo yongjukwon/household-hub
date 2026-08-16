@@ -179,6 +179,37 @@ select ok(
   'only authenticated API clients receive RPC execution privilege'
 );
 
+select ok(
+  not has_function_privilege(
+    'public', 'public.mobile_valid_navigation(jsonb)', 'EXECUTE'
+  )
+  and not has_function_privilege(
+    'anon', 'public.mobile_valid_navigation(jsonb)', 'EXECUTE'
+  )
+  and not has_function_privilege(
+    'authenticated', 'public.mobile_valid_navigation(jsonb)', 'EXECUTE'
+  )
+  and not has_function_privilege(
+    'public', 'public.mobile_operation_payload_valid(text,jsonb)', 'EXECUTE'
+  )
+  and not has_function_privilege(
+    'anon', 'public.mobile_operation_payload_valid(text,jsonb)', 'EXECUTE'
+  )
+  and not has_function_privilege(
+    'authenticated', 'public.mobile_operation_payload_valid(text,jsonb)', 'EXECUTE'
+  )
+  and not has_function_privilege(
+    'public', 'public.mobile_expected_entity_type(text)', 'EXECUTE'
+  )
+  and not has_function_privilege(
+    'anon', 'public.mobile_expected_entity_type(text)', 'EXECUTE'
+  )
+  and not has_function_privilege(
+    'authenticated', 'public.mobile_expected_entity_type(text)', 'EXECUTE'
+  ),
+  'navigation validation helpers are not client-callable'
+);
+
 select is(
   (
     select count(*)::integer
@@ -199,6 +230,7 @@ select is(
       'household_grocery_lists',
       'household_grocery_items',
       'household_grocery_price_history',
+      'household_grocery_purchase_occurrences',
       'calendar_event_reminders',
       'notifications',
       'household_trips',
@@ -214,7 +246,7 @@ select is(
       and c.relkind = 'r'
       and c.relrowsecurity
   ),
-  24,
+  25,
   'every new household table has RLS enabled'
 );
 
@@ -238,6 +270,7 @@ select is(
       'household_grocery_lists',
       'household_grocery_items',
       'household_grocery_price_history',
+      'household_grocery_purchase_occurrences',
       'calendar_event_reminders',
       'notifications',
       'household_trips',
@@ -1462,8 +1495,8 @@ select is(
       and item_name_normalized = 'milk'
       and price_cents = 499
   ),
-  1,
-  'a Grocery price is appended to immutable CAD history'
+  0,
+  'an entered price on an unchecked item is not yet a purchase'
 );
 
 select is(
@@ -1514,6 +1547,18 @@ where id = '30000000-0000-4000-8000-00000000000f';
 select ok(
   (select first_checked_at is not null from grocery_check_times),
   'checking an item assigns its purchase timestamp'
+);
+
+select is(
+  (
+    select count(*)::integer
+    from public.household_grocery_price_history
+    where list_id = '30000000-0000-4000-8000-00000000000e'
+      and item_name_normalized = 'milk'
+      and price_cents = 499
+  ),
+  1,
+  'checking the item appends the purchase to household-wide history'
 );
 
 select is(
@@ -1952,6 +1997,98 @@ select is(
   ),
   21,
   'Realtime publishes all user-facing mobile-first change tables'
+);
+
+select is(
+  (
+    select mobile_navigation
+    from public.profiles
+    where user_id = '00000000-0000-4000-8000-000000000001'
+  ),
+  '["groceries", "ledger", "trips"]'::jsonb,
+  'profiles default mobile navigation to the three configured destinations'
+);
+
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000043',
+        '10000000-0000-4000-8000-000000000001',
+        'settings.update',
+        'settings',
+        '00000000-0000-4000-8000-000000000001',
+        1,
+        '{"mobileNavigation":["groceries","groceries","trips"]}',
+        42
+      )
+    )->>'status'
+  ),
+  'rejected',
+  'settings rejects malformed mobile navigation'
+);
+
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000044',
+        '10000000-0000-4000-8000-000000000001',
+        'settings.update',
+        'settings',
+        '00000000-0000-4000-8000-000000000001',
+        1,
+        '{"mobileNavigation":["notes","trips","groceries"],"suppressUnpricedPurchaseWarning":true}',
+        43
+      )
+    )->>'status'
+  ),
+  'applied',
+  'settings persists valid navigation and purchase-warning suppression'
+);
+
+select is(
+  (
+    select jsonb_build_object(
+      'navigation', mobile_navigation,
+      'suppressed', suppress_unpriced_purchase_warning
+    )
+    from public.profiles
+    where user_id = '00000000-0000-4000-8000-000000000001'
+  ),
+  '{"navigation":["notes","trips","groceries"],"suppressed":true}'::jsonb,
+  'settings stores both new profile preferences'
+);
+
+select set_config(
+  'request.jwt.claim.sub',
+  '00000000-0000-4000-8000-000000000002',
+  true
+);
+
+select is(
+  (
+    public.apply_household_operation(
+      pg_temp.operation_command(
+        '40000000-0000-4000-8000-000000000045',
+        '10000000-0000-4000-8000-000000000001',
+        'settings.update',
+        'settings',
+        '00000000-0000-4000-8000-000000000001',
+        2,
+        '{"suppressUnpricedPurchaseWarning":false}',
+        44
+      )
+    )->>'code'
+  ),
+  'settings_not_owned',
+  'a household member cannot update another user profile preferences'
+);
+
+select set_config(
+  'request.jwt.claim.sub',
+  '00000000-0000-4000-8000-000000000001',
+  true
 );
 
 select * from finish();

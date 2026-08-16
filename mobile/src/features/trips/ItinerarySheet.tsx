@@ -145,6 +145,7 @@ export function ItinerarySheet({
           value={itemDate}
           mode="date"
           minimumDate={new Date(`${trip.startDate}T00:00:00`)}
+          maximumDate={new Date(`${trip.endDate}T23:59:59`)}
           onChange={setItemDate}
         />
       </View>

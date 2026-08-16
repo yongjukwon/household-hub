@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query'
+import { useIsRestoring, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 
 import { setOperationQueryClient, startOperationSync } from './queue'
@@ -10,13 +10,19 @@ import { setOperationQueryClient, startOperationSync } from './queue'
  */
 export function useOperationSync(): void {
   const queryClient = useQueryClient()
+  const isRestoring = useIsRestoring()
 
   useEffect(() => {
-    setOperationQueryClient(queryClient)
-    const stop = startOperationSync()
+    if (isRestoring) return
+    let disposed = false
+    let stop: () => void = () => undefined
+    void setOperationQueryClient(queryClient).then(() => {
+      if (!disposed) stop = startOperationSync()
+    })
     return () => {
+      disposed = true
       stop()
-      setOperationQueryClient(null)
+      void setOperationQueryClient(null)
     }
-  }, [queryClient])
+  }, [isRestoring, queryClient])
 }

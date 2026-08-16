@@ -4,23 +4,39 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useTheme } from '@/theme/tokens'
+import { useAppChromeConfiguration } from './AppChrome'
 import {
   backDestinationForPath,
   titleForPath,
 } from './appHeaderTitle'
-import { BellIcon, ChevronLeftIcon, CogIcon } from './icons'
+import { BellIcon, ChartBarIcon, ChevronLeftIcon, PencilIcon, PlusIcon } from './icons'
 
 /**
- * Persistent header shown on every primary destination: the current page's
- * title top-left (matching the active tab), bell (notifications) + gear
- * (settings) as floating circular buttons top-right.
+ * Persistent header around tab routes. Each screen registers its centered
+ * title and only the actions that make sense in its current state.
  */
-export function AppHeader() {
+export function AppHeader({
+  hasUnreadActivity = false,
+  onNotificationsPress,
+}: {
+  hasUnreadActivity?: boolean
+  onNotificationsPress?: () => void
+} = {}) {
   const { tokens, scheme } = useTheme()
   const router = useRouter()
   const pathname = usePathname()
   const insets = useSafeAreaInsets()
   const backDestination = backDestinationForPath(pathname)
+  const registered = useAppChromeConfiguration()
+  const chrome = registered ?? {
+    mode: backDestination ? 'detail' as const : 'root' as const,
+    title: titleForPath(pathname),
+    showNotifications: pathname === '/',
+  }
+
+  const back = chrome.onBack ?? (backDestination
+    ? () => router.replace(backDestination.path)
+    : undefined)
 
   return (
     <View
@@ -31,19 +47,49 @@ export function AppHeader() {
     >
       <View
         testID="app-header-title-layer"
-        pointerEvents="none"
+        pointerEvents={typeof chrome.title === 'string' && !(chrome.mode === 'detail' && chrome.onEdit) ? 'none' : 'auto'}
         style={styles.titleLayer}
       >
-        <Text accessibilityRole="header" style={[styles.title, { color: tokens.ink }]}>
-          {titleForPath(pathname)}
-        </Text>
+        {typeof chrome.title === 'string' ? (
+          chrome.mode === 'detail' && chrome.onEdit ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Edit"
+              onPress={chrome.onEdit}
+              style={styles.titleWithEdit}
+            >
+              <Text accessibilityRole="header" style={[styles.title, { color: tokens.ink }]} numberOfLines={1}>
+                {chrome.title}
+              </Text>
+              <PencilIcon size={16} color={tokens.muted} />
+            </Pressable>
+          ) : (
+            <Text accessibilityRole="header" style={[styles.title, { color: tokens.ink }]}>
+              {chrome.title}
+            </Text>
+          )
+        ) : (
+          <View accessibilityRole="header" style={styles.titleEditor}>
+            {chrome.title}
+          </View>
+        )}
       </View>
-      {backDestination ? (
+      {chrome.mode === 'editing' ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Cancel"
+          disabled={!chrome.onCancel}
+          onPress={chrome.onCancel}
+          style={styles.textAction}
+        >
+          <Text style={[styles.textActionLabel, { color: tokens.muted }]}>Cancel</Text>
+        </Pressable>
+      ) : backDestination && back ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={backDestination.label}
           hitSlop={4}
-          onPress={() => router.replace(backDestination.path)}
+          onPress={back}
         >
           <BlurView
             intensity={30}
@@ -64,46 +110,90 @@ export function AppHeader() {
         <View style={styles.leftSpacer} />
       )}
       <View style={styles.actions}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Notifications"
-          onPress={() => router.push('/notifications')}
-        >
-          <BlurView
-            intensity={30}
-            tint={scheme}
-            style={[
-              styles.iconButton,
-              {
-                backgroundColor: tokens.glass.fill,
-                borderColor: tokens.glass.border,
-                borderWidth: 1,
-              },
-            ]}
+        {chrome.mode === 'root' && chrome.showNotifications ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Notifications"
+            onPress={onNotificationsPress}
           >
-            <BellIcon size={18} color={tokens.muted} />
-          </BlurView>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Settings"
-          onPress={() => router.push('/settings')}
-        >
-          <BlurView
-            intensity={30}
-            tint={scheme}
-            style={[
-              styles.iconButton,
-              {
-                backgroundColor: tokens.glass.fill,
-                borderColor: tokens.glass.border,
-                borderWidth: 1,
-              },
-            ]}
+            <BlurView
+              intensity={30}
+              tint={scheme}
+              style={[
+                styles.iconButton,
+                {
+                  backgroundColor: tokens.glass.fill,
+                  borderColor: tokens.glass.border,
+                  borderWidth: 1,
+                },
+              ]}
+            >
+              <BellIcon size={18} color={tokens.muted} />
+              {hasUnreadActivity ? (
+                <View
+                  testID="notification-unread-indicator"
+                  style={[styles.unreadDot, { backgroundColor: tokens.danger }]}
+                />
+              ) : null}
+            </BlurView>
+          </Pressable>
+        ) : null}
+        {chrome.mode === 'root' && chrome.onHistory ? (
+          <Pressable accessibilityRole="button" accessibilityLabel="Purchase history" onPress={chrome.onHistory}>
+            <BlurView
+              intensity={30}
+              tint={scheme}
+              style={[
+                styles.iconButton,
+                {
+                  backgroundColor: tokens.glass.fill,
+                  borderColor: tokens.glass.border,
+                  borderWidth: 1,
+                },
+              ]}
+            >
+              <ChartBarIcon size={18} color={tokens.muted} />
+            </BlurView>
+          </Pressable>
+        ) : null}
+        {chrome.mode === 'root' ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add"
+            disabled={!chrome.onAdd && registered !== null}
+            onPress={chrome.onAdd}
+            style={[styles.addButton, { backgroundColor: tokens.accent }]}
           >
-            <CogIcon size={18} color={tokens.muted} />
-          </BlurView>
-        </Pressable>
+            <PlusIcon size={18} color={tokens.accentContrast} />
+          </Pressable>
+        ) : chrome.mode === 'detail' && chrome.onHistory ? (
+          <Pressable accessibilityRole="button" accessibilityLabel="Purchase history" onPress={chrome.onHistory}>
+            <BlurView
+              intensity={30}
+              tint={scheme}
+              style={[
+                styles.iconButton,
+                {
+                  backgroundColor: tokens.glass.fill,
+                  borderColor: tokens.glass.border,
+                  borderWidth: 1,
+                },
+              ]}
+            >
+              <ChartBarIcon size={18} color={tokens.muted} />
+            </BlurView>
+          </Pressable>
+        ) : chrome.mode === 'editing' ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Save"
+            disabled={chrome.saveDisabled || !chrome.onSave}
+            onPress={chrome.onSave}
+            style={styles.textAction}
+          >
+            <Text style={[styles.textActionLabel, { color: tokens.accent }]}>Save</Text>
+          </Pressable>
+        ) : <View style={styles.rightSpacer} />}
       </View>
     </View>
   )
@@ -128,8 +218,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { fontSize: 20, fontWeight: '800', letterSpacing: -0.2 },
+  title: { fontSize: 20, fontWeight: '800', letterSpacing: -0.2, flexShrink: 1 },
+  titleWithEdit: { flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '80%' },
+  titleEditor: { alignSelf: 'stretch', alignItems: 'center' },
   leftSpacer: { width: 36, height: 36 },
+  rightSpacer: { width: 36, height: 36 },
   actions: { flexDirection: 'row', gap: 8 },
   iconButton: {
     width: 36,
@@ -143,4 +236,21 @@ const styles = StyleSheet.create({
     // tradeoff to worry about (see Card.tsx for that case).
     overflow: 'hidden',
   },
+  unreadDot: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  addButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textAction: { minWidth: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
+  textActionLabel: { fontSize: 15, fontWeight: '700' },
 })

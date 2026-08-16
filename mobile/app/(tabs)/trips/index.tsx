@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { DetailListRow } from '@/components/DetailListRow'
-import { FloatingActionButton } from '@/components/FloatingActionButton'
+import { useAppChrome } from '@/components/AppChrome'
 import { EmptyState, ErrorState, LoadingState } from '@/components/states'
 import { useActiveHousehold } from '@/features/household'
 import { useTrips, type Trip } from '@/features/trips/data'
@@ -64,6 +64,8 @@ export default function TripsScreen() {
     }
   }
 
+  useAppChrome({ mode: 'root', title: 'Trips', onAdd: () => setAdding(true) })
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['bottom']}>
       <FlatList
@@ -94,8 +96,6 @@ export default function TripsScreen() {
         )}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
       />
-
-      <FloatingActionButton accessibilityLabel="New trip" onPress={() => setAdding(true)} />
 
       {householdId ? (
         <TripSheet open={adding} onOpenChange={setAdding} householdId={householdId} trip={null} />

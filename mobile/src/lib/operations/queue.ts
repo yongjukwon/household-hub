@@ -24,6 +24,10 @@ import type { Json } from '@/types/database'
 import { getDeviceId, nextLocalSequence } from './device'
 import { getOperationStore } from './store'
 import type { DiscardedOperation, QueuedOperation } from './types'
+import {
+  projectOperationIntoQueryCache,
+  projectPendingOperationsIntoQueryCache,
+} from './cacheProjection'
 
 export interface EnqueueInput {
   householdId: string
@@ -71,8 +75,16 @@ let queryClient: QueryClient | null = null
  * The queue invalidates React Query itself after a command settles, so callers
  * do not have to thread a client through every mutation.
  */
-export function setOperationQueryClient(client: QueryClient | null): void {
+export async function setOperationQueryClient(
+  client: QueryClient | null,
+): Promise<void> {
   queryClient = client
+  if (client) {
+    projectPendingOperationsIntoQueryCache(
+      client,
+      await getOperationStore().listOperations(),
+    )
+  }
 }
 
 /**
@@ -119,7 +131,7 @@ export async function enqueueOperation(
   }
 
   await getOperationStore().addOperation(queued)
-  await invalidateHousehold(input.householdId)
+  if (queryClient) projectOperationIntoQueryCache(queryClient, queued)
 
   if (!(await isOnline())) return { status: 'queued', operationId }
 
@@ -143,9 +155,16 @@ const operationStore: OperationStore = {
   countOperations: () => getOperationStore().countOperations(),
   updateOperationAttempt: (operationId, attempts, lastError) =>
     getOperationStore().updateOperationAttempt(operationId, attempts, lastError),
-  deleteOperation: (operationId) => getOperationStore().deleteOperation(operationId),
-  discardOperation: (record, operationId) =>
-    getOperationStore().discardOperation(record, operationId),
+  deleteOperation: async (operationId) => {
+    const operation = await findOperation(operationId)
+    await getOperationStore().deleteOperation(operationId)
+    await invalidateSettledOperation(operation)
+  },
+  discardOperation: async (record, operationId) => {
+    const operation = await findOperation(operationId)
+    await getOperationStore().discardOperation(record, operationId)
+    await invalidateSettledOperation(operation)
+  },
 }
 
 const replayer = createOperationReplayer({
@@ -182,6 +201,24 @@ async function applyCommand(
 async function invalidateHousehold(householdId: string): Promise<void> {
   await queryClient?.invalidateQueries({
     queryKey: queryKeys.household(householdId),
+  })
+}
+
+async function findOperation(
+  operationId: string,
+): Promise<QueuedOperation | undefined> {
+  return (await getOperationStore().listOperations()).find(
+    (operation) => operation.operationId === operationId,
+  )
+}
+
+async function invalidateSettledOperation(
+  operation: QueuedOperation | undefined,
+): Promise<void> {
+  if (operation?.command.type !== 'settings.update') return
+  await queryClient?.invalidateQueries({
+    queryKey: ['profile', operation.entityId],
+    exact: true,
   })
 }
 

@@ -234,6 +234,35 @@ export type Database = {
           },
         ]
       }
+      calendar_event_deletion_snapshots: {
+        Row: {
+          captured_at: string
+          event_id: string
+          household_id: string
+          payload: Json
+        }
+        Insert: {
+          captured_at?: string
+          event_id: string
+          household_id: string
+          payload: Json
+        }
+        Update: {
+          captured_at?: string
+          event_id?: string
+          household_id?: string
+          payload?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_event_deletion_snapshots_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_event_reminders: {
         Row: {
           created_at: string
@@ -599,9 +628,12 @@ export type Database = {
           list_id: string
           name: string
           name_normalized: string | null
+          purchase_occurrence_id: string | null
+          purchase_quantity: number | null
           quantity: string | null
           revision: number
           sort_order: number
+          total_price_cents: number | null
           unit_price_cents: number | null
           updated_at: string
         }
@@ -615,9 +647,12 @@ export type Database = {
           list_id: string
           name: string
           name_normalized?: string | null
+          purchase_occurrence_id?: string | null
+          purchase_quantity?: number | null
           quantity?: string | null
           revision?: number
           sort_order?: number
+          total_price_cents?: number | null
           unit_price_cents?: number | null
           updated_at?: string
         }
@@ -631,9 +666,12 @@ export type Database = {
           list_id?: string
           name?: string
           name_normalized?: string | null
+          purchase_occurrence_id?: string | null
+          purchase_quantity?: number | null
           quantity?: string | null
           revision?: number
           sort_order?: number
+          total_price_cents?: number | null
           unit_price_cents?: number | null
           updated_at?: string
         }
@@ -703,8 +741,14 @@ export type Database = {
           item_name_normalized: string
           list_id: string | null
           price_cents: number
+          purchase_occurrence_id: string | null
+          purchase_quantity: number
           recorded_at: string
           recorded_by: string
+          source_item_id: string | null
+          source_list_id: string
+          store_name: string
+          total_price_cents: number
         }
         Insert: {
           household_id: string
@@ -713,8 +757,14 @@ export type Database = {
           item_name_normalized: string
           list_id?: string | null
           price_cents: number
+          purchase_occurrence_id?: string | null
+          purchase_quantity?: number
           recorded_at?: string
           recorded_by: string
+          source_item_id?: string | null
+          source_list_id: string
+          store_name: string
+          total_price_cents: number
         }
         Update: {
           household_id?: string
@@ -723,8 +773,14 @@ export type Database = {
           item_name_normalized?: string
           list_id?: string | null
           price_cents?: number
+          purchase_occurrence_id?: string | null
+          purchase_quantity?: number
           recorded_at?: string
           recorded_by?: string
+          source_item_id?: string | null
+          source_list_id?: string
+          store_name?: string
+          total_price_cents?: number
         }
         Relationships: [
           {
@@ -739,6 +795,32 @@ export type Database = {
             columns: ["list_id"]
             isOneToOne: false
             referencedRelation: "household_grocery_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      household_grocery_purchase_occurrences: {
+        Row: {
+          first_recorded_at: string
+          household_id: string
+          purchase_occurrence_id: string
+        }
+        Insert: {
+          first_recorded_at?: string
+          household_id: string
+          purchase_occurrence_id: string
+        }
+        Update: {
+          first_recorded_at?: string
+          household_id?: string
+          purchase_occurrence_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "household_grocery_purchase_occurrences_household_id_fkey"
+            columns: ["household_id"]
+            isOneToOne: false
+            referencedRelation: "households"
             referencedColumns: ["id"]
           },
         ]
@@ -1836,8 +1918,10 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           display_name: string
+          mobile_navigation: Json
           notifications_enabled: boolean
           revision: number
+          suppress_unpriced_purchase_warning: boolean
           updated_at: string
           user_id: string
         }
@@ -1846,8 +1930,10 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name: string
+          mobile_navigation?: Json
           notifications_enabled?: boolean
           revision?: number
+          suppress_unpriced_purchase_warning?: boolean
           updated_at?: string
           user_id: string
         }
@@ -1856,8 +1942,10 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string
+          mobile_navigation?: Json
           notifications_enabled?: boolean
           revision?: number
+          suppress_unpriced_purchase_warning?: boolean
           updated_at?: string
           user_id?: string
         }
@@ -2273,8 +2361,8 @@ export type Database = {
           description: string
           household_id: string
           id: string
-          ledger_transaction_id: string | null
           itinerary_entry_id: string | null
+          ledger_transaction_id: string | null
           revision: number
           spent_at: string
           trip_id: string
@@ -2290,8 +2378,8 @@ export type Database = {
           description: string
           household_id: string
           id: string
-          ledger_transaction_id?: string | null
           itinerary_entry_id?: string | null
+          ledger_transaction_id?: string | null
           revision?: number
           spent_at: string
           trip_id: string
@@ -2307,28 +2395,14 @@ export type Database = {
           description?: string
           household_id?: string
           id?: string
-          ledger_transaction_id?: string | null
           itinerary_entry_id?: string | null
+          ledger_transaction_id?: string | null
           revision?: number
           spent_at?: string
           trip_id?: string
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "trip_expenses_booking_entry_id_fkey"
-            columns: ["booking_entry_id"]
-            isOneToOne: false
-            referencedRelation: "trip_booking_entries"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "trip_expenses_itinerary_entry_id_fkey"
-            columns: ["itinerary_entry_id"]
-            isOneToOne: false
-            referencedRelation: "trip_itinerary_entries"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "trip_expenses_asset_id_household_id_fkey"
             columns: ["asset_id", "household_id"]
@@ -2344,10 +2418,24 @@ export type Database = {
             referencedColumns: ["id", "household_id"]
           },
           {
+            foreignKeyName: "trip_expenses_booking_entry_id_fkey"
+            columns: ["booking_entry_id"]
+            isOneToOne: false
+            referencedRelation: "trip_booking_entries"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "trip_expenses_household_id_fkey"
             columns: ["household_id"]
             isOneToOne: false
             referencedRelation: "households"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_expenses_itinerary_entry_id_fkey"
+            columns: ["itinerary_entry_id"]
+            isOneToOne: false
+            referencedRelation: "trip_itinerary_entries"
             referencedColumns: ["id"]
           },
           {
@@ -2522,6 +2610,10 @@ export type Database = {
         Returns: Json
       }
       apply_household_operation: { Args: { command: Json }; Returns: Json }
+      apply_household_operation_v1: { Args: { command: Json }; Returns: Json }
+      apply_household_operation_v2: { Args: { command: Json }; Returns: Json }
+      apply_household_operation_v3: { Args: { command: Json }; Returns: Json }
+      apply_household_operation_v4: { Args: { command: Json }; Returns: Json }
       create_household_invite: { Args: never; Returns: Json }
       delete_household: { Args: never; Returns: Json }
       is_household_member: {
@@ -2590,6 +2682,14 @@ export type Database = {
         Args: { code: string; details?: Json; reason: string }
         Returns: Json
       }
+      mobile_apply_grocery_item_upsert: {
+        Args: { command: Json }
+        Returns: Json
+      }
+      mobile_apply_notification_removal: {
+        Args: { command: Json }
+        Returns: Json
+      }
       mobile_asset_balance: {
         Args: { target_asset_id: string }
         Returns: number
@@ -2628,6 +2728,10 @@ export type Database = {
         Args: { operation_type: string }
         Returns: string
       }
+      mobile_expected_entity_type_v2: {
+        Args: { operation_type: string }
+        Returns: string
+      }
       mobile_is_iana_timezone: { Args: { candidate: string }; Returns: boolean }
       mobile_is_iso_currency_code: {
         Args: { candidate: string }
@@ -2653,6 +2757,18 @@ export type Database = {
         Returns: boolean
       }
       mobile_operation_payload_valid: {
+        Args: { operation_type: string; payload: Json }
+        Returns: boolean
+      }
+      mobile_operation_payload_valid_v1: {
+        Args: { operation_type: string; payload: Json }
+        Returns: boolean
+      }
+      mobile_operation_payload_valid_v2: {
+        Args: { operation_type: string; payload: Json }
+        Returns: boolean
+      }
+      mobile_operation_payload_valid_v3: {
         Args: { operation_type: string; payload: Json }
         Returns: boolean
       }
@@ -2713,6 +2829,22 @@ export type Database = {
         }
         Returns: Json
       }
+      mobile_upsert_grocery_purchase_history: {
+        Args: {
+          target_household_id: string
+          target_item_id: string
+          target_item_name: string
+          target_list_id: string
+          target_purchase_occurrence_id: string
+          target_purchase_quantity: number
+          target_recorded_at: string
+          target_recorded_by: string
+          target_store_name: string
+          target_total_price_cents: number
+        }
+        Returns: undefined
+      }
+      mobile_valid_navigation: { Args: { value: Json }; Returns: boolean }
       onboard_household: {
         Args: { display_name: string; household_name: string }
         Returns: Json

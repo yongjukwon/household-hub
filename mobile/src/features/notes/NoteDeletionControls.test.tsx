@@ -2,6 +2,8 @@ import { render } from '@testing-library/react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import NoteScreen from '../../../app/(tabs)/notes/[noteId]'
+import { AppHeader } from '@/components/AppHeader'
+import { AppChromeProvider } from '@/components/AppChromeProvider'
 import { useActiveHousehold } from '@/features/household'
 import { useNote } from './data'
 
@@ -10,6 +12,7 @@ jest.mock('expo-router', () => ({
     noteId: '22222222-2222-4222-8222-222222222222',
   }),
   useRouter: () => ({ replace: jest.fn() }),
+  usePathname: () => '/notes/22222222-2222-4222-8222-222222222222',
 }))
 
 jest.mock('@/features/household', () => ({
@@ -75,11 +78,14 @@ describe('Note deletion controls', () => {
           insets: { top: 47, right: 0, bottom: 34, left: 0 },
         }}
       >
-        <NoteScreen />
+        <AppChromeProvider>
+          <AppHeader />
+          <NoteScreen />
+        </AppChromeProvider>
       </SafeAreaProvider>,
     )
 
-    expect(view.getByText('Edit')).toBeOnTheScreen()
+    expect(view.getByLabelText('Edit')).toBeOnTheScreen()
     expect(view.queryByText('Delete')).toBeNull()
   })
 })

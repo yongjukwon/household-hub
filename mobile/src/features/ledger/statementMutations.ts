@@ -78,10 +78,11 @@ export function saveCategory(
 export function deleteCategory(
   householdId: string,
   categoryId: string,
+  yearId: string,
   fromMonth: number,
   baseRevision: number | null,
 ): Promise<EnqueueOutcome> {
-  const payload = { fromMonth }
+  const payload = { yearId, fromMonth }
   return enqueueOperation({
     householdId,
     type: 'ledger.category.delete',
@@ -98,6 +99,7 @@ export function saveLimit(
   householdId: string,
   limitEntityId: string,
   categoryId: string,
+  yearId: string,
   fromMonth: number,
   amountCents: number | null,
   baseRevision: number | null,
@@ -110,7 +112,7 @@ export function saveLimit(
     entityId: limitEntityId,
     baseRevision,
     payload,
-    optimistic: payload,
+    optimistic: { ...payload, yearId },
   })
 }
 
@@ -155,6 +157,7 @@ export function saveTransaction(
 export function deleteTransaction(
   householdId: string,
   transactionId: string,
+  yearId: string,
   baseRevision: number | null,
 ): Promise<EnqueueOutcome> {
   return enqueueOperation({
@@ -163,7 +166,7 @@ export function deleteTransaction(
     entityType: 'ledger_transaction',
     entityId: transactionId,
     baseRevision,
-    payload: {},
+    payload: { yearId },
     optimistic: null,
   })
 }

@@ -42,10 +42,7 @@ function RootNavigator() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="login" />
       <Stack.Screen name="settings" options={{ presentation: 'card' }} />
-      <Stack.Screen
-        name="notifications"
-        options={{ presentation: 'card' }}
-      />
+      <Stack.Screen name="purchase-history" options={{ presentation: 'card' }} />
     </Stack>
   )
 }

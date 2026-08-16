@@ -11,14 +11,14 @@ type NotificationData = Record<string, unknown>
 
 export function notificationRoute(data: NotificationData):
   | { pathname: '/'; params?: { event: string } }
-  | { pathname: '/notifications' } {
+  | { pathname: '/' } {
   if (
     data.entityType === 'calendar_event' &&
     typeof data.entityId === 'string'
   ) {
     return { pathname: '/', params: { event: data.entityId } }
   }
-  return { pathname: '/notifications' }
+  return { pathname: '/' }
 }
 
 export async function syncPushRegistration(enabled: boolean): Promise<void> {

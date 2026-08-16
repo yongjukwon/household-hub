@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { Card } from '@/components/Card'
+import { useAppChrome } from '@/components/AppChrome'
 import { ListCard } from '@/components/ListCard'
 import { EmptyState, ErrorState, LoadingState } from '@/components/states'
 import { useActiveHousehold } from '@/features/household'
@@ -54,6 +55,8 @@ export default function StatementMonthScreen() {
     useState<CategoryKind | null>(null)
   const categorySavedForTransaction = useRef(false)
 
+  useAppChrome({ mode: 'detail', title: year ? `${year.year} Budget` : 'Budget' })
+
   const monthRow = query.data?.months.find((entry) => entry.month === month)
   const categories = useMemo(
     () => (query.data && monthRow ? categoryProgress(query.data, monthRow.id) : []),
@@ -66,6 +69,14 @@ export default function StatementMonthScreen() {
   const transactions = useMemo(
     () => query.data?.transactions.filter((entry) => entry.monthId === monthRow?.id) ?? [],
     [monthRow?.id, query.data?.transactions],
+  )
+  const incomeTransactions = useMemo(
+    () => transactions.filter((entry) => entry.kind === 'income'),
+    [transactions],
+  )
+  const spendingTransactions = useMemo(
+    () => transactions.filter((entry) => entry.kind === 'spending'),
+    [transactions],
   )
   const totals = query.data && monthRow ? statementTotals(query.data, monthRow.id) : null
   const cadAssets = useMemo(
@@ -263,7 +274,8 @@ export default function StatementMonthScreen() {
           </View>
           <TransactionList
             householdId={householdId}
-            transactions={transactions.filter((entry) => entry.kind === 'income')}
+            yearId={year.id}
+            transactions={incomeTransactions}
             categories={monthCategories}
             assets={cadAssets}
             onEdit={(transaction) => openTransaction('income', transaction)}
@@ -284,7 +296,8 @@ export default function StatementMonthScreen() {
           </View>
           <TransactionList
             householdId={householdId}
-            transactions={transactions.filter((entry) => entry.kind === 'spending')}
+            yearId={year.id}
+            transactions={spendingTransactions}
             categories={monthCategories}
             assets={cadAssets}
             onEdit={(transaction) => openTransaction('spending', transaction)}

@@ -1,5 +1,6 @@
 import { enqueueOperation, type EnqueueOutcome } from '@/lib/operations'
 import type { GroceryItem } from './data'
+import { newUuid } from '@/lib/uuid'
 
 /** Create/rename a grocery list. */
 export function saveGroceryList(
@@ -43,6 +44,9 @@ export interface GroceryItemInput {
   quantity: string | null
   checked: boolean
   unitPriceCents: number | null
+  purchaseQuantity: number | null
+  totalPriceCents: number | null
+  purchaseOccurrenceId: string | null
   sortOrder: number
 }
 
@@ -58,6 +62,9 @@ export function saveGroceryItem(
     quantity: item.quantity && item.quantity.trim().length > 0 ? item.quantity.trim() : null,
     checked: item.checked,
     unitPriceCents: item.unitPriceCents,
+    purchaseQuantity: item.purchaseQuantity,
+    totalPriceCents: item.totalPriceCents,
+    purchaseOccurrenceId: item.purchaseOccurrenceId,
     sortOrder: item.sortOrder,
   }
   return enqueueOperation({
@@ -83,7 +90,13 @@ export function toggleGroceryItem(
 ): Promise<EnqueueOutcome> {
   return saveGroceryItem(
     householdId,
-    { ...item, checked },
+    {
+      ...item,
+      checked,
+      purchaseOccurrenceId: checked
+        ? item.purchaseOccurrenceId ?? newUuid()
+        : null,
+    },
     item.revision,
   )
 }

@@ -20,6 +20,9 @@ export interface GroceryItem {
   checked: boolean
   checkedAt: string | null
   unitPriceCents: number | null
+  purchaseQuantity: number | null
+  totalPriceCents: number | null
+  purchaseOccurrenceId: string | null
   sortOrder: number
   revision: number
 }
@@ -31,6 +34,10 @@ export interface PriceHistoryEntry {
   priceCents: number
   recordedAt: string
   listName: string
+  purchaseQuantity: number
+  totalPriceCents: number
+  sourceItemId: string | null
+  purchaseOccurrenceId: string | null
 }
 
 export interface GroceryKnowledgeItem {
@@ -55,8 +62,28 @@ function toItem(row: Tables<'household_grocery_items'>): GroceryItem {
     checked: row.checked,
     checkedAt: row.checked_at,
     unitPriceCents: row.unit_price_cents,
+    purchaseQuantity: row.purchase_quantity,
+    totalPriceCents: row.total_price_cents,
+    purchaseOccurrenceId: row.purchase_occurrence_id,
     sortOrder: row.sort_order,
     revision: row.revision,
+  }
+}
+
+function toPriceHistoryEntry(
+  row: Tables<'household_grocery_price_history'>,
+): PriceHistoryEntry {
+  return {
+    id: row.id,
+    itemNameNormalized: row.item_name_normalized,
+    itemName: row.item_name,
+    priceCents: row.price_cents,
+    recordedAt: row.recorded_at,
+    listName: row.store_name,
+    purchaseQuantity: row.purchase_quantity,
+    totalPriceCents: row.total_price_cents,
+    sourceItemId: row.source_item_id,
+    purchaseOccurrenceId: row.purchase_occurrence_id,
   }
 }
 
@@ -76,10 +103,6 @@ export function useGroceryLists(householdId: string | undefined) {
       return withOptimisticOverlay((data ?? []).map(toList), 'grocery_list')
     },
   })
-}
-
-type PriceHistoryWithList = Tables<'household_grocery_price_history'> & {
-  household_grocery_lists: { name: string } | null
 }
 
 /** Items in a list, plus household-wide Grocery knowledge for the detail screen. */
@@ -109,10 +132,10 @@ export function useGroceryList(
           .returns<Tables<'household_grocery_items'>[]>(),
         supabase
           .from('household_grocery_price_history')
-          .select('*, household_grocery_lists(name)')
+          .select('*')
           .eq('household_id', householdId!)
           .order('recorded_at', { ascending: false })
-          .returns<PriceHistoryWithList[]>(),
+          .returns<Tables<'household_grocery_price_history'>[]>(),
         supabase
           .from('household_grocery_items')
           .select('name')
@@ -122,25 +145,46 @@ export function useGroceryList(
       if (items.error) throw items.error
       if (history.error) throw history.error
       if (knowledge.error) throw knowledge.error
-      const overlaidItems = await withOptimisticOverlay(
-        (items.data ?? []).map(toItem),
-        'grocery_item',
-      )
+      const overlaidItems = (
+        await withOptimisticOverlay(
+          (items.data ?? []).map(toItem),
+          'grocery_item',
+        )
+      ).filter((item) => item.listId === listId)
       return {
         items: overlaidItems,
-        history: (history.data ?? []).map((r) => ({
-          id: r.id,
-          itemNameNormalized: r.item_name_normalized,
-          itemName: r.item_name,
-          priceCents: r.price_cents,
-          recordedAt: r.recorded_at,
-          listName: r.household_grocery_lists?.name ?? 'Unknown list',
-        })),
+        history: (history.data ?? []).map(toPriceHistoryEntry),
         knowledgeItems: [
           ...(knowledge.data ?? []),
           ...overlaidItems.map((item) => ({ name: item.name })),
         ],
       }
+    },
+  })
+}
+
+/**
+ * Every purchase the household has recorded, across every list, newest first.
+ * `useGroceryList`'s copy is fetched alongside one list's items; the Purchase
+ * history page needs the same rows without a list in hand, so it gets its own
+ * query key rather than borrowing an arbitrary list's cache entry. Rows carry
+ * a stored `store_name` snapshot, so purchases outlive their list and item.
+ */
+export function useHouseholdPurchaseHistory(householdId: string | undefined) {
+  return useQuery({
+    queryKey: householdId
+      ? queryKeys.groceries.purchaseHistory(householdId)
+      : ['groceries', 'purchase-history', 'off'],
+    enabled: !!householdId,
+    queryFn: async (): Promise<PriceHistoryEntry[]> => {
+      const { data, error } = await supabase
+        .from('household_grocery_price_history')
+        .select('*')
+        .eq('household_id', householdId!)
+        .order('recorded_at', { ascending: false })
+        .returns<Tables<'household_grocery_price_history'>[]>()
+      if (error) throw error
+      return (data ?? []).map(toPriceHistoryEntry)
     },
   })
 }
@@ -184,20 +228,36 @@ export function sortGroceryItems(items: GroceryItem[]): {
   return { unchecked, checked }
 }
 
-/** Item-scoped five-cheapest purchase history, without currency conversion. */
-export function cheapestPriceHistory(
+/** Exact per-item price in cents; callers round only when formatting for display. */
+export function calculateUnitPriceCents(
+  totalPriceCents: number,
+  purchaseQuantity: number,
+): number {
+  return totalPriceCents / purchaseQuantity
+}
+
+/** Item-scoped cheapest and most-expensive purchase history. */
+export function displayedPriceHistory(
   history: PriceHistoryEntry[],
   normalizedName: string,
-  limit = 5,
 ): PriceHistoryEntry[] {
-  return history
+  const matching = history
     .filter((entry) => entry.itemNameNormalized === normalizedName)
     .sort(
       (left, right) =>
-        left.priceCents - right.priceCents ||
+        calculateUnitPriceCents(left.totalPriceCents, left.purchaseQuantity) -
+          calculateUnitPriceCents(right.totalPriceCents, right.purchaseQuantity) ||
         right.recordedAt.localeCompare(left.recordedAt),
     )
-    .slice(0, limit)
+  if (matching.length < 6) return matching
+  return [...matching.slice(0, 3), ...matching.slice(-3).reverse()]
+}
+
+export function parsePurchaseQuantity(value: string): number | null {
+  const trimmed = value.trim()
+  if (!/^\d+(?:\.\d+)?$/.test(trimmed)) return null
+  const quantity = Number(trimmed)
+  return Number.isFinite(quantity) && quantity > 0 ? quantity : null
 }
 
 /** Household-wide autocomplete names, deduped case-insensitively. */
