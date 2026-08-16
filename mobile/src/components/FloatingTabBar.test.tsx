@@ -84,16 +84,6 @@ describe('FloatingTabBar', () => {
     expect(view.getByLabelText('Open Settings')).toBeTruthy()
   })
 
-  it('offers Purchase history in More and pushes it so it can be backed out of', async () => {
-    const view = await render(<FloatingTabBar />)
-
-    await fireEvent.press(view.getByLabelText('More'))
-    await fireEvent.press(view.getByLabelText('Open Purchase history'))
-
-    expect(mockedPush).toHaveBeenCalledWith('/purchase-history')
-    expect(mockedReplace).not.toHaveBeenCalledWith('/purchase-history')
-  })
-
   it('keeps More active while the omitted destination is open', async () => {
     mockedPathname = '/ledger/year-id'
 

@@ -11,7 +11,7 @@ import {
   omittedDestination,
   type MobileNavigation,
 } from './mobileNavigation'
-import { ChartBarIcon, CogIcon, EllipsisIcon } from './icons'
+import { CogIcon, EllipsisIcon } from './icons'
 
 /** Distance the pill floats above the bottom safe-area edge. */
 export const TAB_BAR_FLOAT_OFFSET = 20
@@ -133,24 +133,6 @@ export function FloatingTabBar({
             >
               <CogIcon size={20} color={tokens.muted} />
               <Text style={[styles.menuText, { color: tokens.ink }]}>Settings</Text>
-            </Pressable>
-            {/*
-              Pushed, not replaced: Purchase history is a leaf the user reads
-              and then leaves, so it needs a back stack to return to whichever
-              tab they came from. The rows above swap between top-level
-              destinations, where replace is the right call.
-            */}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Open Purchase history"
-              onPress={() => {
-                setMoreOpen(false)
-                router.push('/purchase-history')
-              }}
-              style={styles.menuRow}
-            >
-              <ChartBarIcon size={20} color={tokens.muted} />
-              <Text style={[styles.menuText, { color: tokens.ink }]}>Purchase history</Text>
             </Pressable>
           </View>
         </Pressable>

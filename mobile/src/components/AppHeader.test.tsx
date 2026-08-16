@@ -83,7 +83,7 @@ describe('AppHeader', () => {
     expect(view.queryByLabelText('Back to Ledger')).toBeNull()
   })
 
-  it('gives Schedule its centered title, notification action, and 40px Add action', async () => {
+  it('gives Schedule its centered title, notification action, and 36px Add action', async () => {
     mockedPathname = '/'
 
     const view = await render(<AppHeader />)
@@ -91,8 +91,8 @@ describe('AppHeader', () => {
     expect(view.getByRole('header', { name: 'Schedule' })).toBeTruthy()
     expect(view.getByLabelText('Notifications')).toBeTruthy()
     expect(StyleSheet.flatten(view.getByLabelText('Add').props.style)).toMatchObject({
-      width: 40,
-      height: 40,
+      width: 36,
+      height: 36,
     })
     expect(view.queryByLabelText('Settings')).toBeNull()
   })

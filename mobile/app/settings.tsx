@@ -173,7 +173,9 @@ export default function SettingsScreen() {
           headerTransparent: true,
           headerStyle: { backgroundColor: 'transparent' },
           headerTintColor: tokens.ink,
-          headerTitleStyle: { color: tokens.ink },
+          headerTitleStyle: { color: tokens.ink, fontWeight: '800', fontSize: 20 },
+          headerBackVisible: true,
+          headerBackTitle: '',
         }}
       />
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: headerHeight }]}>

@@ -42,6 +42,54 @@ interface CachedGroceryListData {
   knowledgeItems: { name: string }[]
 }
 
+interface CachedMonthRow {
+  id: string
+  month: number
+}
+
+interface CachedMonthCategory {
+  id: string
+  categoryId: string
+  monthId: string
+  name: string
+  kind: 'income' | 'spending'
+  sortOrder: number
+  revision: number
+}
+
+interface CachedMonthLimit {
+  categoryId: string
+  monthId: string
+  amountCents: number | null
+  limitEntityId: string
+  revision: number
+}
+
+interface CachedLedgerTransaction {
+  id: string
+  monthId: string
+  categoryId: string
+  assetId: string
+  kind: 'income' | 'spending'
+  amountCents: number
+  occurredAt: string
+  description: string
+  revision: number
+}
+
+interface CachedLedgerYearData {
+  months: CachedMonthRow[]
+  categories: CachedMonthCategory[]
+  limits: CachedMonthLimit[]
+  transactions: CachedLedgerTransaction[]
+}
+
+interface CachedAsset {
+  id: string
+  balanceCents: number
+  [key: string]: unknown
+}
+
 /**
  * Applies durable native commands to already-fetched React Query data. The
  * query persister observes these writes, so an offline relaunch sees the same
@@ -57,13 +105,27 @@ export function projectOperationIntoQueryCache(
   }
 
   if (
-    operation.command.type !== 'grocery.item.upsert'
-    && operation.command.type !== 'grocery.item.delete'
+    operation.command.type === 'grocery.item.upsert'
+    || operation.command.type === 'grocery.item.delete'
   ) {
+    projectGroceryItem(client, operation)
     return
   }
 
-  projectGroceryItem(client, operation)
+  if (operation.command.type === 'trip.upsert') {
+    projectTripUpsert(client, operation)
+    return
+  }
+
+  if (
+    operation.command.type === 'ledger.category.upsert'
+    || operation.command.type === 'ledger.category.delete'
+    || operation.command.type === 'ledger.limit.upsert'
+    || operation.command.type === 'ledger.transaction.upsert'
+    || operation.command.type === 'ledger.transaction.delete'
+  ) {
+    projectLedgerOperation(client, operation)
+  }
 }
 
 /** Re-applies the SQLite queue after persisted-query hydration on relaunch. */
@@ -84,6 +146,30 @@ function projectProfile(client: QueryClient, operation: QueuedOperation): void {
   client.setQueryData<CachedProfile | null>(key, (current) => {
     if (!current) return current
     return { ...current, ...operation.optimistic }
+  })
+}
+
+interface CachedTripData {
+  trip: { id: string; [key: string]: unknown } | null
+  [key: string]: unknown
+}
+
+function projectTripUpsert(client: QueryClient, operation: QueuedOperation): void {
+  const optimistic = operation.optimistic
+  if (!optimistic) return
+
+  const tripKey = queryKeys.trips.trip(operation.householdId, operation.entityId)
+  client.setQueryData<CachedTripData>(tripKey, (current) => {
+    if (!current?.trip) return current
+    return { ...current, trip: { ...current.trip, ...optimistic } }
+  })
+
+  const listKey = queryKeys.trips.list(operation.householdId)
+  client.setQueryData<Array<{ id: string; [key: string]: unknown }>>(listKey, (current) => {
+    if (!Array.isArray(current)) return current
+    return current.map((trip) =>
+      trip.id === operation.entityId ? { ...trip, ...optimistic } : trip,
+    )
   })
 }
 
@@ -251,6 +337,254 @@ function upsertProjectedPurchase(
   )
 }
 
+function projectLedgerOperation(
+  client: QueryClient,
+  operation: QueuedOperation,
+): void {
+  const type = operation.command.type
+  const optimistic = operation.optimistic
+  const payload = operation.command.payload as Record<string, unknown>
+  const yearId = stringValue(optimistic?.yearId) ?? stringValue(payload.yearId)
+
+  if (!yearId) return
+
+  const fromMonth = numberValue(optimistic?.fromMonth) ?? numberValue(payload.fromMonth)
+  const month = numberValue(optimistic?.month) ?? numberValue(payload.month)
+
+  if (type === 'ledger.category.upsert' && fromMonth !== null) {
+    projectCategoryUpsert(client, operation.householdId, yearId, operation.entityId, optimistic as Record<string, unknown>, fromMonth)
+  } else if (type === 'ledger.category.delete' && fromMonth !== null) {
+    projectCategoryDelete(client, operation.householdId, yearId, operation.entityId, fromMonth)
+  } else if (type === 'ledger.limit.upsert' && optimistic && fromMonth !== null) {
+    projectLimitUpsert(client, operation.householdId, yearId, optimistic as Record<string, unknown>, fromMonth)
+  } else if (type === 'ledger.transaction.upsert' && optimistic && month !== null) {
+    projectTransactionAssetBalance(client, operation.householdId, yearId, operation.entityId, optimistic as Record<string, unknown>)
+    projectTransactionUpsert(client, operation.householdId, yearId, operation.entityId, optimistic as Record<string, unknown>, month)
+  } else if (type === 'ledger.transaction.delete') {
+    projectTransactionAssetBalance(client, operation.householdId, yearId, operation.entityId, null)
+    projectTransactionDelete(client, operation.householdId, yearId, operation.entityId)
+  }
+}
+
+function projectCategoryUpsert(
+  client: QueryClient,
+  householdId: string,
+  yearId: string,
+  categoryId: string,
+  optimistic: Record<string, unknown>,
+  fromMonth: number,
+): void {
+  const dataKey = [...queryKeys.ledger.years(householdId), yearId]
+  client.setQueryData<CachedLedgerYearData | undefined>(dataKey, (current) => {
+    if (!current) return current
+    const name = stringValue(optimistic.name)
+    const kind = stringValue(optimistic.kind) as 'income' | 'spending' | null
+    const sortOrder = numberValue(optimistic.sortOrder)
+
+    if (!name || !kind || sortOrder === null) return current
+
+    const updated = { ...current }
+    const monthIds = current.months
+      .filter((m) => m.month >= fromMonth)
+      .map((m) => m.id)
+
+    if (monthIds.length === 0) return updated
+
+    updated.categories = current.categories.filter(
+      (cat) => !(cat.categoryId === categoryId && monthIds.includes(cat.monthId)),
+    )
+
+    for (const monthId of monthIds) {
+      updated.categories.push({
+        id: `${categoryId}:${monthId}`,
+        categoryId,
+        monthId,
+        name,
+        kind,
+        sortOrder,
+        revision: 1,
+      } as CachedMonthCategory)
+    }
+
+    updated.categories.sort(
+      (a, b) => {
+        if (a.monthId !== b.monthId) return a.monthId.localeCompare(b.monthId)
+        return a.sortOrder - b.sortOrder
+      },
+    )
+
+    return updated
+  })
+}
+
+function projectCategoryDelete(
+  client: QueryClient,
+  householdId: string,
+  yearId: string,
+  categoryId: string,
+  fromMonth: number,
+): void {
+  const dataKey = [...queryKeys.ledger.years(householdId), yearId]
+  client.setQueryData<CachedLedgerYearData | undefined>(dataKey, (current) => {
+    if (!current) return current
+    const monthIds = current.months
+      .filter((m) => m.month >= fromMonth)
+      .map((m) => m.id)
+
+    if (monthIds.length === 0) return current
+
+    return {
+      ...current,
+      categories: current.categories.filter(
+        (cat) => !(cat.categoryId === categoryId && monthIds.includes(cat.monthId)),
+      ),
+      limits: current.limits.filter(
+        (limit) => !(limit.categoryId === categoryId && monthIds.includes(limit.monthId)),
+      ),
+    }
+  })
+}
+
+function projectLimitUpsert(
+  client: QueryClient,
+  householdId: string,
+  yearId: string,
+  optimistic: Record<string, unknown>,
+  fromMonth: number,
+): void {
+  const dataKey = [...queryKeys.ledger.years(householdId), yearId]
+  client.setQueryData<CachedLedgerYearData | undefined>(dataKey, (current) => {
+    if (!current) return current
+    const categoryId = stringValue(optimistic.categoryId)
+    const amountCents = numberValue(optimistic.amountCents)
+
+    if (!categoryId || amountCents === null) return current
+
+    const monthIds = current.months
+      .filter((m) => m.month >= fromMonth)
+      .map((m) => m.id)
+    if (monthIds.length === 0) return current
+
+    const updated = { ...current }
+    updated.limits = current.limits.filter(
+      (limit) => !(limit.categoryId === categoryId && monthIds.includes(limit.monthId)),
+    )
+    for (const monthId of monthIds) {
+      updated.limits.push({
+        categoryId,
+        monthId,
+        amountCents,
+        limitEntityId: categoryId,
+        revision: 1,
+      })
+    }
+
+    return updated
+  })
+}
+
+function projectTransactionAssetBalance(
+  client: QueryClient,
+  householdId: string,
+  yearId: string,
+  transactionId: string,
+  optimistic: Record<string, unknown> | null,
+): void {
+  const assetsKey = queryKeys.ledger.assets(householdId)
+  const dataKey = [...queryKeys.ledger.years(householdId), yearId]
+  const yearData = client.getQueryData<CachedLedgerYearData>(dataKey)
+  const oldTransaction = yearData?.transactions.find((t) => t.id === transactionId)
+
+  const adjustments = new Map<string, number>()
+
+  if (oldTransaction) {
+    const delta = oldTransaction.kind === 'income'
+      ? -oldTransaction.amountCents
+      : oldTransaction.amountCents
+    adjustments.set(oldTransaction.assetId, (adjustments.get(oldTransaction.assetId) ?? 0) + delta)
+  }
+
+  if (optimistic) {
+    const assetId = stringValue(optimistic.assetId)
+    const kind = stringValue(optimistic.kind)
+    const amountCents = numberValue(optimistic.amountCents)
+    if (assetId && kind && amountCents !== null) {
+      const delta = kind === 'income' ? amountCents : -amountCents
+      adjustments.set(assetId, (adjustments.get(assetId) ?? 0) + delta)
+    }
+  }
+
+  if (adjustments.size === 0) return
+
+  client.setQueryData<CachedAsset[]>(assetsKey, (current) => {
+    if (!Array.isArray(current)) return current
+    return current.map((asset) => {
+      const delta = adjustments.get(asset.id)
+      if (delta === undefined) return asset
+      return { ...asset, balanceCents: asset.balanceCents + delta }
+    })
+  })
+}
+
+function projectTransactionUpsert(
+  client: QueryClient,
+  householdId: string,
+  yearId: string,
+  transactionId: string,
+  optimistic: Record<string, unknown>,
+  month: number,
+): void {
+  const dataKey = [...queryKeys.ledger.years(householdId), yearId]
+  client.setQueryData<CachedLedgerYearData | undefined>(dataKey, (current) => {
+    if (!current) return current
+    const monthRow = current.months.find((m) => m.month === month)
+    if (!monthRow) return current
+
+    const categoryId = stringValue(optimistic.categoryId)
+    const assetId = stringValue(optimistic.assetId)
+    const kind = stringValue(optimistic.kind) as 'income' | 'spending' | null
+    const amountCents = numberValue(optimistic.amountCents)
+    const occurredAt = stringValue(optimistic.occurredAt)
+    const description = stringValue(optimistic.description)
+
+    if (!categoryId || !assetId || !kind || amountCents === null || !occurredAt || !description) {
+      return current
+    }
+
+    const updated = { ...current }
+    updated.transactions = current.transactions.filter((t) => t.id !== transactionId)
+    updated.transactions.push({
+      id: transactionId,
+      monthId: monthRow.id,
+      categoryId,
+      assetId,
+      kind,
+      amountCents,
+      occurredAt,
+      description,
+      revision: 1,
+    })
+
+    return updated
+  })
+}
+
+function projectTransactionDelete(
+  client: QueryClient,
+  householdId: string,
+  yearId: string,
+  transactionId: string,
+): void {
+  const dataKey = [...queryKeys.ledger.years(householdId), yearId]
+  client.setQueryData<CachedLedgerYearData | undefined>(dataKey, (current) => {
+    if (!current) return current
+    return {
+      ...current,
+      transactions: current.transactions.filter((t) => t.id !== transactionId),
+    }
+  })
+}
+
 function groceryDetailQueries(
   client: QueryClient,
   householdId: string,
@@ -318,6 +652,10 @@ function isPriceHistory(value: unknown): value is CachedPriceHistoryEntry[] {
 
 function stringValue(value: unknown): string | null {
   return typeof value === 'string' ? value : null
+}
+
+function numberValue(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
 function positiveNumber(value: unknown): number | null {

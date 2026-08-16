@@ -15,12 +15,14 @@ import { deleteTransaction } from './statementMutations'
 
 export function TransactionList({
   householdId,
+  yearId,
   transactions,
   categories,
   assets,
   onEdit,
 }: {
   householdId: string
+  yearId: string
   transactions: LedgerTransaction[]
   categories: MonthCategory[]
   assets: LedgerAsset[]
@@ -41,6 +43,7 @@ export function TransactionList({
       const outcome = await deleteTransaction(
         householdId,
         deleting.id,
+        yearId,
         deleting.revision,
       )
       const outcomeError = operationOutcomeError(outcome)

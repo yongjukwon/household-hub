@@ -93,7 +93,12 @@ export default function GroceriesScreen() {
     }
   }
 
-  useAppChrome({ mode: 'root', title: 'Groceries', onAdd: () => setAdding(true) })
+  useAppChrome({
+    mode: 'root',
+    title: 'Groceries',
+    onAdd: () => setAdding(true),
+    onHistory: () => router.push('/purchase-history'),
+  })
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]} edges={['bottom']}>

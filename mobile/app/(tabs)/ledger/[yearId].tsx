@@ -70,6 +70,14 @@ export default function StatementMonthScreen() {
     () => query.data?.transactions.filter((entry) => entry.monthId === monthRow?.id) ?? [],
     [monthRow?.id, query.data?.transactions],
   )
+  const incomeTransactions = useMemo(
+    () => transactions.filter((entry) => entry.kind === 'income'),
+    [transactions],
+  )
+  const spendingTransactions = useMemo(
+    () => transactions.filter((entry) => entry.kind === 'spending'),
+    [transactions],
+  )
   const totals = query.data && monthRow ? statementTotals(query.data, monthRow.id) : null
   const cadAssets = useMemo(
     () =>
@@ -266,7 +274,8 @@ export default function StatementMonthScreen() {
           </View>
           <TransactionList
             householdId={householdId}
-            transactions={transactions.filter((entry) => entry.kind === 'income')}
+            yearId={year.id}
+            transactions={incomeTransactions}
             categories={monthCategories}
             assets={cadAssets}
             onEdit={(transaction) => openTransaction('income', transaction)}
@@ -287,7 +296,8 @@ export default function StatementMonthScreen() {
           </View>
           <TransactionList
             householdId={householdId}
-            transactions={transactions.filter((entry) => entry.kind === 'spending')}
+            yearId={year.id}
+            transactions={spendingTransactions}
             categories={monthCategories}
             assets={cadAssets}
             onEdit={(transaction) => openTransaction('spending', transaction)}

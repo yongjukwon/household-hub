@@ -1,5 +1,5 @@
 import { formatMoney } from '@household-hub/domain'
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useLocalSearchParams } from 'expo-router'
 import { useMemo, useRef, useState } from 'react'
 import {
   FlatList,
@@ -49,7 +49,6 @@ import { useTheme } from '@/theme/tokens'
 /** Grocery list detail: items, checked handling, prices, and price history. */
 export default function GroceryListScreen() {
   const { tokens } = useTheme()
-  const router = useRouter()
   const { listId } = useLocalSearchParams<{ listId: string }>()
   const household = useActiveHousehold()
   const householdId = household.data?.id
@@ -334,7 +333,6 @@ export default function GroceryListScreen() {
       />
     ) : (list?.name ?? 'List'),
     onEdit: list ? beginListRename : undefined,
-    onHistory: renamingList ? undefined : () => router.push('/purchase-history'),
     onCancel: renamingList ? () => setRenamingList(false) : undefined,
     onSave: renamingList ? () => void saveListRename() : undefined,
   })

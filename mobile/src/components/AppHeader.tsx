@@ -138,6 +138,24 @@ export function AppHeader({
             </BlurView>
           </Pressable>
         ) : null}
+        {chrome.mode === 'root' && chrome.onHistory ? (
+          <Pressable accessibilityRole="button" accessibilityLabel="Purchase history" onPress={chrome.onHistory}>
+            <BlurView
+              intensity={30}
+              tint={scheme}
+              style={[
+                styles.iconButton,
+                {
+                  backgroundColor: tokens.glass.fill,
+                  borderColor: tokens.glass.border,
+                  borderWidth: 1,
+                },
+              ]}
+            >
+              <ChartBarIcon size={18} color={tokens.muted} />
+            </BlurView>
+          </Pressable>
+        ) : null}
         {chrome.mode === 'root' ? (
           <Pressable
             accessibilityRole="button"
@@ -146,7 +164,7 @@ export function AppHeader({
             onPress={chrome.onAdd}
             style={[styles.addButton, { backgroundColor: tokens.accent }]}
           >
-            <PlusIcon size={22} color={tokens.accentContrast} />
+            <PlusIcon size={18} color={tokens.accentContrast} />
           </Pressable>
         ) : chrome.mode === 'detail' && chrome.onHistory ? (
           <Pressable accessibilityRole="button" accessibilityLabel="Purchase history" onPress={chrome.onHistory}>
@@ -204,7 +222,7 @@ const styles = StyleSheet.create({
   titleWithEdit: { flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '80%' },
   titleEditor: { alignSelf: 'stretch', alignItems: 'center' },
   leftSpacer: { width: 36, height: 36 },
-  rightSpacer: { width: 40, height: 40 },
+  rightSpacer: { width: 36, height: 36 },
   actions: { flexDirection: 'row', gap: 8 },
   iconButton: {
     width: 36,
@@ -227,9 +245,9 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   addButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },

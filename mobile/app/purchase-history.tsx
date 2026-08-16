@@ -99,7 +99,9 @@ export default function PurchaseHistoryScreen() {
           headerTransparent: true,
           headerStyle: { backgroundColor: 'transparent' },
           headerTintColor: tokens.ink,
-          headerTitleStyle: { color: tokens.ink },
+          headerTitleStyle: { color: tokens.ink, fontWeight: '800', fontSize: 20 },
+          headerBackVisible: true,
+          headerBackTitle: '',
         }}
       />
       {query.isLoading ? (
