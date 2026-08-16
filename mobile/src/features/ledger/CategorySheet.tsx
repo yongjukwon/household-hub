@@ -157,7 +157,7 @@ export function CategorySheet({
               onPress={() => setKind(k)}
               style={[
                 styles.kindChip,
-                { backgroundColor: active ? tokens.accent : tokens.cardAlt },
+                { backgroundColor: active ? tokens.accent : tokens.control },
                 !!existing && styles.disabled,
               ]}
             >

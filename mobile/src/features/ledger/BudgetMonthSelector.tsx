@@ -108,7 +108,7 @@ export function BudgetMonthSelector({
                 style={[
                   styles.monthCell,
                   {
-                    backgroundColor: active ? tokens.ink : tokens.cardAlt,
+                    backgroundColor: active ? tokens.ink : tokens.control,
                     borderRadius: tokens.radiusControl,
                   },
                 ]}

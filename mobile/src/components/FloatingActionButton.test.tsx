@@ -11,7 +11,7 @@ describe('FloatingActionButton', () => {
     expect(button.props.accessibilityState).toEqual({ disabled: false })
     expect(button.props.style).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ width: 54, height: 54, position: 'absolute' }),
+        expect.objectContaining({ width: 48, height: 48, position: 'absolute' }),
       ]),
     )
 

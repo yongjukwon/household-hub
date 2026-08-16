@@ -213,7 +213,7 @@ export function EventSheet({
                 onPress={() => update({ recurrenceFrequency: option.value })}
                 style={[
                   styles.chip,
-                  { backgroundColor: active ? tokens.accent : tokens.cardAlt },
+                  { backgroundColor: active ? tokens.accent : tokens.control },
                 ]}
               >
                 <Text
@@ -256,7 +256,7 @@ export function EventSheet({
                   onPress={() => toggleReminder(preset)}
                   style={[
                     styles.chip,
-                    { backgroundColor: active ? tokens.accent : tokens.cardAlt },
+                    { backgroundColor: active ? tokens.accent : tokens.control },
                   ]}
                 >
                   <Text
@@ -283,7 +283,7 @@ export function EventSheet({
               onPress={() => update({ ownerId: null })}
               style={[
                 styles.chip,
-                { backgroundColor: form.ownerId === null ? tokens.accent : tokens.cardAlt },
+                { backgroundColor: form.ownerId === null ? tokens.accent : tokens.control },
               ]}
             >
               <Text
@@ -305,7 +305,7 @@ export function EventSheet({
                   onPress={() => update({ ownerId: member.userId })}
                   style={[
                     styles.chip,
-                    { backgroundColor: active ? tokens.accent : tokens.cardAlt },
+                    { backgroundColor: active ? tokens.accent : tokens.control },
                   ]}
                 >
                   <Text

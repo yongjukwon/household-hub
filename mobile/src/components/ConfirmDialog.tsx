@@ -47,7 +47,7 @@ export function ConfirmDialog({
         <View
           style={[
             styles.card,
-            { backgroundColor: tokens.card, borderRadius: tokens.radiusCard },
+            { backgroundColor: tokens.modal, borderRadius: tokens.radiusCard },
             tokens.shadowFloat,
           ]}
         >
@@ -62,7 +62,7 @@ export function ConfirmDialog({
             <Pressable
               accessibilityRole="button"
               onPress={() => onOpenChange(false)}
-              style={[styles.button, { backgroundColor: tokens.cardAlt }]}
+              style={[styles.button, { backgroundColor: tokens.control }]}
             >
               <Text style={[styles.buttonText, { color: tokens.ink }]}>
                 Cancel

@@ -174,7 +174,9 @@ npm run ios
 
 This command runs `expo run:ios`. On the first run it compiles the native iOS
 project, installs the Household Hub development build in the Simulator, and
-starts the JavaScript bundler. The first build can take several minutes.
+starts the JavaScript bundler. The first build can take several minutes. If
+the build succeeds but the app cannot connect to `127.0.0.1:8081`, stop that
+bundler and follow the LAN-mode steps below.
 
 When the app opens, tap the local test sign-in option and use one of the test
 accounts below. Keep the terminal running while you develop.
@@ -205,22 +207,28 @@ Android emulator back to your Mac.
 ### Later sessions
 
 After the development build has been installed, do not run the native build
-command every time. Start Metro from the repository root:
+command every time. Start Metro in LAN mode from the repository root. LAN mode
+lets the iOS Simulator connect to Metro through the Mac's network address:
 
 ```bash
 cd mobile
-npm start
+npx expo start --dev-client --lan
 ```
 
 Then open the already-installed **Household Hub** development build in the
-Simulator or emulator. If Metro displays a QR code or a list of targets, choose
-the running simulator/emulator. Leave Metro running; its terminal shows bundle
+Simulator or emulator. Press `i` in the Metro terminal if Expo does not open
+the Simulator automatically. Leave Metro running; its terminal shows bundle
 errors and reload messages.
+
+Do not use `npx expo start --dev-client --localhost` for this setup: the
+development build may receive `127.0.0.1:8081` but fail to connect to it. If
+the app is already showing “Searching for development servers,” close it,
+restart Metro with LAN mode, and reopen the app.
 
 Your normal daily workflow is:
 
 1. Start local Supabase in one terminal: `npx supabase start`.
-2. Start Metro in another terminal: `cd mobile && npm start`.
+2. Start Metro in another terminal: `cd mobile && npx expo start --dev-client --lan`.
 3. Open the installed Household Hub development build.
 4. Edit files; Metro applies JavaScript changes with fast refresh.
 5. Stop Metro with `Ctrl+C` when finished.

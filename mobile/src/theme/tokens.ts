@@ -12,6 +12,10 @@ export interface ThemeTokens {
   canvas: string
   card: string
   cardAlt: string
+  /** Raised interactive controls (8dp in the dark elevation hierarchy). */
+  control: string
+  /** Dialogs, menus, and bottom sheets (12dp in the dark elevation hierarchy). */
+  modal: string
   ink: string
   /** `rgba(...,0.5)` muted text. */
   muted: string
@@ -88,6 +92,8 @@ export const lightTokens: ThemeTokens = {
   canvas: '#FFFFFF',
   card: '#F6F7F9',
   cardAlt: '#EFF0F2',
+  control: '#EFF0F2',
+  modal: '#F6F7F9',
   ink: '#14151A',
   muted: 'rgba(20, 21, 26, 0.5)',
   muted2: 'rgba(20, 21, 26, 0.45)',
@@ -133,9 +139,11 @@ export const lightTokens: ThemeTokens = {
 }
 
 export const darkTokens: ThemeTokens = {
-  canvas: '#0F1014',
-  card: '#191B22',
-  cardAlt: '#242731',
+  canvas: '#121212',
+  card: '#1E1E1E',
+  cardAlt: '#222222',
+  control: '#2E2E2E',
+  modal: '#333333',
   ink: '#F4F5F8',
   muted: 'rgba(244, 245, 248, 0.55)',
   muted2: 'rgba(244, 245, 248, 0.48)',

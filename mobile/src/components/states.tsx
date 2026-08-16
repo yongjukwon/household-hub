@@ -57,7 +57,10 @@ export function ErrorState({
           onPress={onRetry}
           style={[
             styles.retryButton,
-            { backgroundColor: tokens.card, borderRadius: tokens.radiusControl },
+            {
+              backgroundColor: tokens.control,
+              borderRadius: tokens.radiusControl,
+            },
             tokens.shadowCard,
           ]}
         >

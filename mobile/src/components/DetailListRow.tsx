@@ -59,7 +59,7 @@ export function DetailListRow({
           accessibilityLabel={secondaryAction.label}
           accessibilityState={{ expanded: secondaryAction.expanded }}
           onPress={secondaryAction.onPress}
-          style={[styles.iconButton, { backgroundColor: tokens.cardAlt }]}
+          style={[styles.iconButton, { backgroundColor: tokens.control }]}
         >
           {secondaryAction.icon}
         </Pressable>
@@ -69,7 +69,7 @@ export function DetailListRow({
         accessibilityRole="button"
         accessibilityLabel={deleteLabel}
         onPress={onDelete}
-        style={[styles.iconButton, { backgroundColor: tokens.cardAlt }]}
+        style={[styles.iconButton, { backgroundColor: tokens.control }]}
       >
         <TrashIcon size={18} color={tokens.danger} />
       </Pressable>

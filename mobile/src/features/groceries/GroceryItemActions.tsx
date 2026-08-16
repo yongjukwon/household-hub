@@ -21,7 +21,7 @@ export function GroceryItemActions({
         accessibilityLabel={`Edit ${itemName}`}
         hitSlop={4}
         onPress={onEdit}
-        style={[styles.action, { backgroundColor: tokens.cardAlt }]}
+        style={[styles.action, { backgroundColor: tokens.control }]}
       >
         <PencilIcon size={17} color={tokens.muted} />
       </Pressable>
@@ -30,7 +30,7 @@ export function GroceryItemActions({
         accessibilityLabel={`Delete ${itemName}`}
         hitSlop={4}
         onPress={onDelete}
-        style={[styles.action, { backgroundColor: tokens.cardAlt }]}
+        style={[styles.action, { backgroundColor: tokens.control }]}
       >
         <TrashIcon size={17} color={tokens.danger} />
       </Pressable>

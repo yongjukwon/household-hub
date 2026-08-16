@@ -44,7 +44,10 @@ export function SegmentedControl<T extends string>({
             style={[
               styles.segment,
               { borderRadius: tokens.radiusControl - 4 },
-              active && [{ backgroundColor: tokens.card }, tokens.shadowCard],
+              active && [
+                { backgroundColor: tokens.control },
+                tokens.shadowCard,
+              ],
             ]}
           >
             <Text

@@ -52,7 +52,7 @@ export function BottomSheet({
             style={[
               styles.sheet,
               {
-                backgroundColor: tokens.card,
+                backgroundColor: tokens.modal,
                 paddingBottom: insets.bottom + 20,
               },
               tokens.shadowFloat,

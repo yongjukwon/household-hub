@@ -45,7 +45,7 @@ export function SelectField({ label, value, options, onChange, disabled }: Selec
       </Pressable>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
-          <View style={[styles.menu, { backgroundColor: tokens.card }, tokens.shadowFloat]}>
+          <View style={[styles.menu, { backgroundColor: tokens.modal }, tokens.shadowFloat]}>
             <Text style={[styles.menuTitle, { color: tokens.muted }]}>{label}</Text>
             <FlatList
               data={options}

@@ -6,6 +6,8 @@ describe('theme surface hierarchy', () => {
       canvas: '#FFFFFF',
       card: '#F6F7F9',
       cardAlt: '#EFF0F2',
+      control: '#EFF0F2',
+      modal: '#F6F7F9',
       ink: '#14151A',
       line: 'rgba(20, 21, 26, 0.08)',
       accent: '#6F9483',
@@ -19,9 +21,11 @@ describe('theme surface hierarchy', () => {
 
   it('uses the approved dark-mode tonal surfaces', () => {
     expect(darkTokens).toMatchObject({
-      canvas: '#0F1014',
-      card: '#191B22',
-      cardAlt: '#242731',
+      canvas: '#121212',
+      card: '#1E1E1E',
+      cardAlt: '#222222',
+      control: '#2E2E2E',
+      modal: '#333333',
       ink: '#F4F5F8',
       line: 'rgba(255, 255, 255, 0.09)',
       accent: '#6F9483',
@@ -29,8 +33,14 @@ describe('theme surface hierarchy', () => {
     })
 
     expect(
-      new Set([darkTokens.canvas, darkTokens.card, darkTokens.cardAlt]).size,
-    ).toBe(3)
+      new Set([
+        darkTokens.canvas,
+        darkTokens.card,
+        darkTokens.cardAlt,
+        darkTokens.control,
+        darkTokens.modal,
+      ]).size,
+    ).toBe(5)
   })
 })
 
